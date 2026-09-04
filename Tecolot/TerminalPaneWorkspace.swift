@@ -208,16 +208,23 @@ struct TerminalPaneContainer: NSViewRepresentable {
 
     func makeNSView(context: Context) -> TerminalPaneHostView {
         let view = TerminalPaneHostView(workspace: workspace, document: document)
-        view.synchronize(revision: revision, document: document)
+        view.synchronize(workspace: workspace, revision: revision, document: document)
         return view
     }
 
     func updateNSView(_ nsView: TerminalPaneHostView, context: Context) {
-        nsView.synchronize(revision: revision, document: document)
+        nsView.synchronize(workspace: workspace, revision: revision, document: document)
     }
 
+    // Deliberately does NOT terminate anything.
+    //
+    // Dismantling means "this view is no longer on screen", not "this session
+    // is over". Pane trees are owned by ProjectRuntime, so a workspace that is
+    // switched away from keeps its shells running and is re-attached later.
+    // Terminating here is what previously killed a workspace's shells when it
+    // stopped being displayed.
     static func dismantleNSView(_ nsView: TerminalPaneHostView, coordinator: ()) {
-        nsView.workspace.terminateAll()
+        nsView.detachForReuse()
     }
 }
 
@@ -235,7 +242,7 @@ struct TerminalPaneContainer: NSViewRepresentable {
 }
 
 final class TerminalPaneHostView: NSView {
-    let workspace: TerminalPaneWorkspace
+    private(set) var workspace: TerminalPaneWorkspace
     private var document: TerminalDocument
     private var displayedRevision = -1
     private var paneViews: [UUID: NSView] = [:]
@@ -252,11 +259,42 @@ final class TerminalPaneHostView: NSView {
         fatalError("init(coder:) is not supported")
     }
 
-    func synchronize(revision: Int, document: TerminalDocument) {
+    /// Points the host at a (possibly different) pane tree.
+    ///
+    /// Switching workspaces swaps the tree here rather than replacing the
+    /// representable, so the outgoing terminals are only detached — their
+    /// views are retained by their controllers and their shells keep running.
+    func synchronize(
+        workspace newWorkspace: TerminalPaneWorkspace,
+        revision: Int,
+        document: TerminalDocument
+    ) {
         self.document = document
-        guard displayedRevision != revision else { return }
+        let workspaceChanged = newWorkspace !== workspace
+        if workspaceChanged {
+            if workspace.hostView === self {
+                workspace.hostView = nil
+            }
+            workspace = newWorkspace
+            newWorkspace.hostView = self
+        }
+        guard workspaceChanged || displayedRevision != revision else { return }
         displayedRevision = revision
         rebuild()
+    }
+
+    /// Detaches the currently shown terminals without ending them.
+    func detachForReuse() {
+        if let terminal = window?.firstResponder as? AppTerminalView,
+           terminal.isDescendant(of: self) {
+            window?.makeFirstResponder(nil)
+        }
+        subviews.forEach { $0.removeFromSuperview() }
+        paneViews.removeAll()
+        displayedRevision = -1
+        if workspace.hostView === self {
+            workspace.hostView = nil
+        }
     }
 
     override func layout() {

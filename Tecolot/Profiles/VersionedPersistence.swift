@@ -8,6 +8,7 @@ public enum PersistenceDomain: String, Codable, CaseIterable, Sendable {
     case userThemes
     case themeFavorites
     case windowGroups
+    case projects
     case preferences
     case terminalDocument
     case legacyApplicationSupport
@@ -19,6 +20,7 @@ public enum PersistenceDomain: String, Codable, CaseIterable, Sendable {
         case .userThemes: return "User Themes"
         case .themeFavorites: return "Theme Favorites"
         case .windowGroups: return "Window Groups"
+        case .projects: return "Projects"
         case .preferences: return "Preferences"
         case .terminalDocument: return "Terminal Documents"
         case .legacyApplicationSupport: return "Legacy Application Data"

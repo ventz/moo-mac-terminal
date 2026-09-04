@@ -26,6 +26,7 @@ final class AppModel {
     let themes: ThemeStore
     let themeIndex: ThemeCatalogIndex
     let windowGroups: WindowGroupStore
+    let projects: ProjectStore
     let issueCenter: PersistenceIssueCenter
     let recovery: DataRecoveryCoordinator
     private let preferences: PreferenceMigrator
@@ -82,6 +83,11 @@ final class AppModel {
             issueCenter: issueCenter,
             backupDirectory: backups
         )
+        projects = ProjectStore(
+            directory: applicationSupport,
+            issueCenter: issueCenter,
+            backupDirectory: backups
+        )
         let preferences = PreferenceMigrator(
             applicationSupportDirectory: applicationSupport,
             backupDirectory: backups,
@@ -97,6 +103,7 @@ final class AppModel {
             profiles: profiles,
             themes: themes,
             windowGroups: windowGroups,
+            projects: projects,
             preferences: preferences,
             backupDirectory: backups,
             profileStorageDirectory: applicationSupport,

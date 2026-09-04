@@ -48,11 +48,18 @@ enum SettingsPreviewData {
         backupDirectory: backupDirectory
     )
 
+    static let projects = ProjectStore(
+        directory: directory,
+        issueCenter: issueCenter,
+        backupDirectory: backupDirectory
+    )
+
     static let recovery = DataRecoveryCoordinator(
         issueCenter: issueCenter,
         profiles: profiles,
         themes: themes,
         windowGroups: windowGroups,
+        projects: projects,
         preferences: PreferenceMigrator(
             defaults: defaults,
             applicationSupportDirectory: directory,

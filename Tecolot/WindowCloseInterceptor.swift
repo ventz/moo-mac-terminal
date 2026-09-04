@@ -109,6 +109,14 @@ final class WindowCloseInterceptor: NSObject, NSWindowDelegate {
             return forwardedWindowShouldClose(sender)
         }
 
+        // cmd+W and the red button arrive here. The document architecture puts
+        // Close on the window, but with workspace tabs the window is the whole
+        // app, so closing it would take every workspace's shells down at once.
+        // Hand the request to the close policy instead.
+        if ProjectCloseCoordinator.closeSelected() == .handled {
+            return false
+        }
+
         let controllers = TerminalSessionRegistry.shared.controllers(for: sender)
         guard controllers.contains(where: TerminalClosePolicy.requiresConfirmation) else {
             return forwardedWindowShouldClose(sender)

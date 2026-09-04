@@ -294,7 +294,7 @@ enum ProfileSettingsSection {
         case .shell: self = .shell
         case .keyboard: self = .keyboard
         case .advanced: self = .advanced
-        case .general, .profiles, .data: return nil
+        case .general, .profiles, .projects, .data: return nil
         }
     }
 
@@ -446,6 +446,18 @@ struct ProfileSettingsPage: View {
         }
     }
 
+    private var commandDigitsTargetBinding: Binding<CommandDigitsTarget> {
+        Binding(
+            get: { CommandDigitsTarget.current },
+            set: {
+                UserDefaults.standard.set(
+                    $0.rawValue,
+                    forKey: ProjectSidebarDefaults.commandDigitsTarget
+                )
+            }
+        )
+    }
+
     @ViewBuilder
     private var keyboardSettings: some View {
         Form {
@@ -453,6 +465,19 @@ struct ProfileSettingsPage: View {
                 Toggle("Use Option as Meta key", isOn: binding(\.optionAsMetaKey))
                 Toggle("Delete sends Control-H", isOn: binding(\.backspaceSendsControlH))
                 Toggle("Hide pointer while typing", isOn: binding(\.hidePointerWhileTyping))
+            }
+            // Projects and tabs cannot both own cmd+1...9, so the choice
+            // lives here with the other key settings rather than as a
+            // sub-feature of Projects.
+            Section("Shortcuts") {
+                Picker("⌘1–9 selects", selection: commandDigitsTargetBinding) {
+                    ForEach(CommandDigitsTarget.allCases) { target in
+                        Text(target.title).tag(target)
+                    }
+                }
+                Text("Projects are numbered in sidebar order, so dragging one changes its shortcut. ⌘9 always selects the last.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section("Key Mappings"){
                 TerminalKeyBindingsEditor(profile: profile, update: updateIgnoringResult)
