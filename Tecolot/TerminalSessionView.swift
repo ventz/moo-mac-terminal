@@ -30,12 +30,19 @@ enum TerminalWindowTransparency {
 @Observable
 final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegate {
     let id = UUID()
+    /// Durable identity for this terminal, exported to the shell as
+    /// TECOLOT_SURFACE_ID. Bind anything long-lived to this rather than to a
+    /// window or a project, both of which are re-created across a restore.
+    var surfaceID: String { id.uuidString }
     @ObservationIgnored private let startsProcess: Bool
     @ObservationIgnored private var didStartProcess = false
     @ObservationIgnored private var pendingFocus = false
     @ObservationIgnored private var pendingStart = false
     @ObservationIgnored private var postedTitle: String = ""
     @ObservationIgnored private var displayedTerminalTitle: String = ""
+    /// The title the shell posted, published so the in-app tab strip can label
+    /// its tabs the way the native tab bar used to.
+    private(set) var tabTitle: String = ""
     @ObservationIgnored private var titleUpdateTask: Task<Void, Never>?
     @ObservationIgnored private var postedDirectory: String?
     @ObservationIgnored private var zoomGesture: NSMagnificationGestureRecognizer?
@@ -269,8 +276,16 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     }
 
     func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
+        guard postedDirectory != directory else { return }
         postedDirectory = directory
         updateWindowTitle()
+        // The projects sidebar shows the live directory of a label's terminal,
+        // so a cd has to reach it. postedDirectory is observation-ignored, so
+        // announce the change explicitly.
+        NotificationCenter.default.post(
+            name: .terminalWorkingDirectoryDidChange,
+            object: terminal?.window
+        )
     }
 
     // MARK: Kitty clipboard protocol, OSC 5522
@@ -320,6 +335,11 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
 
     func noteOutputActivity() {
         scheduleBufferSnapshot()
+        // Before the key-window guard: the sidebar has to refresh for the
+        // focused terminal too, which is the case where a command finishing
+        // would otherwise leave the row reading "Running" until something
+        // unrelated forced a recompute.
+        ProjectRuntime.shared.noteTerminalOutput()
         guard terminal?.window?.isKeyWindow == false else { return }
         setHasActivity(true)
     }
@@ -340,8 +360,21 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         }
     }
 
+    /// The shell exited (ctrl+D, `exit`). Close the smallest thing that
+    /// contains it: the pane, else the workspace tab, and only fall back to the
+    /// window when this terminal is not part of a workspace at all. Closing the
+    /// window here is what previously took every other tab down with it.
     private func closePaneOrWindow() {
         if workspace?.close(self) == true {
+            return
+        }
+        // The shell is already gone. If this is the workspace's last tab the
+        // policy asks whether to retire the workspace with it.
+        if ProjectRuntime.shared.isSelected(controller: self) {
+            if ProjectCloseCoordinator.closeSelected(afterShellExit: true) == .handled {
+                return
+            }
+        } else if ProjectRuntime.shared.closeTab(containing: self) {
             return
         }
         terminal?.window?.close()
@@ -492,6 +525,16 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     func requestClose() {
         guard let window = terminal?.window else { return }
         guard let workspace, workspace.paneCount > 1 else {
+            // A single pane means the unit being closed is the workspace tab,
+            // if this terminal belongs to one. Only a terminal outside every
+            // workspace closes its window.
+            if ProjectRuntime.shared.isSelected(controller: self) {
+                if ProjectCloseCoordinator.closeSelected() == .handled {
+                    return
+                }
+            } else if ProjectRuntime.shared.closeTab(containing: self) {
+                return
+            }
             window.performClose(nil)
             return
         }
@@ -761,9 +804,16 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         restoreBufferIfNeeded(on: terminal)
 
         let params = ProfileApplier.launchParameters(for: profile, initialDirectory: launchDirectory)
+        // A stable per-terminal identity. Nothing consumes it yet, but it is
+        // the key anything durable (agent status, notifications) will bind to,
+        // and retrofitting it once sessions exist in the wild is expensive.
+        let environment = TerminalEnvironment.applying(
+            [TerminalEnvironmentVariable(name: "TECOLOT_SURFACE_ID", value: surfaceID)],
+            to: params.environment
+        )
         terminal.startProcess(executable: params.executable,
                               args: params.args,
-                              environment: params.environment,
+                              environment: environment,
                               execName: params.execName,
                               currentDirectory: params.currentDirectory)
         terminal.sizeChanged(source: terminal,
@@ -817,6 +867,7 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
             guard !Task.isCancelled, let self else { return }
             self.titleUpdateTask = nil
             self.displayedTerminalTitle = self.postedTitle
+            self.tabTitle = self.postedTitle
             self.updateWindowTitle()
         }
     }
@@ -904,9 +955,16 @@ final class TerminalSessionContainerView: NSView {
     // The top strip also keeps the OSC 9;4 progress bar off the tab bar.
     private static let padding: CGFloat = 2
 
+    /// A wider gutter left and right, matching Terminal.app. Two points puts
+    /// the prompt flush against the window edge, which makes selecting the
+    /// first character of a line fiddly — there is nothing to aim at.
+    /// The gutter is painted in the theme's background, so it reads as part of
+    /// the terminal rather than as a bar.
+    private static let horizontalPadding: CGFloat = 8
+
     static func contentSize(forTerminalSize terminalSize: NSSize) -> NSSize {
         NSSize(
-            width: terminalSize.width + padding * 2,
+            width: terminalSize.width + horizontalPadding * 2,
             height: terminalSize.height + padding
         )
     }
@@ -949,12 +1007,12 @@ final class TerminalSessionContainerView: NSView {
             leftPaddingView.topAnchor.constraint(equalTo: topPaddingView.bottomAnchor),
             leftPaddingView.leadingAnchor.constraint(equalTo: leadingAnchor),
             leftPaddingView.bottomAnchor.constraint(equalTo: bottomPaddingView.topAnchor),
-            leftPaddingView.widthAnchor.constraint(equalToConstant: Self.padding),
+            leftPaddingView.widthAnchor.constraint(equalToConstant: Self.horizontalPadding),
 
             rightPaddingView.topAnchor.constraint(equalTo: topPaddingView.bottomAnchor),
             rightPaddingView.trailingAnchor.constraint(equalTo: trailingAnchor),
             rightPaddingView.bottomAnchor.constraint(equalTo: bottomPaddingView.topAnchor),
-            rightPaddingView.widthAnchor.constraint(equalToConstant: Self.padding),
+            rightPaddingView.widthAnchor.constraint(equalToConstant: Self.horizontalPadding),
 
             bottomPaddingView.leadingAnchor.constraint(equalTo: leadingAnchor),
             bottomPaddingView.trailingAnchor.constraint(equalTo: trailingAnchor),
@@ -979,7 +1037,9 @@ final class TerminalSessionContainerView: NSView {
     override var intrinsicContentSize: NSSize {
         var size = terminal.intrinsicContentSize
         if size.width >= 0 {
-            size.width += Self.padding * 2
+            // Must match the constraints, or the window sizes itself to a
+            // width the terminal cannot actually fill.
+            size.width += Self.horizontalPadding * 2
         }
         if size.height >= 0 {
             size.height += Self.padding * 2
@@ -1264,6 +1324,7 @@ final class TerminalSessionRegistry {
 
 extension Notification.Name {
     static let terminalFocusedPaneDidChange = Notification.Name("TerminalFocusedPaneDidChange")
+    static let terminalWorkingDirectoryDidChange = Notification.Name("TerminalWorkingDirectoryDidChange")
 }
 
 @Observable

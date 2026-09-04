@@ -49,7 +49,7 @@ final class PreferenceMigrator {
         "SecureKeyboardEntry",
         "LogHostOutput",
         "useMetalRenderer"
-    ]
+    ] + ProjectSidebarDefaults.managedKeys
 
     init(
         defaults: UserDefaults = .standard,
@@ -286,6 +286,7 @@ final class DataRecoveryCoordinator {
     private let profiles: ProfileStore
     private let themes: ThemeStore
     private let windowGroups: WindowGroupStore
+    private let projects: ProjectStore
     private let preferences: PreferenceMigrator
     private let backupDirectory: URL
     private let profileStorageDirectory: URL
@@ -296,6 +297,7 @@ final class DataRecoveryCoordinator {
         profiles: ProfileStore,
         themes: ThemeStore,
         windowGroups: WindowGroupStore,
+        projects: ProjectStore,
         preferences: PreferenceMigrator,
         backupDirectory: URL,
         profileStorageDirectory: URL,
@@ -305,6 +307,7 @@ final class DataRecoveryCoordinator {
         self.profiles = profiles
         self.themes = themes
         self.windowGroups = windowGroups
+        self.projects = projects
         self.preferences = preferences
         self.backupDirectory = backupDirectory
         self.profileStorageDirectory = profileStorageDirectory
@@ -385,6 +388,8 @@ final class DataRecoveryCoordinator {
             themes.reload()
         case .windowGroups:
             windowGroups.load()
+        case .projects:
+            projects.load()
         case .preferences:
             preferences.migrate(profiles: profiles, windowGroups: windowGroups)
         case .terminalDocument:
@@ -425,6 +430,7 @@ final class DataRecoveryCoordinator {
         )
         themes.reload()
         windowGroups.load()
+        projects.load()
         preferences.migrate(profiles: profiles, windowGroups: windowGroups)
     }
 }

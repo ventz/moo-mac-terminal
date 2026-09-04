@@ -52,10 +52,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // Includes workspaces that are not currently displayed: their shells
+        // are still running, so quitting still needs to warn about them.
         let hasLiveProcess = sender.windows.contains { window in
             TerminalSessionRegistry.shared.controllers(for: window)
                 .contains(where: TerminalClosePolicy.requiresConfirmation)
-        }
+        } || ProjectRuntime.shared.allControllers
+            .contains(where: TerminalClosePolicy.requiresConfirmation)
         guard hasLiveProcess else { return .terminateNow }
 
         let alert = NSAlert()
@@ -65,6 +68,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: "Cancel")
         alert.buttons.first?.hasDestructiveAction = true
         return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
+    }
+
+    func applicationDidResignActive(_ notification: Notification) {
+        // No flagsChanged arrives once the app is inactive, so a Command held
+        // during a cmd+tab would otherwise leave the sidebar badges stuck on.
+        ModifierMonitor.shared.clear()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -131,17 +140,40 @@ final class SecureKeyboardEntry {
 }
 
 struct NewItemCommands: Commands {
+    // Read through AppStorage, not UserDefaults directly, so the menu title
+    // and behavior follow the sidebar being toggled rather than going stale.
+    @AppStorage(ProjectSidebarDefaults.isVisible) private var sidebarIsVisible = false
+
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
-            Button("New Window") {
-                WindowOpener.openWindow(spec: LaunchSpec())
+            // cmd+N follows what is on screen: a new project while the
+            // workspace sidebar is open, a new window otherwise.
+            Button(sidebarIsVisible ? "New Project" : "New Window") {
+                if sidebarIsVisible {
+                    ProjectCommandActions.addProjectWithoutPrompting(
+                        store: AppModel.shared.projects
+                    )
+                } else {
+                    WindowOpener.openWindow(spec: LaunchSpec())
+                }
             }
             .keyboardShortcut("n", modifiers: [.command])
 
+            Button("New Window") {
+                WindowOpener.openWindow(spec: LaunchSpec())
+            }
+            .keyboardShortcut("n", modifiers: [.command, .option])
+
             Button("New Tab") {
-                // Inherits working directory and profile from the current
-                // tab per the General settings
-                WindowOpener.openTab(spec: WindowOpener.inheritedTabSpec())
+                // Tabs belong to the selected workspace. With no workspace
+                // selected this is still a native tab, inheriting working
+                // directory and profile per the General settings.
+                if let session = ProjectRuntime.shared.selectedSession {
+                    session.addTab()
+                    ProjectRuntime.shared.invalidate()
+                } else {
+                    WindowOpener.openTab(spec: WindowOpener.inheritedTabSpec())
+                }
             }
             .keyboardShortcut("t", modifiers: [.command])
         }
@@ -153,19 +185,40 @@ struct TabSelectionCommands: Commands {
 
     var body: some Commands {
         CommandGroup(after: .windowArrangement) {
-            Menu("Select Tab") {
+            // cmd+1...9 has a single owner. Which thing it selects is a
+            // preference, because projects and tabs cannot both claim it.
+            Menu(digitsTarget == .projects ? "Select Project" : "Select Tab") {
                 ForEach(1...8, id: \.self) { number in
-                    Button("Select Tab \(number)") {
-                        selectTab(at: number - 1)
+                    Button(digitsTarget == .projects
+                           ? "Select Project \(number)"
+                           : "Select Tab \(number)") {
+                        selectByDigit(index: number - 1)
                     }
                     .keyboardShortcut(KeyEquivalent(Character(String(number))), modifiers: [.command])
                 }
                 Divider()
-                Button("Select Last Tab") {
-                    selectLastTab()
+                Button(digitsTarget == .projects ? "Select Last Project" : "Select Last Tab") {
+                    selectLastByDigit()
                 }
                 .keyboardShortcut("9", modifiers: [.command])
             }
+
+            Divider()
+
+            // Tabs belong to the selected workspace, so these cycle within it.
+            Button("Show Previous Tab") {
+                ProjectRuntime.shared.selectedSession?.selectPreviousTab()
+                ProjectRuntime.shared.invalidate()
+            }
+            .keyboardShortcut("[", modifiers: [.command, .shift])
+            .disabled(!hasMultipleTabs)
+
+            Button("Show Next Tab") {
+                ProjectRuntime.shared.selectedSession?.selectNextTab()
+                ProjectRuntime.shared.invalidate()
+            }
+            .keyboardShortcut("]", modifiers: [.command, .shift])
+            .disabled(!hasMultipleTabs)
 
             Divider()
 
@@ -185,6 +238,30 @@ struct TabSelectionCommands: Commands {
 
     private var hasMultipleSplits: Bool {
         (commandState.controller?.workspace?.paneCount ?? 0) > 1
+    }
+
+    private var hasMultipleTabs: Bool {
+        (ProjectRuntime.shared.selectedSession?.tabs.count ?? 0) > 1
+    }
+
+    private var digitsTarget: CommandDigitsTarget {
+        CommandDigitsTarget.current
+    }
+
+    private func selectByDigit(index: Int) {
+        if digitsTarget == .projects {
+            ProjectSelection.selectProject(at: index)
+        } else {
+            selectTab(at: index)
+        }
+    }
+
+    private func selectLastByDigit() {
+        if digitsTarget == .projects {
+            ProjectSelection.selectLastProject()
+        } else {
+            selectLastTab()
+        }
     }
 
     private func selectTab(at index: Int) {
@@ -290,6 +367,27 @@ struct TerminalCommands: Commands {
         commandState.controller
     }
 
+    private var closesTabRatherThanPane: Bool {
+        guard ProjectRuntime.shared.selectedSession != nil else { return false }
+        return (controller?.workspace?.paneCount ?? 1) <= 1
+    }
+
+    private func closeCurrent() {
+        // Splits are closed one at a time before the tab itself goes.
+        if let controller, (controller.workspace?.paneCount ?? 1) > 1 {
+            controller.requestClose()
+            return
+        }
+        // Everything else defers to the one close policy, which is what knows
+        // that closing a workspace's last tab retires the workspace and has to
+        // ask first. Calling session.close directly here is what previously
+        // made cmd+W silently reopen a fresh tab instead.
+        if ProjectCloseCoordinator.closeSelected() == .handled {
+            return
+        }
+        controller?.requestClose()
+    }
+
     var body: some Commands {
         let isEnabled = controller != nil
         CommandMenu("Terminal") {
@@ -309,10 +407,22 @@ struct TerminalCommands: Commands {
             .keyboardShortcut("d", modifiers: [.command, .option])
             .disabled(!isEnabled)
 
-            Button("Close Pane") {
-                controller?.requestClose()
+            // cmd+W closes the split you are in when there is more than one,
+            // otherwise the workspace tab. Closing a workspace's last tab
+            // leaves a fresh one behind rather than an empty workspace.
+            Button(closesTabRatherThanPane ? "Close Tab" : "Close Pane") {
+                closeCurrent()
             }
             .keyboardShortcut("w", modifiers: [.command])
+            .disabled(!isEnabled)
+
+            Divider()
+
+            // The tab strip carries a theme button, but it is hidden when a
+            // workspace has a single tab, so the menu is the reliable route.
+            Button("Theme…") {
+                controller?.showThemePicker = true
+            }
             .disabled(!isEnabled)
 
             Divider()
@@ -497,11 +607,13 @@ struct TecolotApp: App {
     private let model = AppModel.shared
 
     init() {
-        UserDefaults.standard.register(defaults: [
+        var registered: [String: Any] = [
             "useCommandDigitsForTabs": true,
             "startupMode": "default",
             "useMetalRenderer": true
-        ])
+        ]
+        registered.merge(ProjectSidebarDefaults.registrationValues) { current, _ in current }
+        UserDefaults.standard.register(defaults: registered)
     }
 
     var body: some Scene {
@@ -510,6 +622,7 @@ struct TecolotApp: App {
                 .environmentObject(model.profiles)
                 .environmentObject(model.themes)
                 .environmentObject(model.themeIndex)
+                .environmentObject(model.projects)
         }
         .defaultLaunchBehavior(.suppressed)
         .windowToolbarStyle(.unifiedCompact)
@@ -521,7 +634,10 @@ struct TecolotApp: App {
             TabSelectionCommands()
             SplitCommands()
             ProfileCommands(profiles: model.profiles)
-            WindowGroupCommands(store: model.windowGroups)
+            ArrangementCommands(
+                windowGroups: model.windowGroups,
+                projects: model.projects
+            )
             TerminalCommands()
             TerminalPrintCommands()
         }
@@ -531,6 +647,7 @@ struct TecolotApp: App {
                 .environmentObject(model.profiles)
                 .environmentObject(model.themes)
                 .environmentObject(model.themeIndex)
+                .environmentObject(model.projects)
         }
         .defaultSize(width: 820, height: 560)
         .windowResizability(.contentMinSize)
