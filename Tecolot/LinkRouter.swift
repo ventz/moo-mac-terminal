@@ -140,9 +140,43 @@ enum LinkRouter {
     /// app's, which is what made `README.md` printed by `ls` open at all.
     private static func openExternally(_ link: String, workingDirectory: String?) {
         if let path = resolvePath(link, workingDirectory: workingDirectory) {
-            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+            openFile(URL(fileURLWithPath: path))
             return
         }
         TerminalView.openDefaultLink(link)
+    }
+
+    /// Files that LaunchServices would *run* rather than show. A repository
+    /// can ship any of these beside a README, and files from `git clone`
+    /// carry no quarantine flag, so Gatekeeper would not step in. They are
+    /// revealed in the Finder instead of opened; everything else opens in
+    /// its default app as before.
+    static let executableExtensions: Set<String> = [
+        "app", "command", "tool", "sh", "bash", "zsh", "fish", "scpt", "scptd",
+        "applescript", "workflow", "action", "terminal", "webloc", "inetloc",
+        "shortcut", "pkg", "mpkg", "dmg", "iso", "jar", "py", "rb", "pl"
+    ]
+
+    nonisolated static func isExecutable(_ url: URL) -> Bool {
+        if executableExtensions.contains(url.pathExtension.lowercased()) { return true }
+        // A bundle or a file with the execute bit set is also something that
+        // runs when opened.
+        if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+           let permissions = attributes[FileAttributeKey.posixPermissions] as? Int,
+           attributes[FileAttributeKey.type] as? FileAttributeType == .typeRegular,
+           permissions & 0o111 != 0 {
+            return true
+        }
+        return NSWorkspace.shared.isFilePackage(atPath: url.path)
+    }
+
+    /// Opens a local file from untrusted text (terminal output, a link in
+    /// a preview): anything that would execute is only revealed.
+    static func openFile(_ url: URL) {
+        if isExecutable(url) {
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        } else {
+            NSWorkspace.shared.open(url)
+        }
     }
 }
