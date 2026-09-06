@@ -274,6 +274,20 @@ final class LinkRouterTests {
             == .markdownPreview(expected))
     }
 
+    @Test func executablesAreNeverOpened() {
+        let script = directory + "/run.sh"
+        FileManager.default.createFile(atPath: script, contents: Data())
+        let binary = directory + "/tool"
+        FileManager.default.createFile(atPath: binary, contents: Data(), attributes: [.posixPermissions: 0o755])
+        let plain = directory + "/main.swift"
+
+        #expect(LinkRouter.isExecutable(URL(fileURLWithPath: script)))
+        #expect(LinkRouter.isExecutable(URL(fileURLWithPath: binary)))
+        #expect(LinkRouter.isExecutable(URL(fileURLWithPath: directory + "/Thing.app")))
+        #expect(!LinkRouter.isExecutable(URL(fileURLWithPath: plain)))
+        #expect(!LinkRouter.isExecutable(URL(fileURLWithPath: directory + "/README.md")))
+    }
+
     @Test func nonMarkdownAndDirectoriesStayExternal() {
         #expect(LinkRouter.classify("main.swift", workingDirectory: directory) == .external)
         #expect(LinkRouter.classify("docs.md", workingDirectory: directory) == .external)
