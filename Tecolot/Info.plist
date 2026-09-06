@@ -6,6 +6,11 @@
 	<string>https://tecolot.com/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>t9PlgdwMwWdpVF/M+SQM5CpHWlv0unmCMBV8/StKxEA=</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSAppleScriptEnabled</key>
 	<true/>
 	<key>OSAScriptingDefinition</key>

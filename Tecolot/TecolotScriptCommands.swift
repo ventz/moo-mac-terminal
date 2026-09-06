@@ -49,3 +49,20 @@ final class PreviewMarkdownScriptCommand: NSScriptCommand {
         return nil
     }
 }
+
+@objc(OpenURLScriptCommand)
+final class OpenURLScriptCommand: NSScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        guard let text = directParameter as? String,
+              let url = BrowserSession.resolve(input: text) else {
+            scriptErrorNumber = NSRequiredArgumentsMissingScriptError
+            return nil
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        if !BrowserOpener.open(url: url) {
+            scriptErrorNumber = NSInternalScriptError
+            scriptErrorString = "No project is open to hold the browser tab"
+        }
+        return nil
+    }
+}

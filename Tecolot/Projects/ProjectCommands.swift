@@ -104,5 +104,6 @@ struct ArrangementCommands: Commands {
         WindowGroupCommands(store: windowGroups)
         ProjectCommands(store: projects)
         MarkdownPreviewCommands()
+        BrowserCommands()
     }
 }
