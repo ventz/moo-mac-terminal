@@ -10,5 +10,9 @@
             <cocoa class="OpenTerminalTabScriptCommand"/>
             <direct-parameter type="text" optional="yes" description="The initial working directory."/>
         </command>
+        <command name="open url" code="TcltOpUr" description="Open a web address as a browser tab in the current project.">
+            <cocoa class="OpenURLScriptCommand"/>
+            <direct-parameter type="text" description="The http or https address."/>
+        </command>
     </suite>
 </dictionary>
