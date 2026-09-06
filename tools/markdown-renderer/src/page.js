@@ -55,33 +55,51 @@ function restoreAnchor(anchor) {
 
 // MARK: Rendering
 
-let mermaidPromise = null
+let mermaidModule = null
 let renderSerial = 0
+let lastMarkdown = null
+const darkScheme = window.matchMedia('(prefers-color-scheme: dark)')
 
-async function drawMermaid() {
+function isDark() {
+  return darkScheme.matches
+}
+
+async function loadMermaid() {
+  if (!mermaidModule) {
+    mermaidModule = import('mermaid').then((module) => module.default)
+  }
+  const mermaid = await mermaidModule
+  // Initialize every time: the theme follows the appearance, which changes.
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'strict',
+    theme: isDark() ? 'dark' : 'default'
+  })
+  return mermaid
+}
+
+/// Draws the diagrams of render `serial`, and stops as soon as a newer
+/// render has replaced the content it was drawing into.
+async function drawMermaid(serial) {
   const blocks = content.querySelectorAll('pre.mermaid-source')
   if (blocks.length === 0) return
-  if (!mermaidPromise) {
-    mermaidPromise = import('mermaid').then((module) => {
-      const mermaid = module.default
-      mermaid.initialize({
-        startOnLoad: false,
-        securityLevel: 'strict',
-        theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default'
-      })
-      return mermaid
-    })
-  }
-  const mermaid = await mermaidPromise
+  const mermaid = await loadMermaid()
+  if (serial !== renderSerial) return
   let index = 0
   for (const block of blocks) {
     const source = block.textContent
-    const id = `mermaid-${renderSerial}-${index++}`
+    const id = `mermaid-${serial}-${index++}`
     try {
       const {svg} = await mermaid.render(id, source)
+      if (serial !== renderSerial) return
+      // Import only the SVG element, parsed as XML, rather than trusting
+      // the string wholesale into innerHTML.
+      const parsed = new DOMParser().parseFromString(svg, 'image/svg+xml')
+      const root = parsed.documentElement
+      if (!root || root.nodeName.toLowerCase() !== 'svg') throw new Error('not an SVG')
       const figure = document.createElement('div')
       figure.className = 'mermaid'
-      figure.innerHTML = svg
+      figure.append(document.importNode(root, true))
       block.replaceWith(figure)
     } catch (error) {
       block.classList.add('mermaid-error')
@@ -128,6 +146,7 @@ function decorateCodeBlocks() {
 }
 
 async function render(markdown) {
+  lastMarkdown = markdown
   const serial = ++renderSerial
   const anchor = captureAnchor()
   let html
@@ -144,10 +163,17 @@ async function render(markdown) {
   decorateCodeBlocks()
   restoreAnchor(anchor)
   post({type: 'rendered'})
-  drawMermaid().then(() => {
+  drawMermaid(serial).then(() => {
     if (serial === renderSerial) restoreAnchor(anchor)
   })
 }
+
+// Diagrams carry their theme in the SVG, so a light/dark flip redraws.
+darkScheme.addEventListener('change', () => {
+  if (lastMarkdown !== null && content.querySelector('.mermaid, pre.mermaid-source')) {
+    render(lastMarkdown)
+  }
+})
 
 function showStatus(text) {
   status.hidden = !text
@@ -169,16 +195,13 @@ document.addEventListener('click', (event) => {
     if (target) target.scrollIntoView({block: 'start'})
     return
   }
-  post({type: 'openLink', href: anchor.href, raw: href})
+  post({type: 'openLink', href: anchor.href})
 })
 
 // Task-list checkboxes are rendered disabled, as on GitHub. A stray form
 // submit must never navigate.
 document.addEventListener('submit', (event) => event.preventDefault())
 
-window.tecolot = {
-  render,
-  scrollToTop: () => window.scrollTo(0, 0)
-}
+window.tecolot = {render}
 
 post({type: 'ready'})

@@ -19,12 +19,18 @@ final class MarkdownFileWatcher {
     enum Event {
         case changed(String)
         case missing
+        /// The file exists but is not something to render: not a regular
+        /// file, or larger than the cap.
+        case unreadable(String)
     }
+
+    /// Anything past this is not a document anyone reads in a preview, and
+    /// it would be marshalled into the page as one string on the main thread.
+    static let maximumSize = 8 * 1024 * 1024
 
     private let fileURL: URL
     private let handler: (Event) -> Void
     private var source: DispatchSourceFileSystemObject?
-    private var descriptor: Int32 = -1
     private var pending: DispatchWorkItem?
     private var lastDigest: SHA256Digest?
     private let debounce: TimeInterval
@@ -33,6 +39,12 @@ final class MarkdownFileWatcher {
         self.fileURL = fileURL.standardizedFileURL
         self.debounce = debounce
         self.handler = handler
+    }
+
+    deinit {
+        // The cancel handler closes the descriptor.
+        source?.cancel()
+        pending?.cancel()
     }
 
     /// Reads the file now and starts watching. The first read always fires
@@ -51,6 +63,19 @@ final class MarkdownFileWatcher {
 
     /// The manual reload button: re-read even if nothing seemed to change.
     func reload(force: Bool = false) {
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path) else {
+            lastDigest = nil
+            handler(.missing)
+            return
+        }
+        guard attributes[.type] as? FileAttributeType == .typeRegular else {
+            handler(.unreadable("Not a regular file"))
+            return
+        }
+        if let size = attributes[.size] as? Int, size > Self.maximumSize {
+            handler(.unreadable("File is larger than \(Self.maximumSize / 1024 / 1024) MB"))
+            return
+        }
         guard let data = try? Data(contentsOf: fileURL) else {
             lastDigest = nil
             handler(.missing)
@@ -66,8 +91,11 @@ final class MarkdownFileWatcher {
         source?.cancel()
         let directory = fileURL.deletingLastPathComponent().path
         let fd = open(directory, O_EVTONLY)
-        guard fd >= 0 else { return }
-        descriptor = fd
+        guard fd >= 0 else {
+            // The directory is gone: say so rather than silently stop watching.
+            handler(.missing)
+            return
+        }
         let source = DispatchSource.makeFileSystemObjectSource(
             fileDescriptor: fd,
             eventMask: [.write, .rename, .delete, .attrib, .extend, .link],
