@@ -85,7 +85,8 @@ final class WebTabContentTests {
         session.addTab(web: StubWebContent())
 
         #expect(session.tabs.count == 3)
-        #expect(session.controllers.count == terminal.controllers.count)
+        #expect(session.controllers.count == 1)
+        #expect(session.controllers.first === terminal.controllers.first)
         #expect(session.tab(containing: terminal.controllers[0])?.id == terminal.id)
     }
 
@@ -138,6 +139,29 @@ final class WebTabContentTests {
         session.close(second)
         #expect(session.selectedTab?.id == preview.id)
         #expect(session.mostRecentTerminalTab?.id == first.id)
+    }
+
+    @Test func closingEveryTerminalLeavesNoTerminalToShow() {
+        let session = makeSession()
+        let first = session.ensureTab()
+        let second = session.addTab()
+        let preview = session.addTab(web: StubWebContent())
+
+        session.close(first)
+        session.close(second)
+        #expect(session.selectedTab?.id == preview.id)
+        #expect(session.mostRecentTerminalTab == nil)
+        #expect(session.controllers.isEmpty)
+    }
+
+    @Test func terminateAllTerminatesWebContent() {
+        let session = makeSession()
+        session.ensureTab()
+        let content = StubWebContent()
+        session.addTab(web: content)
+        session.terminateAll()
+        #expect(content.terminateCount == 1)
+        #expect(session.isEmpty)
     }
 
     @Test func webOnlyWorkspaceHasNoTerminalToShow() {
@@ -248,6 +272,20 @@ final class LinkRouterTests {
         let expected = URL(fileURLWithPath: directory + "/notes.markdown")
         #expect(LinkRouter.classify(directory + "/notes.markdown", workingDirectory: nil)
             == .markdownPreview(expected))
+    }
+
+    @Test func executablesAreNeverOpened() {
+        let script = directory + "/run.sh"
+        FileManager.default.createFile(atPath: script, contents: Data())
+        let binary = directory + "/tool"
+        FileManager.default.createFile(atPath: binary, contents: Data(), attributes: [.posixPermissions: 0o755])
+        let plain = directory + "/main.swift"
+
+        #expect(LinkRouter.isExecutable(URL(fileURLWithPath: script)))
+        #expect(LinkRouter.isExecutable(URL(fileURLWithPath: binary)))
+        #expect(LinkRouter.isExecutable(URL(fileURLWithPath: directory + "/Thing.app")))
+        #expect(!LinkRouter.isExecutable(URL(fileURLWithPath: plain)))
+        #expect(!LinkRouter.isExecutable(URL(fileURLWithPath: directory + "/README.md")))
     }
 
     @Test func nonMarkdownAndDirectoriesStayExternal() {

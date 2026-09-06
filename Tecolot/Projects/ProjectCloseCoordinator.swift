@@ -32,10 +32,11 @@ enum ProjectCloseCoordinator {
         runtime: ProjectRuntime = .shared,
         store: ProjectStore = AppModel.shared.projects
     ) -> ProjectCloseOutcome {
-        guard UserDefaults.standard.bool(forKey: ProjectSidebarDefaults.isVisible),
-              let session = runtime.selectedSession,
-              let projectID = runtime.selectedProjectID,
-              let project = store.project(withID: projectID),
+        // Any workspace with tabs owns the close of one of them, sidebar or
+        // not: cmd+T creates in-app tabs regardless of the sidebar, so cmd+W
+        // must take them away under the same rule — otherwise a close with
+        // the sidebar hidden fell through to the window and killed every tab.
+        guard let session = runtime.selectedSession,
               let tab = session.selectedTab else {
             return .allowWindowClose
         }
@@ -46,7 +47,24 @@ enum ProjectCloseCoordinator {
             return .handled
         }
 
-        // The last tab. Closing it retires the workspace, so ask first.
+        // A lone web tab is not a loss worth a prompt: close it and leave a
+        // fresh terminal behind, as closing any last tab does.
+        if !tab.isTerminal {
+            session.close(tab)
+            runtime.invalidate()
+            return .handled
+        }
+
+        // The last terminal tab. Retiring the workspace is the sidebar's
+        // business; with it hidden the window *is* the terminal, and closing
+        // that is the window's, exactly as before workspaces existed.
+        guard UserDefaults.standard.bool(forKey: ProjectSidebarDefaults.isVisible),
+              let projectID = runtime.selectedProjectID,
+              let project = store.project(withID: projectID) else {
+            return .allowWindowClose
+        }
+
+        // Closing it retires the workspace, so ask first.
         //
         // The prompt is a sheet, not a modal alert: an app-modal alert blocks
         // the main thread, which freezes every other workspace's terminal
