@@ -49,7 +49,7 @@ final class PreferenceMigrator {
         "SecureKeyboardEntry",
         "LogHostOutput",
         "useMetalRenderer"
-    ] + ProjectSidebarDefaults.managedKeys + [LinkRoutingDefaults.opensLinksInApp]
+    ] + ProjectSidebarDefaults.managedKeys + [LinkRoutingDefaults.opensLinksInApp, ContentBlockingDefaults.enabledKey]
 
     init(
         defaults: UserDefaults = .standard,
