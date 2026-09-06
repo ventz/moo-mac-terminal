@@ -13,6 +13,7 @@
         <command name="preview markdown" code="TcltPvMd" description="Open a Markdown file as a preview tab in the current project.">
             <cocoa class="PreviewMarkdownScriptCommand"/>
             <direct-parameter type="text" description="The POSIX path of the Markdown file."/>
+        </command>
         <command name="open url" code="TcltOpUr" description="Open a web address as a browser tab in the current project.">
             <cocoa class="OpenURLScriptCommand"/>
             <direct-parameter type="text" description="The http or https address."/>

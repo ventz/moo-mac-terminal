@@ -362,6 +362,7 @@ struct SplitCommands: Commands {
 struct TerminalCommands: Commands {
     @State private var commandState = TerminalCommandState()
     @State private var secureKeyboardEntry = SecureKeyboardEntry.shared
+    @State private var runtime = ProjectRuntime.shared
 
     private var controller: TerminalSessionController? {
         commandState.controller
@@ -395,8 +396,15 @@ struct TerminalCommands: Commands {
         controller?.requestClose()
     }
 
+    /// A browser tab in front owns find and zoom, and there may be no
+    /// terminal at all in a workspace made of web tabs. Read through the
+    /// runtime's revision so the items follow tab switches.
+    private var isEnabled: Bool {
+        _ = runtime.revision
+        return controller != nil || BrowserOpener.selectedBrowser != nil
+    }
+
     var body: some Commands {
-        let isEnabled = controller != nil
         CommandMenu("Terminal") {
             Button("Split Pane") {
                 if let controller {
@@ -635,6 +643,7 @@ struct TecolotApp: App {
         ]
         registered.merge(ProjectSidebarDefaults.registrationValues) { current, _ in current }
         registered.merge(LinkRoutingDefaults.registrationValues) { current, _ in current }
+        registered.merge(ContentBlockingDefaults.registrationValues) { current, _ in current }
         UserDefaults.standard.register(defaults: registered)
         MarkdownPreviewOpener.install()
         BrowserOpener.install()

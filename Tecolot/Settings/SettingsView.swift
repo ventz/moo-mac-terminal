@@ -321,6 +321,7 @@ struct GeneralSettingsView: View {
     @AppStorage("startupWindowGroupID") private var startupWindowGroupID = ""
     @AppStorage("useMetalRenderer") private var useMetalRenderer = true
     @AppStorage(LinkRoutingDefaults.opensLinksInApp) private var opensLinksInApp = true
+    @AppStorage(ContentBlockingDefaults.enabledKey) private var blocksAds = true
     @State private var errorMessage: String?
 
     @MainActor
@@ -379,6 +380,15 @@ struct GeneralSettingsView: View {
             Section("Links") {
                 Toggle("Open links and Markdown files in Tecolot tabs", isOn: $opensLinksInApp)
                 Text("Command-click opens web addresses and Markdown files as tabs beside the terminal. Option-Command-click always uses the default app.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section("Browser tabs") {
+                Toggle("Block ads and trackers", isOn: $blocksAds)
+                    .onChange(of: blocksAds) { _, enabled in
+                        BrowserContentBlocking.shared.setEnabled(enabled)
+                    }
+                Text("Uses uBlock Origin Lite's filter lists through WebKit's content blocker. Applies to open tabs on their next page load.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -1,0 +1,9 @@
+{
+  "safariVersion": "18.0",
+  "converter": "SafariConverterLib v4.3.0",
+  "built": "2026-09-06T08:40:59Z",
+  "lists": [
+    {"name":"base","title":"AdGuard Base filter (EasyList + AdGuard English), optimized","source":"https://filters.adtidy.org/extension/safari/filters/2_optimized.txt","version":"2.4.88.46","updated":"2026-09-06T06:21:19+00:00","rules":38172,"file":"adblock-base.deflate"},
+    {"name":"tracking","title":"AdGuard Tracking Protection filter","source":"https://filters.adtidy.org/extension/safari/filters/3.txt","version":"2.1.10.85","updated":"2026-09-05T18:15:11+00:00","rules":101315,"file":"adblock-tracking.deflate"}
+  ]
+}
