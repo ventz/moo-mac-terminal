@@ -10,5 +10,9 @@
             <cocoa class="OpenTerminalTabScriptCommand"/>
             <direct-parameter type="text" optional="yes" description="The initial working directory."/>
         </command>
+        <command name="preview markdown" code="TcltPvMd" description="Open a Markdown file as a preview tab in the current project.">
+            <cocoa class="PreviewMarkdownScriptCommand"/>
+            <direct-parameter type="text" description="The POSIX path of the Markdown file."/>
+        </command>
     </suite>
 </dictionary>
