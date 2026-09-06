@@ -103,7 +103,10 @@ export function createRenderer(options = {}) {
         .use(rehypeGithubAlerts)
         .use(rehypeSlug, {prefix: HEADING_PREFIX})
         .use(rehypeStarryNight, starryNight)
-        .use(rehypeKatex, {throwOnError: false, strict: 'ignore'})
+        // `trust` must stay at its default (false): every published KaTeX
+        // XSS needed it on, and KaTeX output runs after the sanitizer.
+        // The size/expansion caps stop a README from hanging the renderer.
+        .use(rehypeKatex, {throwOnError: false, strict: 'ignore', maxSize: 100, maxExpand: 1000})
         .use(rehypeStringify)
     })()
   }

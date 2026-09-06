@@ -44,6 +44,40 @@ final class MarkdownSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "tecolot-md"
     static let host = "preview"
 
+    /// What a document may pull in from its directory: images, media and
+    /// fonts. Never source, dotfiles, keys or anything else that happens to
+    /// sit beside a README.
+    static let subresourceExtensions: Set<String> = [
+        "png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "bmp", "ico", "heic",
+        "mp4", "webm", "mov", "m4v", "mp3", "m4a", "wav", "ogg", "aac",
+        "woff", "woff2", "ttf", "otf", "pdf"
+    ]
+
+    /// The one document root this handler serves, fixed at creation. A
+    /// handler belongs to exactly one preview, so the request path needs no
+    /// registry lookup — and no main-actor hop.
+    private let token: String
+    private let root: URL
+    /// A home directory or a volume root is too much to expose to a page;
+    /// such a document renders, but its images do not.
+    private let servesSubresources: Bool
+
+    init(token: String, root: URL) {
+        self.token = token
+        self.root = root.standardizedFileURL.resolvingSymlinksInPath()
+        servesSubresources = Self.isReasonableRoot(self.root)
+        super.init()
+    }
+
+    nonisolated static func isReasonableRoot(_ root: URL) -> Bool {
+        let path = root.path
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        if path == "/" || path == home || path.hasPrefix("/Volumes/") && path.components(separatedBy: "/").count <= 3 {
+            return false
+        }
+        return true
+    }
+
     static func appURL(_ name: String) -> URL {
         URL(string: "\(scheme)://\(host)/app/\(name)")!
     }
@@ -97,7 +131,13 @@ final class MarkdownSchemeHandler: NSObject, WKURLSchemeHandler {
         return tail.reduce(resolved) { ($0 as NSString).appendingPathComponent($1) }
     }
 
-    private var stoppedTasks = Set<ObjectIdentifier>()
+    /// Tasks WebKit stopped before they finished. Weak, so a finished task's
+    /// slot cannot be mistaken for a later task allocated at the same address.
+    private let stoppedTasks = NSHashTable<AnyObject>.weakObjects()
+
+    private func isStopped(_ task: WKURLSchemeTask) -> Bool {
+        stoppedTasks.contains(task)
+    }
 
     func webView(_ webView: WKWebView, start task: WKURLSchemeTask) {
         guard let url = task.request.url, url.host == Self.host else {
@@ -116,7 +156,7 @@ final class MarkdownSchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     func webView(_ webView: WKWebView, stop task: WKURLSchemeTask) {
-        stoppedTasks.insert(ObjectIdentifier(task))
+        stoppedTasks.add(task)
     }
 
     /// Bundled resources are looked up by name only: Xcode flattens the
@@ -134,15 +174,12 @@ final class MarkdownSchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     private func serveDocumentFile(parts: [String], to task: WKURLSchemeTask) {
-        guard parts.count >= 2 else {
-            respond(task, status: 404, data: Data(), type: "text/plain")
+        guard parts.count >= 2, parts[0] == token else {
+            respond(task, status: 403, data: Data(), type: "text/plain")
             return
         }
-        let token = parts[0]
         let relative = parts.dropFirst().joined(separator: "/")
-        let rootLookup: URL? = MainActor.assumeIsolated { MarkdownDocumentRegistry.root(for: token) }
-        guard let root = rootLookup,
-              let file = Self.resolve(relative, under: root) else {
+        guard let file = Self.resolve(relative, under: root) else {
             respond(task, status: 403, data: Data(), type: "text/plain")
             return
         }
@@ -154,14 +191,17 @@ final class MarkdownSchemeHandler: NSObject, WKURLSchemeHandler {
             return
         }
 
-        let taskID = ObjectIdentifier(task)
+        guard servesSubresources,
+              Self.subresourceExtensions.contains(file.pathExtension.lowercased()),
+              !file.lastPathComponent.hasPrefix(".") else {
+            respond(task, status: 403, data: Data(), type: "text/plain")
+            return
+        }
+
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let data = try? Data(contentsOf: file)
             DispatchQueue.main.async {
-                guard let self, !self.stoppedTasks.contains(taskID) else {
-                    self?.stoppedTasks.remove(taskID)
-                    return
-                }
+                guard let self, !self.isStopped(task) else { return }
                 guard let data else {
                     self.respond(task, status: 404, data: Data(), type: "text/plain")
                     return
@@ -172,11 +212,7 @@ final class MarkdownSchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     private func respond(_ task: WKURLSchemeTask, status: Int, data: Data, type: String) {
-        let taskID = ObjectIdentifier(task)
-        guard !stoppedTasks.contains(taskID) else {
-            stoppedTasks.remove(taskID)
-            return
-        }
+        guard !isStopped(task) else { return }
         guard let url = task.request.url,
               let response = HTTPURLResponse(
                 url: url,

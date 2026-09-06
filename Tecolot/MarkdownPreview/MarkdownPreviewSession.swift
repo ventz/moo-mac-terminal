@@ -40,6 +40,9 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
     @ObservationIgnored private var webView: WKWebView?
     @ObservationIgnored private var bridge: MarkdownPreviewBridge?
     @ObservationIgnored private var pendingMarkdown: String?
+    /// The last text handed to the page, re-sent when the page comes back
+    /// from a crash: without it the preview stayed blank until the next save.
+    @ObservationIgnored private var lastMarkdown: String?
     @ObservationIgnored private var pageIsReady = false
 
     init(fileURL: URL) {
@@ -109,7 +112,10 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
         // Previews render untrusted repository content: no cookies, no
         // shared storage, nothing kept between runs.
         configuration.websiteDataStore = .nonPersistent()
-        configuration.setURLSchemeHandler(MarkdownSchemeHandler(), forURLScheme: MarkdownSchemeHandler.scheme)
+        configuration.setURLSchemeHandler(
+            MarkdownSchemeHandler(token: token, root: fileURL.deletingLastPathComponent()),
+            forURLScheme: MarkdownSchemeHandler.scheme
+        )
         configuration.defaultWebpagePreferences.allowsContentJavaScript = true
         let bridge = MarkdownPreviewBridge(session: self)
         configuration.userContentController.add(bridge, name: MarkdownPreviewBridge.name)
@@ -135,6 +141,8 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
                 self.pushMarkdownIfReady()
             case .missing:
                 self.state = .missing
+            case .unreadable(let reason):
+                self.state = .failed(reason)
             }
         }
         self.watcher = watcher
@@ -144,6 +152,7 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
     private func pushMarkdownIfReady() {
         guard pageIsReady, let webView, let markdown = pendingMarkdown else { return }
         pendingMarkdown = nil
+        lastMarkdown = markdown
         webView.callAsyncJavaScript(
             "await window.tecolot.render(markdown)",
             arguments: ["markdown": markdown],
@@ -162,6 +171,7 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
         switch message["type"] as? String {
         case "ready":
             pageIsReady = true
+            if pendingMarkdown == nil { pendingMarkdown = lastMarkdown }
             pushMarkdownIfReady()
         case "rendered":
             state = .ready
@@ -195,7 +205,8 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
             if LinkRouter.isMarkdown(file.path) {
                 _ = MarkdownPreviewOpener.open(fileURL: file, from: nil)
             } else {
-                NSWorkspace.shared.open(file)
+                // Never launch something a repository shipped beside its README.
+                LinkRouter.openFile(file)
             }
             return
         }
@@ -258,7 +269,12 @@ private final class MarkdownPreviewBridge: NSObject, WKScriptMessageHandler {
     }
 
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard let body = message.body as? [String: Any] else { return }
+        // Only the preview page itself may talk to the app: never a frame,
+        // never a page from any other origin. The sanitizer admits no
+        // iframes today; this is the cheap guard for the day it does.
+        guard message.frameInfo.isMainFrame,
+              message.frameInfo.request.url?.scheme == MarkdownSchemeHandler.scheme,
+              let body = message.body as? [String: Any] else { return }
         MainActor.assumeIsolated {
             session?.handle(message: body)
         }

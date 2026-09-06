@@ -53,11 +53,45 @@ final class MarkdownSchemeHandlerTests {
         #expect(await MarkdownSchemeHandler.fileURL(for: MarkdownSchemeHandler.appURL("markdown-preview.js")) == nil)
     }
 
+    @Test func overlyBroadRootsServeNoSubresources() {
+        #expect(!MarkdownSchemeHandler.isReasonableRoot(URL(fileURLWithPath: "/")))
+        #expect(!MarkdownSchemeHandler.isReasonableRoot(FileManager.default.homeDirectoryForCurrentUser))
+        #expect(!MarkdownSchemeHandler.isReasonableRoot(URL(fileURLWithPath: "/Volumes/Data")))
+        #expect(MarkdownSchemeHandler.isReasonableRoot(root))
+        #expect(MarkdownSchemeHandler.isReasonableRoot(URL(fileURLWithPath: "/Volumes/Data/repo")))
+    }
+
+    @Test func onlyMediaIsServedFromTheDocumentDirectory() {
+        for ext in ["png", "svg", "woff2", "mp4", "pdf"] {
+            #expect(MarkdownSchemeHandler.subresourceExtensions.contains(ext))
+        }
+        for ext in ["swift", "env", "pem", "key", "json", "txt", "html", "js"] {
+            #expect(!MarkdownSchemeHandler.subresourceExtensions.contains(ext))
+        }
+    }
+
     @Test func mimeTypes() {
         #expect(MarkdownSchemeHandler.mimeType(for: URL(fileURLWithPath: "/a/x.wasm")) == "application/wasm")
         #expect(MarkdownSchemeHandler.mimeType(for: URL(fileURLWithPath: "/a/x.js")).hasPrefix("text/javascript"))
         #expect(MarkdownSchemeHandler.mimeType(for: URL(fileURLWithPath: "/a/x.png")) == "image/png")
         #expect(MarkdownSchemeHandler.mimeType(for: URL(fileURLWithPath: "/a/x.woff2")) == "font/woff2")
+    }
+}
+
+final class MarkdownRunCommandTests {
+    @Test func promptsAreStripped() {
+        #expect(MarkdownPreviewOpener.prepareCommand("$ brew install x") == "brew install x")
+        #expect(MarkdownPreviewOpener.prepareCommand("% ls\n$ pwd") == "ls\npwd")
+        #expect(MarkdownPreviewOpener.prepareCommand("$\n") == "")
+        #expect(MarkdownPreviewOpener.prepareCommand("   ") == "")
+    }
+
+    @Test func hiddenCharactersAreRemoved() {
+        // A right-to-left override would make the block read differently
+        // from what the shell receives.
+        #expect(MarkdownPreviewOpener.prepareCommand("echo \u{202E}evil") == "echo evil")
+        #expect(MarkdownPreviewOpener.prepareCommand("echo a\u{07}b\u{1b}[2J") == "echo ab[2J")
+        #expect(MarkdownPreviewOpener.prepareCommand("a\tb") == "a\tb")
     }
 }
 
