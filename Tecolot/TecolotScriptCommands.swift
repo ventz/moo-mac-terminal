@@ -41,6 +41,11 @@ final class PreviewMarkdownScriptCommand: NSScriptCommand {
             scriptErrorString = "No file at \(url.path)"
             return nil
         }
+        guard LinkRouter.isMarkdown(url.path) else {
+            scriptErrorNumber = NSArgumentsWrongScriptError
+            scriptErrorString = "Not a Markdown file: \(url.lastPathComponent)"
+            return nil
+        }
         NSApp.activate(ignoringOtherApps: true)
         if !MarkdownPreviewOpener.open(fileURL: url, from: nil) {
             scriptErrorNumber = NSInternalScriptError
