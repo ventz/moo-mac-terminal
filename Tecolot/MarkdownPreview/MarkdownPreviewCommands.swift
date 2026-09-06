@@ -103,11 +103,17 @@ struct MarkdownPreviewCommands: Commands {
         }
 
         CommandGroup(after: .toolbar) {
-            Button("Reload Preview") {
-                MarkdownPreviewOpener.selectedPreview?.reload()
+            // One ⌘R for every web tab: a preview re-reads its file, a
+            // browser reloads its page.
+            Button("Reload") {
+                if let preview = MarkdownPreviewOpener.selectedPreview {
+                    preview.reload()
+                } else {
+                    BrowserOpener.selectedBrowser?.reload()
+                }
             }
             .keyboardShortcut("r", modifiers: [.command])
-            .disabled(selectedPreview == nil)
+            .disabled(selectedPreview == nil && selectedBrowser == nil)
 
             Button("Open Preview in Editor") {
                 MarkdownPreviewOpener.selectedPreview?.openInEditor()
@@ -121,5 +127,10 @@ struct MarkdownPreviewCommands: Commands {
     private var selectedPreview: MarkdownPreviewSession? {
         _ = runtime.revision
         return MarkdownPreviewOpener.selectedPreview
+    }
+
+    private var selectedBrowser: BrowserSession? {
+        _ = runtime.revision
+        return BrowserOpener.selectedBrowser
     }
 }
