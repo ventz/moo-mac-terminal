@@ -105,7 +105,12 @@ struct WorkspaceTabBar: View {
         .onHover { hovering in
             hoveredTabID = hovering ? tab.id : (hoveredTabID == tab.id ? nil : hoveredTabID)
         }
-        .onTapGesture { session.select(tab) }
+        .onTapGesture {
+            session.select(tab)
+            // Menu enablement follows the runtime's revision, so a click
+            // must bump it like every other selection path does.
+            ProjectRuntime.shared.invalidate()
+        }
     }
 
     /// The x on a tab follows the same policy as cmd+W: a plain close while
@@ -122,6 +127,7 @@ struct WorkspaceTabBar: View {
     private var newTabButton: some View {
         circleButton("plus", help: "New tab in this project (⌘T)") {
             session.addTab()
+            ProjectRuntime.shared.invalidate()
         }
     }
 
