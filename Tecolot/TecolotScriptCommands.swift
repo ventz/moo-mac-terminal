@@ -27,3 +27,25 @@ final class OpenTerminalTabScriptCommand: NSScriptCommand {
         return nil
     }
 }
+
+@objc(PreviewMarkdownScriptCommand)
+final class PreviewMarkdownScriptCommand: NSScriptCommand {
+    override func performDefaultImplementation() -> Any? {
+        guard let path = directParameter as? String, !path.isEmpty else {
+            scriptErrorNumber = NSRequiredArgumentsMissingScriptError
+            return nil
+        }
+        let url = URL(fileURLWithPath: NSString(string: path).expandingTildeInPath)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            scriptErrorNumber = NSFileNoSuchFileError
+            scriptErrorString = "No file at \(url.path)"
+            return nil
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        if !MarkdownPreviewOpener.open(fileURL: url, from: nil) {
+            scriptErrorNumber = NSInternalScriptError
+            scriptErrorString = "No project is open to hold the preview"
+        }
+        return nil
+    }
+}

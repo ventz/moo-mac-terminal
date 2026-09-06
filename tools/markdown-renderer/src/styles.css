@@ -1,0 +1,96 @@
+/* github-markdown-css follows prefers-color-scheme, and WKWebView takes
+   that from the window's appearance, which Tecolot sets from the terminal
+   theme — so the preview flips with the theme for free. */
+@import 'github-markdown-css/github-markdown.css';
+@import 'katex/dist/katex.min.css';
+
+:root {
+  color-scheme: light dark;
+}
+
+/* The body carries the markdown-body class so GitHub's background colour
+   covers the whole viewport, not just the article column; the web view is
+   transparent, and a bare body would show the terminal through the gutters. */
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+/* GitHub's README column: 980px wide, centred, with its padding. */
+#content {
+  box-sizing: border-box;
+  min-width: 200px;
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 32px 45px 64px;
+}
+
+@media (max-width: 767px) {
+  #content {
+    padding: 16px;
+  }
+}
+
+#status {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 8px 16px;
+  font: 12px -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--fgColor-danger, #d1242f);
+  background: var(--bgColor-danger-muted, #ffebe9);
+  border-bottom: 1px solid var(--borderColor-danger-muted, #ff818266);
+}
+
+#status[hidden] {
+  display: none;
+}
+
+/* Code block actions, shown on hover like GitHub's copy button. */
+.markdown-body div.highlight {
+  position: relative;
+}
+
+.markdown-body .code-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 120ms ease-in-out;
+}
+
+.markdown-body div.highlight:hover .code-actions {
+  opacity: 1;
+}
+
+.markdown-body .code-action {
+  font: 11px -apple-system, BlinkMacSystemFont, sans-serif;
+  padding: 3px 8px;
+  border: 1px solid var(--borderColor-default, #d1d9e0);
+  border-radius: 6px;
+  background: var(--bgColor-default, #ffffff);
+  color: var(--fgColor-default, #1f2328);
+  cursor: pointer;
+}
+
+.markdown-body .code-action:hover {
+  background: var(--bgColor-muted, #f6f8fa);
+}
+
+.markdown-body .mermaid {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.markdown-body .mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown-body pre.mermaid-error {
+  outline: 1px solid var(--borderColor-danger-muted, #ff818266);
+}

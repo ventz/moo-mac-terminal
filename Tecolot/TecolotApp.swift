@@ -622,6 +622,7 @@ struct TecolotApp: App {
         registered.merge(ProjectSidebarDefaults.registrationValues) { current, _ in current }
         registered.merge(LinkRoutingDefaults.registrationValues) { current, _ in current }
         UserDefaults.standard.register(defaults: registered)
+        MarkdownPreviewOpener.install()
     }
 
     var body: some Scene {

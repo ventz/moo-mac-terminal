@@ -1,0 +1,1 @@
+import{a as e,b as r}from"./markdown-preview-chunk-chunk-KFU7IUUT.js";import"./markdown-preview-chunk-chunk-GSKGNSSC.js";import"./markdown-preview-chunk-chunk-2CJIJCRH.js";export{e as ArchitectureModule,r as createArchitectureServices};
