@@ -214,7 +214,7 @@ final class ProjectRuntime {
     func closeTab(containing controller: TerminalSessionController) -> Bool {
         for session in sessions.values {
             guard let tab = session.tabs.first(where: { tab in
-                tab.panes.controllers.contains(where: { $0 === controller })
+                tab.controllers.contains(where: { $0 === controller })
             }) else {
                 continue
             }
@@ -228,7 +228,7 @@ final class ProjectRuntime {
     /// True when a controller belongs to the workspace tab currently on screen.
     func isSelected(controller: TerminalSessionController) -> Bool {
         guard let tab = selectedSession?.selectedTab else { return false }
-        return tab.panes.controllers.contains { $0 === controller }
+        return tab.controllers.contains { $0 === controller }
     }
 
     /// Closes the visible workspace's active tab. Returns false when there is

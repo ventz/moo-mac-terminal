@@ -64,6 +64,13 @@ final class AppTerminalView: LocalProcessTerminalView {
 
     nonisolated private let eventDelivery = TerminalSessionEventDelivery()
 
+    /// A click on a link or a detected path. Routed through LinkRouter so a
+    /// markdown file or a web address can open as a tab in this workspace;
+    /// anything else, or an option-click, opens with the system as before.
+    override func requestOpenLink(source: TerminalView, link: String, params: [String: String]) {
+        LinkRouter.open(link, from: sessionController)
+    }
+
     nonisolated override func bell(source: Terminal) {
         super.bell(source: source)
         eventDelivery.sendBell()

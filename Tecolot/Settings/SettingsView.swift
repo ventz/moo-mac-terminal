@@ -320,6 +320,7 @@ struct GeneralSettingsView: View {
     @AppStorage("startupProfileID") private var startupProfileID = ""
     @AppStorage("startupWindowGroupID") private var startupWindowGroupID = ""
     @AppStorage("useMetalRenderer") private var useMetalRenderer = true
+    @AppStorage(LinkRoutingDefaults.opensLinksInApp) private var opensLinksInApp = true
     @State private var errorMessage: String?
 
     @MainActor
@@ -374,6 +375,12 @@ struct GeneralSettingsView: View {
             }
             Section("Tabs") {
                 Toggle("Use Command-1 through Command-9 to select tabs", isOn: $useCommandDigitsForTabs)
+            }
+            Section("Links") {
+                Toggle("Open links and Markdown files in Tecolot tabs", isOn: $opensLinksInApp)
+                Text("Command-click opens web addresses and Markdown files as tabs beside the terminal. Option-Command-click always uses the default app.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section("Rendering") {
                 Toggle("Use Metal", isOn: metalRendererBinding)
