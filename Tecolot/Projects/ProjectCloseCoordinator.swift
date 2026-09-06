@@ -52,7 +52,7 @@ enum ProjectCloseCoordinator {
         // the main thread, which freezes every other workspace's terminal
         // while it is up. That means the answer arrives asynchronously, so the
         // close is always vetoed here and acted on in the completion handler.
-        guard let window = tab.panes.controllers.first?.terminal?.window
+        guard let window = tab.controllers.first?.terminal?.window
             ?? NSApp.keyWindow else {
             return .allowWindowClose
         }

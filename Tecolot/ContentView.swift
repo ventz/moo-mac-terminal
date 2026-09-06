@@ -38,10 +38,36 @@ struct ContentView: View {
     @AppStorage(ProjectSidebarDefaults.showsPath) private var showsPath = true
     @AppStorage(ProjectSidebarDefaults.showsAccent) private var showsAccent = true
 
-    /// The pane tree currently on screen: the selected workspace's active tab,
-    /// or the fallback when no workspaces exist at all.
+    /// The pane tree the terminal host shows: the selected workspace's active
+    /// terminal tab — or, while a web tab is selected, the terminal tab that
+    /// was most recently on screen, kept attached but hidden so switching
+    /// back is instant. Nil when the workspace has no terminal tab at all.
+    private var terminalWorkspace: TerminalPaneWorkspace? {
+        guard let session = runtime.selectedSession else { return fallbackWorkspace }
+        return session.mostRecentTerminalTab?.panes
+    }
+
+    /// The pane tree the window chrome and the terminal commands follow.
+    /// Never attached when it is the fallback for a web-only workspace, so it
+    /// starts no shell.
     private var workspace: TerminalPaneWorkspace {
-        runtime.selectedSession?.selectedTab?.panes ?? fallbackWorkspace
+        terminalWorkspace ?? fallbackWorkspace
+    }
+
+    /// The web tab on screen, if the selected tab is one.
+    private var selectedWebContent: (any WebTabContent)? {
+        runtime.selectedSession?.selectedTab?.web
+    }
+
+    private var showsTerminal: Bool {
+        selectedWebContent == nil
+    }
+
+    /// Changes whenever a different tab lands on screen, in any workspace.
+    private var onScreenTabKey: String {
+        let project = runtime.selectedProjectID?.uuidString ?? "-"
+        let tab = runtime.selectedSession?.selectedTabID?.uuidString ?? "-"
+        return project + "/" + tab
     }
 
     /// True for the single render pass before the first project is chosen or
@@ -99,7 +125,10 @@ struct ContentView: View {
                     session: session,
                     background: tabStripBackground,
                     foreground: tabStripForeground,
-                    showThemePicker: { workspace.focusedController?.showThemePicker = true }
+                    // The picker themes the focused terminal; a web tab has none.
+                    showThemePicker: showsTerminal
+                        ? { workspace.focusedController?.showThemePicker = true }
+                        : nil
                 )
                 // No divider. Hiding one with .opacity(0) still left the
                 // point of height it occupied, and on a transparent window
@@ -231,11 +260,29 @@ struct ContentView: View {
         // would make SwiftUI build a new host view and discard the old one;
         // instead the same host is handed a different tree and re-attaches the
         // terminals, so switching workspaces never restarts a shell.
-        TerminalPaneContainer(
-            workspace: workspace,
-            document: document,
-            revision: workspace.revision
-        )
+        //
+        // The terminal host and the web host are both always mounted, one
+        // over the other, and a tab switch only changes which is visible and
+        // takes clicks. Neither is ever torn down by selecting the other.
+        ZStack {
+            if let terminalWorkspace {
+                TerminalPaneContainer(
+                    workspace: terminalWorkspace,
+                    document: document,
+                    revision: terminalWorkspace.revision
+                )
+                .opacity(showsTerminal ? 1 : 0)
+                .allowsHitTesting(showsTerminal)
+                .accessibilityHidden(!showsTerminal)
+            }
+            WebTabContainer(content: selectedWebContent)
+                .opacity(showsTerminal ? 0 : 1)
+                .allowsHitTesting(!showsTerminal)
+                .accessibilityHidden(showsTerminal)
+        }
+            .onChange(of: onScreenTabKey) {
+                focusOnScreenTab()
+            }
             .background(WindowTabbingConfigurator(
                 theme: usesThemeWindowChrome ? windowTheme : nil,
                 backgroundOpacity: chromeBackgroundOpacity
@@ -327,6 +374,22 @@ struct ContentView: View {
             return
         }
         runtime.select(projectID: created.id)
+    }
+
+    /// Hands keyboard focus to whatever just came on screen. Deferred a turn
+    /// of the run loop: AppKit needs the newly attached view in the window
+    /// first, and asking earlier either does nothing or lands focus on the
+    /// view being hidden — the "keystrokes go to the wrong tab" bug.
+    private func focusOnScreenTab() {
+        let web = selectedWebContent
+        let terminal = workspace.focusedController
+        DispatchQueue.main.async {
+            if let web {
+                web.focus()
+            } else {
+                terminal?.requestFocus()
+            }
+        }
     }
 
     private func configureBufferPersistence() {

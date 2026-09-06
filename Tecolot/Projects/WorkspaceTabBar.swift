@@ -57,12 +57,21 @@ struct WorkspaceTabBar: View {
         let showsClose = (isHovered || isSelected) && session.tabs.count > 1
 
         return ZStack {
-            Text(tab.displayTitle)
-                .font(.system(size: 11))
-                .foregroundStyle(foreground.opacity(isSelected ? 1 : 0.72))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .padding(.horizontal, 24)
+            HStack(spacing: 4) {
+                // Terminals are the default and carry no icon; a web tab is
+                // marked so the strip shows at a glance which tabs are shells.
+                if tab.kind != .terminal {
+                    Image(systemName: tab.kind.symbolName)
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(foreground.opacity(isSelected ? 0.9 : 0.6))
+                }
+                Text(tab.displayTitle)
+                    .font(.system(size: 11))
+                    .foregroundStyle(foreground.opacity(isSelected ? 1 : 0.72))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .padding(.horizontal, 24)
 
             if showsClose {
                 HStack {

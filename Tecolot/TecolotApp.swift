@@ -373,6 +373,13 @@ struct TerminalCommands: Commands {
     }
 
     private func closeCurrent() {
+        // A web tab has no panes. The focused controller still points at the
+        // hidden terminal tab behind it, so without this cmd+W would close a
+        // split the user cannot even see.
+        if ProjectRuntime.shared.selectedSession?.selectedTab?.isTerminal == false {
+            _ = ProjectCloseCoordinator.closeSelected()
+            return
+        }
         // Splits are closed one at a time before the tab itself goes.
         if let controller, (controller.workspace?.paneCount ?? 1) > 1 {
             controller.requestClose()
@@ -613,6 +620,7 @@ struct TecolotApp: App {
             "useMetalRenderer": true
         ]
         registered.merge(ProjectSidebarDefaults.registrationValues) { current, _ in current }
+        registered.merge(LinkRoutingDefaults.registrationValues) { current, _ in current }
         UserDefaults.standard.register(defaults: registered)
     }
 
