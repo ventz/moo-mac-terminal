@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import WebKit
 @testable import Tecolot
 
 final class BrowserAddressTests {
@@ -19,6 +20,12 @@ final class BrowserAddressTests {
         #expect(BrowserSession.resolve(input: "127.0.0.1:8080/app")?.absoluteString == "http://127.0.0.1:8080/app")
         #expect(BrowserSession.resolve(input: "devbox:8080")?.absoluteString == "http://devbox:8080")
         #expect(BrowserSession.resolve(input: "mac.local")?.absoluteString == "http://mac.local")
+    }
+
+    /// A bare word is a search; only a port makes it a LAN host.
+    @Test func bareWordsAreSearchesUnlessTheyCarryAPort() {
+        #expect(BrowserSession.resolve(input: "intranet")?.host == "duckduckgo.com")
+        #expect(BrowserSession.resolve(input: "intranet:8080/wiki")?.absoluteString == "http://intranet:8080/wiki")
     }
 
     @Test func everythingElseIsASearch() {
@@ -53,6 +60,8 @@ final class BrowserDownloadNamingTests {
         #expect(BrowserSession.safeFilename(".hidden") == "hidden")
         #expect(BrowserSession.safeFilename("  ") == "download")
         #expect(BrowserSession.safeFilename("report:final.pdf") == "report-final.pdf")
+        #expect(BrowserSession.safeFilename("report\u{202E}fdp.dmg") == "reportfdp.dmg")
+        #expect(BrowserSession.safeFilename("a\u{07}b\u{200F}.txt") == "ab.txt")
     }
 
     @Test func destinationsAreUniqueLikeFinder() {
@@ -66,5 +75,37 @@ final class BrowserDownloadNamingTests {
         #expect(BrowserSession.uniqueDestination(for: file).lastPathComponent == "report 2.pdf")
         FileManager.default.createFile(atPath: directory.appendingPathComponent("report 2.pdf").path, contents: Data())
         #expect(BrowserSession.uniqueDestination(for: file).lastPathComponent == "report 3.pdf")
+    }
+}
+
+final class BrowserContentBlockingTests {
+    /// WebKit must accept every bundled list: a rule the converter emitted
+    /// for a newer Safari, or an over-cap list, fails here and nowhere else.
+    @Test func bundledRulesetsCompile() async throws {
+        let manifest = try #require(BrowserContentBlocking.manifest())
+        let store = try #require(WKContentRuleListStore(url: FileManager.default.temporaryDirectory
+            .appendingPathComponent("BrowserContentBlockingTests-\(UUID().uuidString)")))
+        for ruleset in manifest.lists {
+            let url = try #require(Bundle.main.url(forResource: ruleset.file, withExtension: nil))
+            let json = try BrowserContentBlocking.inflate(try Data(contentsOf: url), expectedSize: ruleset.rules)
+            let compiled = try await store.compileContentRuleList(
+                forIdentifier: BrowserContentBlocking.identifier(for: ruleset),
+                encodedContentRuleList: json
+            )
+            #expect(compiled != nil, "\(ruleset.name) did not compile")
+        }
+    }
+
+    @Test func bundledManifestAndRulesetsArePresent() throws {
+        let manifest = try #require(BrowserContentBlocking.manifest())
+        #expect(manifest.lists.count >= 2)
+        for ruleset in manifest.lists {
+            #expect(ruleset.rules > 0 && ruleset.rules < 150_000, "\(ruleset.name) has \(ruleset.rules) rules")
+            let url = try #require(Bundle.main.url(forResource: ruleset.file, withExtension: nil))
+            let json = try BrowserContentBlocking.inflate(try Data(contentsOf: url), expectedSize: ruleset.rules)
+            let rules = try #require(try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [Any])
+            #expect(rules.count == ruleset.rules)
+            #expect(BrowserContentBlocking.identifier(for: ruleset).hasPrefix("adblock-\(ruleset.name)@"))
+        }
     }
 }
