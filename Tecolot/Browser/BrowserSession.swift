@@ -54,8 +54,14 @@ final class BrowserSession: NSObject, WebTabContent {
     @ObservationIgnored private var container: BrowserHostView?
     @ObservationIgnored private var observations: [NSKeyValueObservation] = []
     @ObservationIgnored private var didReloadAfterCrash = false
-    @ObservationIgnored private var download: WKDownload?
+    @ObservationIgnored private var downloads: Set<WKDownload> = []
+    /// Downloads the user declined in the save panel: their failure is
+    /// expected and must not show as an error.
+    @ObservationIgnored private var declinedDownloads: Set<WKDownload> = []
     @ObservationIgnored private var lastFindText = ""
+    /// The live preferences object. `webView.configuration` hands back a
+    /// copy, so changes must go through the one the view was created with.
+    @ObservationIgnored private var preferences: WKPreferences?
 
     init(url: URL?) {
         initialURL = url
@@ -106,7 +112,8 @@ final class BrowserSession: NSObject, WebTabContent {
 
     func terminate() {
         observations.removeAll()
-        download?.cancel(nil)
+        for download in downloads { download.cancel(nil) }
+        downloads.removeAll()
         webView?.navigationDelegate = nil
         webView?.uiDelegate = nil
         webView?.stopLoading()
@@ -208,7 +215,13 @@ final class BrowserSession: NSObject, WebTabContent {
         if lowered.hasPrefix("localhost") || looksLikeHost(lowered) {
             let host = lowered.split(separator: "/", maxSplits: 1).first.map(String.init) ?? lowered
             let hostOnly = host.split(separator: ":").first.map(String.init) ?? host
-            let scheme = isLocalHost(hostOnly) ? "http" : "https"
+            let hasPort = host.contains(":") && !host.hasPrefix("[")
+            // Plain http only where certificates do not exist: loopback and
+            // private addresses, .local names, or a bare LAN name typed with
+            // a port (a dev server). A bare intranet name without a port is
+            // tried over https first; the user can type http:// to insist.
+            let scheme = isLocalHost(hostOnly) && (hostOnly.contains(".") || hostOnly == "localhost" || hasPort)
+                ? "http" : "https"
             return URL(string: scheme + "://" + text)
         }
         var components = URLComponents(string: "https://duckduckgo.com/")!
@@ -254,6 +267,10 @@ final class BrowserSession: NSObject, WebTabContent {
 
     private func makeWebView() -> WKWebView {
         let configuration = popupConfiguration ?? BrowserWebKit.makeConfiguration()
+        if popupConfiguration != nil {
+            BrowserContentBlocking.shared.apply(to: configuration)
+        }
+        preferences = configuration.preferences
         let webView = BrowserWebKit.makeWebView(configuration: configuration)
         webView.navigationDelegate = self
         webView.uiDelegate = self
@@ -284,8 +301,16 @@ final class BrowserSession: NSObject, WebTabContent {
         return webView
     }
 
+    /// The window a page may put a sheet on: its own, which exists only
+    /// while the tab is on screen. A hidden tab gets no window, so its
+    /// dialogs are answered with "no" rather than shown over the terminal
+    /// the user is typing in — and its sign-in sheet is never shown at all.
     private var window: NSWindow? {
-        webView?.window ?? NSApp.keyWindow
+        webView?.window
+    }
+
+    private var isOnScreen: Bool {
+        webView?.window != nil
     }
 }
 
@@ -307,12 +332,21 @@ extension BrowserSession: WKNavigationDelegate {
             return
         }
         switch url.scheme?.lowercased() {
-        case "http", "https", "about", "blob", "data":
+        case "http", "https", "about", "blob":
             decisionHandler(.allow, preferences)
-        default:
-            // mailto:, ssh:, vscode: and friends belong to their own apps.
+        case "file":
+            // Never. A page must not be able to open or launch local files.
             decisionHandler(.cancel, preferences)
-            NSWorkspace.shared.open(url)
+        default:
+            // mailto:, ssh:, vscode: and friends belong to their own apps —
+            // but only when the user clicked a link, and only after they
+            // agreed. A hidden frame or a redirect gets nothing.
+            decisionHandler(.cancel, preferences)
+            guard navigationAction.navigationType == .linkActivated,
+                  navigationAction.sourceFrame.isMainFrame else { return }
+            BrowserDialogs.confirmExternalOpen(url, in: window) { allowed in
+                if allowed { NSWorkspace.shared.open(url) }
+            }
         }
     }
 
@@ -333,7 +367,7 @@ extension BrowserSession: WKNavigationDelegate {
     }
 
     private func adopt(_ download: WKDownload) {
-        self.download = download
+        downloads.insert(download)
         download.delegate = self
     }
 
@@ -345,7 +379,7 @@ extension BrowserSession: WKNavigationDelegate {
         // A hidden local page keeps ticking so hot reload survives; a hidden
         // remote page is suspended, which is what keeps the terminal cheap.
         let local = webView.url?.host.map(Self.isLocalHost) ?? false
-        webView.configuration.preferences.inactiveSchedulingPolicy = local ? .throttle : .suspend
+        preferences?.inactiveSchedulingPolicy = local ? .throttle : .suspend
         didReloadAfterCrash = false
     }
 
@@ -361,7 +395,8 @@ extension BrowserSession: WKNavigationDelegate {
         let nsError = error as NSError
         // Cancelled is what a redirect or a stop looks like, not a failure.
         guard !(nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled),
-              !(nsError.domain == "WebKitErrorDomain" && nsError.code == 102) else { return }
+              !(nsError.domain == "WebKitErrorDomain" && nsError.code == 102)
+        else { return }
         errorMessage = error.localizedDescription
     }
 
@@ -378,7 +413,7 @@ extension BrowserSession: WKNavigationDelegate {
             completionHandler(.performDefaultHandling, nil)
             return
         }
-        guard challenge.previousFailureCount < 3 else {
+        guard challenge.previousFailureCount < 3, isOnScreen else {
             completionHandler(.cancelAuthenticationChallenge, nil)
             return
         }
@@ -415,8 +450,10 @@ extension BrowserSession: WKUIDelegate {
         for navigationAction: WKNavigationAction,
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        // Only pages reacting to the user get a new tab. Unsolicited popups
-        // are dropped; scripts cannot open windows on their own either.
+        // What keeps unsolicited popups out is
+        // javaScriptCanOpenWindowsAutomatically = false on the configuration,
+        // which popups inherit: only a user gesture can reach here. This
+        // guard just declines requests aimed at an existing frame.
         guard navigationAction.targetFrame == nil || !navigationAction.targetFrame!.isMainFrame else {
             return nil
         }
@@ -429,6 +466,7 @@ extension BrowserSession: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping () -> Void
     ) {
+        guard isOnScreen else { completionHandler(); return }
         BrowserDialogs.alert(message, origin: frame.securityOrigin, in: window) { completionHandler() }
     }
 
@@ -438,6 +476,7 @@ extension BrowserSession: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping (Bool) -> Void
     ) {
+        guard isOnScreen else { completionHandler(false); return }
         BrowserDialogs.confirm(message, origin: frame.securityOrigin, in: window, completion: completionHandler)
     }
 
@@ -448,6 +487,7 @@ extension BrowserSession: WKUIDelegate {
         initiatedByFrame frame: WKFrameInfo,
         completionHandler: @escaping (String?) -> Void
     ) {
+        guard isOnScreen else { completionHandler(nil); return }
         BrowserDialogs.prompt(
             prompt,
             defaultText: defaultText ?? "",
@@ -467,37 +507,47 @@ extension BrowserSession: WKDownloadDelegate {
         suggestedFilename: String,
         completionHandler: @escaping (URL?) -> Void
     ) {
+        guard isOnScreen, let window else {
+            declinedDownloads.insert(download)
+            completionHandler(nil)
+            return
+        }
         let panel = NSSavePanel()
         panel.nameFieldStringValue = Self.safeFilename(suggestedFilename)
         panel.canCreateDirectories = true
-        let finish: (NSApplication.ModalResponse) -> Void = { response in
+        let finish: (NSApplication.ModalResponse) -> Void = { [weak self] response in
             guard response == .OK, let chosen = panel.url else {
+                self?.declinedDownloads.insert(download)
                 completionHandler(nil)
                 return
             }
             // WebKit requires a path that does not exist yet.
             completionHandler(Self.uniqueDestination(for: chosen))
         }
-        if let window {
-            panel.beginSheetModal(for: window, completionHandler: finish)
-        } else {
-            finish(panel.runModal())
-        }
+        panel.beginSheetModal(for: window, completionHandler: finish)
     }
 
     func downloadDidFinish(_ download: WKDownload) {
-        self.download = nil
+        downloads.remove(download)
     }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
-        self.download = nil
+        downloads.remove(download)
+        if declinedDownloads.remove(download) != nil { return }
         report(error)
     }
 
     /// A server's suggested name with path separators and hidden-file
     /// prefixes removed.
     nonisolated static func safeFilename(_ name: String) -> String {
-        var cleaned = name
+        var cleaned = String(name.unicodeScalars.filter { scalar in
+            // Controls and bidi formatting characters can make the save
+            // panel show a different name than the one written.
+            if scalar.value < 0x20 || (0x7F...0x9F).contains(scalar.value) { return false }
+            if (0x202A...0x202E).contains(scalar.value) || (0x2066...0x2069).contains(scalar.value) { return false }
+            if scalar.value == 0x200E || scalar.value == 0x200F { return false }
+            return true
+        }.map(Character.init))
             .replacingOccurrences(of: "/", with: "-")
             .replacingOccurrences(of: ":", with: "-")
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -531,7 +581,7 @@ enum BrowserWebKit {
 
     /// One persistent store for every browser tab, separate from the
     /// preview's throwaway store: logins and cookies survive relaunches.
-    static var dataStore: WKWebsiteDataStore {
+    static let dataStore: WKWebsiteDataStore = {
         let defaults = UserDefaults.standard
         let identifier: UUID
         if let raw = defaults.string(forKey: dataStoreKey), let existing = UUID(uuidString: raw) {
@@ -541,7 +591,7 @@ enum BrowserWebKit {
             defaults.set(identifier.uuidString, forKey: dataStoreKey)
         }
         return WKWebsiteDataStore(forIdentifier: identifier)
-    }
+    }()
 
     static func makeConfiguration() -> WKWebViewConfiguration {
         let configuration = WKWebViewConfiguration()
@@ -552,6 +602,7 @@ enum BrowserWebKit {
         // A suffix only. Replacing the whole user agent breaks logins and
         // responsive layouts on sites that sniff it.
         configuration.applicationNameForUserAgent = "Tecolot/\(version)"
+        BrowserContentBlocking.shared.apply(to: configuration)
         return configuration
     }
 
@@ -615,6 +666,16 @@ enum BrowserDialogs {
         present(alert, in: window) { response in
             completion(response == .alertFirstButtonReturn ? field.stringValue : nil)
         }
+    }
+
+    /// A page asked to hand a link to another app (mailto:, ssh:, vscode:…).
+    static func confirmExternalOpen(_ url: URL, in window: NSWindow?, completion: @escaping (Bool) -> Void) {
+        let alert = NSAlert()
+        alert.messageText = "Open this link in another app?"
+        alert.informativeText = url.absoluteString
+        alert.addButton(withTitle: "Open")
+        alert.addButton(withTitle: "Cancel")
+        present(alert, in: window) { response in completion(response == .alertFirstButtonReturn) }
     }
 
     static func credentials(
