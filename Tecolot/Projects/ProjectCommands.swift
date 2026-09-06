@@ -103,5 +103,6 @@ struct ArrangementCommands: Commands {
     var body: some Commands {
         WindowGroupCommands(store: windowGroups)
         ProjectCommands(store: projects)
+        BrowserCommands()
     }
 }

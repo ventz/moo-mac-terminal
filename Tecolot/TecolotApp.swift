@@ -491,18 +491,21 @@ struct TerminalCommands: Commands {
             Divider()
 
             Button("Bigger Font") {
+                if let browser = BrowserOpener.selectedBrowser { browser.zoomIn(); return }
                 controller?.biggerFont()
             }
             .keyboardShortcut("+", modifiers: [.command])
             .disabled(!isEnabled)
 
             Button("Smaller Font") {
+                if let browser = BrowserOpener.selectedBrowser { browser.zoomOut(); return }
                 controller?.smallerFont()
             }
             .keyboardShortcut("-", modifiers: [.command])
             .disabled(!isEnabled)
 
             Button("Default Font Size") {
+                if let browser = BrowserOpener.selectedBrowser { browser.resetZoom(); return }
                 controller?.defaultFontSize()
             }
             .keyboardShortcut("0", modifiers: [.command])
@@ -549,6 +552,17 @@ struct TerminalCommands: Commands {
     }
 
     private func performFindAction(_ action: NSTextFinder.Action) {
+        // A browser tab in front owns find; the terminal behind it must not
+        // open its find bar out of sight.
+        if let browser = BrowserOpener.selectedBrowser {
+            switch action {
+            case .showFindInterface: browser.showFind()
+            case .nextMatch: browser.findAgain(backwards: false)
+            case .previousMatch: browser.findAgain(backwards: true)
+            default: break
+            }
+            return
+        }
         let item = NSMenuItem()
         item.tag = action.rawValue
         controller?.terminal?.performTextFinderAction(item)
@@ -622,6 +636,7 @@ struct TecolotApp: App {
         registered.merge(ProjectSidebarDefaults.registrationValues) { current, _ in current }
         registered.merge(LinkRoutingDefaults.registrationValues) { current, _ in current }
         UserDefaults.standard.register(defaults: registered)
+        BrowserOpener.install()
     }
 
     var body: some Scene {
