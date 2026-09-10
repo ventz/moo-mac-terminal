@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE dictionary SYSTEM "file://localhost/System/Library/DTDs/sdef.dtd">
+<dictionary title="Moo Terminology">
+    <suite name="Moo Suite" code="Tclt" description="Commands for terminal sessions.">
+        <command name="open terminal" code="TcltOpTr" description="Open a terminal window.">
+            <cocoa class="OpenTerminalScriptCommand"/>
+            <direct-parameter type="text" optional="yes" description="The initial working directory."/>
+        </command>
+        <command name="open terminal tab" code="TcltOpTb" description="Open a terminal tab.">
+            <cocoa class="OpenTerminalTabScriptCommand"/>
+            <direct-parameter type="text" optional="yes" description="The initial working directory."/>
+        </command>
+        <command name="preview markdown" code="TcltPvMd" description="Open a Markdown file as a preview tab in the current project.">
+            <cocoa class="PreviewMarkdownScriptCommand"/>
+            <direct-parameter type="text" description="The POSIX path of the Markdown file."/>
+        </command>
+        <command name="open url" code="TcltOpUr" description="Open a web address as a browser tab in the current project.">
+            <cocoa class="OpenURLScriptCommand"/>
+            <direct-parameter type="text" description="The http or https address."/>
+        </command>
+    </suite>
+</dictionary>

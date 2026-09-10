@@ -40,8 +40,8 @@ Icaza, and it publishes no auto-update feed.
 ## Quick Install
 
 ```bash
-git clone https://github.com/ventz/moo
-cd moo
+git clone https://github.com/ventz/moo-mac-terminal
+cd moo-mac-terminal
 xcodebuild -downloadComponent MetalToolchain   # one time, ~688 MB
 open Moo.xcodeproj                             # ⌘R to build and run
 ```
