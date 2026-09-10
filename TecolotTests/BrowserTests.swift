@@ -1,7 +1,7 @@
 import Foundation
 import Testing
 import WebKit
-@testable import Tecolot
+@testable import Moo
 
 final class BrowserAddressTests {
     @Test func explicitURLsLoadAsTyped() {

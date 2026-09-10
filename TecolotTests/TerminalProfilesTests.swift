@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Tecolot
+@testable import Moo
 
 final class ProfileColorTests {
     @Test func hexRoundTrip () throws {

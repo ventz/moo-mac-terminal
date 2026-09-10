@@ -1,6 +1,6 @@
 import AppKit
 import Testing
-@testable import Tecolot
+@testable import Moo
 
 @MainActor
 struct WindowSizingTests {

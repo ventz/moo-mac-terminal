@@ -6,7 +6,7 @@
 //
 import Foundation
 import Testing
-@testable import Tecolot
+@testable import Moo
 
 @MainActor
 final class ThemeForkingTests {

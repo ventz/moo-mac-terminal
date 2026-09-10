@@ -9,7 +9,7 @@
 import CoreText
 import Foundation
 import Testing
-@testable import Tecolot
+@testable import Moo
 
 struct NerdFontTests {
     /// A CTFont created straight from the committed TTF, bypassing

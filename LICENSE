@@ -1,4 +1,11 @@
+MIT License
+
 Copyright (c) 2026 Miguel de Icaza (https://github.com/migueldeicaza)
+Copyright (c) 2026 Ventz Petkov (https://github.com/ventz)
+
+Moo is a fork of Tecolot by Miguel de Icaza. The overwhelming majority of
+this software is his work, and it remains under his copyright; the lines
+above add copyright only over the changes made in the fork.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the

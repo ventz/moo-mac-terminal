@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 import Testing
-@testable import Tecolot
+@testable import Moo
 
 /// A stand-in for the preview and browser sessions: enough to be a tab.
 @MainActor

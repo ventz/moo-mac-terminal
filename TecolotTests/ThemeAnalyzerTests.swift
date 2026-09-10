@@ -8,7 +8,7 @@
 //
 import Foundation
 import Testing
-@testable import Tecolot
+@testable import Moo
 
 final class ThemeAnalyzerTests {
     private let analyzer = ThemeAnalyzer()

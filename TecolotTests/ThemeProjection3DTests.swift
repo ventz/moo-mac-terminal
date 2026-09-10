@@ -5,7 +5,7 @@
 import Foundation
 import Testing
 import simd
-@testable import Tecolot
+@testable import Moo
 
 final class ThemeProjection3DTests {
     @Test func colorSpaceKeepsNeutralsOnTheLightnessAxis() throws {
