@@ -1,10 +1,18 @@
-# Moo Terminal
+<p align="center">
+  <img src="docs/moo-icon.png" alt="Moo Terminal" width="160">
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform: macOS](https://img.shields.io/badge/platform-macOS%2015%2B-lightgrey.svg)](#quick-install)
+<h1 align="center">Moo Terminal</h1>
 
-A native macOS terminal that keeps your work grouped — terminals, Markdown
-previews and web pages side by side in one window, organized into projects.
+<p align="center">
+  A native macOS terminal that keeps your work grouped — terminals, Markdown
+  previews and web pages side by side in one window, organized into projects.
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+  <a href="#quick-install"><img src="https://img.shields.io/badge/platform-macOS%2015%2B-lightgrey.svg" alt="Platform: macOS"></a>
+</p>
 
 ## Table of Contents
 
@@ -66,8 +74,14 @@ one. The status dot on each project row is live: **Idle** at a prompt,
 **Running** with a command in flight, **Activity** when a background project
 produced output.
 
-Open a Markdown file or URL as a tab from the File menu, or by
-command-clicking a path or link in terminal output.
+**Preview a Markdown file** with `⇧⌘M` (File → Open Markdown Preview…), or
+command-click any `.md` path printed in the terminal — `ls`, `git status` and
+build output all become clickable. The preview live-reloads as the file
+changes; `⌘R` reloads by hand. `.md`, `.markdown`, `.mdown`, `.mkd` and `.mdx`
+are recognized.
+
+Open a URL as a browser tab the same way: command-click a link in terminal
+output, or use the File menu.
 
 ## Building from Source
 
