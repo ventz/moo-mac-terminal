@@ -2,9 +2,13 @@
 //  UpdateCommands.swift
 //  Tecolot
 //
-//  In-app updates through Sparkle. Tecolot ships as a Developer ID signed app
-//  outside the Mac App Store, so Sparkle checks an appcast feed that the
-//  release workflow publishes to https://tecolot.com/appcast.xml.
+//  In-app updates through Sparkle. The app ships as a Developer ID signed app
+//  outside the Mac App Store, so Sparkle checks an appcast feed named by
+//  SUFeedURL in Info.plist.
+//
+//  Moo publishes no appcast, so SUFeedURL is absent and the updater never
+//  starts. That absence is the switch, and it is deliberate: inheriting
+//  upstream Tecolot's feed would have Sparkle install Tecolot over Moo.
 //
 
 import Combine
@@ -21,12 +25,21 @@ enum UpdatePolicy {
             bundleNames: [
                 Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String,
                 Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
-            ].compactMap { $0 }
+            ].compactMap { $0 },
+            feedURL: Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String
         )
 #endif
     }
 
-    static func permitsUpdates(bundleIdentifier: String?, bundleNames: [String]) -> Bool {
+    static func permitsUpdates(
+        bundleIdentifier: String?,
+        bundleNames: [String],
+        feedURL: String?
+    ) -> Bool {
+        // No feed, no updater. Checked first because it is the fork's switch.
+        guard let feedURL, !feedURL.trimmingCharacters(in: .whitespaces).isEmpty else {
+            return false
+        }
         if bundleIdentifier?.lowercased().hasSuffix(".debug") == true {
             return false
         }

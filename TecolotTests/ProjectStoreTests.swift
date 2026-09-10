@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Tecolot
+@testable import Moo
 
 private func makeTemporaryDirectory() throws -> URL {
     let url = FileManager.default.temporaryDirectory

@@ -4,7 +4,7 @@
 //
 import CoreGraphics
 import Testing
-@testable import Tecolot
+@testable import Moo
 
 final class ThemeCameraTests {
     @Test func cameraConstrainsPitchZoomAndYaw() {

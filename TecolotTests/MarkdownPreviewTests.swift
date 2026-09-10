@@ -2,7 +2,7 @@ import AppKit
 import Darwin
 import Foundation
 import Testing
-@testable import Tecolot
+@testable import Moo
 
 final class MarkdownSchemeHandlerTests {
     private let root: URL = {

@@ -598,16 +598,40 @@ struct TerminalPrintCommands: Commands {
 }
 
 struct AppInfoCommands: Commands {
+    /// Moo is a fork, and the About panel says so plainly. Nearly all of this
+    /// program is Miguel de Icaza's work — Tecolot itself and the SwiftTerm
+    /// engine underneath it — so his name goes first and is named, not merely
+    /// implied by a license file nobody opens.
+    private static let credits: NSAttributedString = {
+        let text = """
+        Moo is a fork of Tecolot by Miguel de Icaza.
+
+        Tecolot — © 2026 Miguel de Icaza, MIT License
+        https://github.com/migueldeicaza/Tecolot
+
+        SwiftTerm, the terminal engine — © Miguel de Icaza, MIT License
+        https://github.com/migueldeicaza/SwiftTerm
+
+        Fork changes © 2026 Ventz Petkov, MIT License
+
+        Includes Symbols Nerd Font (Nerd Fonts 3.4.0),
+        © Nerd Fonts contributors, MIT License.
+        """
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        return NSAttributedString(
+            string: text,
+            attributes: [
+                .paragraphStyle: paragraph,
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+            ]
+        )
+    }()
+
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
-            Button("About Tecolot") {
-                let credits = NSAttributedString(
-                    string: "A native terminal built with SwiftTerm.\n"
-                        + "Copyright © 2026 Miguel de Icaza.\n\n"
-                        + "Includes Symbols Nerd Font (Nerd Fonts 3.4.0),\n"
-                        + "© Nerd Fonts contributors, MIT License."
-                )
-                NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
+            Button("About Moo") {
+                NSApp.orderFrontStandardAboutPanel(options: [.credits: Self.credits])
             }
         }
     }

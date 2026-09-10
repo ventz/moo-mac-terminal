@@ -6,7 +6,7 @@
 //  engine against known reference values.
 //
 import Testing
-@testable import Tecolot
+@testable import Moo
 
 final class ThemeColorMathTests {
     @Test func blackHasZeroLuminanceAndWhiteHasOne() {

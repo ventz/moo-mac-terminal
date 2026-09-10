@@ -145,6 +145,15 @@ final class ProjectRuntime {
                 session.status = current
             }
         }
+        pruneChildBookkeeping()
+    }
+
+    /// Forgets child timings for controllers that no longer exist, so a
+    /// long-lived app does not accumulate an entry per closed pane.
+    private func pruneChildBookkeeping() {
+        guard !childFirstSeen.isEmpty else { return }
+        let live = Set(sessions.values.flatMap(\.controllers).map(ObjectIdentifier.init))
+        childFirstSeen = childFirstSeen.filter { live.contains($0.key) }
     }
 
     /// A finishing command always writes at least a new prompt, so output is a
@@ -293,23 +302,62 @@ final class ProjectRuntime {
                 attentionCount: attentionCount
             )
         }
-        if controllers.contains(where: Self.hasRunningChild) {
+        let now = Date.timeIntervalSinceReferenceDate
+        // Evaluated for every controller, not short-circuited: each one has to
+        // tick its own child bookkeeping or a background pane's children would
+        // freeze at whatever they were when a nearer pane first matched.
+        let running = controllers.reduce(into: false) { result, controller in
+            if hasSettledChild(controller, now: now) { result = true }
+        }
+        if running {
             return ProjectStatusReport(status: .running, source: .childProcess, attentionCount: 0)
         }
         return ProjectStatusReport(status: .idle, source: .atPrompt, attentionCount: 0)
     }
 
-    /// A command is running when the shell has at least one child. This is the
-    /// same signal the close-confirmation policy already trusts.
-    private static func hasRunningChild(_ controller: TerminalSessionController) -> Bool {
+    /// How long a child has to still be the *same* process before it counts as
+    /// a running command.
+    private static let settleInterval: TimeInterval = 0.4
+
+    /// When each of a controller's current children was first seen, keyed by
+    /// controller. Entries are dropped as soon as the child exits, so a reused
+    /// pid starts its clock over.
+    @ObservationIgnored private var childFirstSeen: [ObjectIdentifier: [pid_t: TimeInterval]] = [:]
+
+    /// A command is running when the shell has at least one child that has
+    /// been there a moment — the same signal the close-confirmation policy
+    /// trusts, with the flashes filtered out.
+    ///
+    /// Merely typing forks processes: the prompt's `git`, completion, and
+    /// anything else the shell shells out to live for a few milliseconds. The
+    /// status is polled on every keystroke's echo, so those were enough to
+    /// make a row read "Running" while the user was only typing. Requiring the
+    /// same pid across polls fixes it structurally — a fresh fork per keypress
+    /// never survives, a real command always does.
+    private func hasSettledChild(_ controller: TerminalSessionController, now: TimeInterval) -> Bool {
+        let key = ObjectIdentifier(controller)
         guard let process = controller.terminal?.process, process.running else {
+            childFirstSeen.removeValue(forKey: key)
             return false
         }
-        return childProcessCount(parentPID: process.shellPid) > 0
+        let current = Self.childPIDs(parentPID: process.shellPid)
+        guard !current.isEmpty else {
+            childFirstSeen.removeValue(forKey: key)
+            return false
+        }
+        var seen = (childFirstSeen[key] ?? [:]).filter { current.contains($0.key) }
+        var settled = false
+        for pid in current {
+            let firstSeen = seen[pid] ?? now
+            seen[pid] = firstSeen
+            if now - firstSeen >= Self.settleInterval { settled = true }
+        }
+        childFirstSeen[key] = seen
+        return settled
     }
 
-    nonisolated private static func childProcessCount(parentPID: pid_t) -> Int {
-        guard parentPID > 0 else { return 0 }
+    nonisolated private static func childPIDs(parentPID: pid_t) -> Set<pid_t> {
+        guard parentPID > 0 else { return [] }
         var childPIDs = [pid_t](repeating: 0, count: 256)
         let count = childPIDs.withUnsafeMutableBufferPointer { buffer in
             proc_listchildpids(
@@ -318,7 +366,8 @@ final class ProjectRuntime {
                 Int32(buffer.count * MemoryLayout<pid_t>.stride)
             )
         }
-        return max(0, Int(count))
+        guard count > 0 else { return [] }
+        return Set(childPIDs.prefix(min(Int(count), childPIDs.count)).filter { $0 > 0 })
     }
 
     // MARK: Live location

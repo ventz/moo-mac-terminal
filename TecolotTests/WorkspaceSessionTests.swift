@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import Tecolot
+@testable import Moo
 
 /// startsProcesses: false throughout — these cover the tab/workspace model,
 /// not the terminal, so no shells are spawned.
