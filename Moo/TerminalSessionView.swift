@@ -31,7 +31,7 @@ enum TerminalWindowTransparency {
 final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegate {
     let id = UUID()
     /// Durable identity for this terminal, exported to the shell as
-    /// TECOLOT_SURFACE_ID. Bind anything long-lived to this rather than to a
+    /// MOO_SURFACE_ID. Bind anything long-lived to this rather than to a
     /// window or a project, both of which are re-created across a restore.
     var surfaceID: String { id.uuidString }
     @ObservationIgnored private let startsProcess: Bool
@@ -808,7 +808,7 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         // the key anything durable (agent status, notifications) will bind to,
         // and retrofitting it once sessions exist in the wild is expensive.
         let environment = TerminalEnvironment.applying(
-            [TerminalEnvironmentVariable(name: "TECOLOT_SURFACE_ID", value: surfaceID)],
+            [TerminalEnvironmentVariable(name: "MOO_SURFACE_ID", value: surfaceID)],
             to: params.environment
         )
         terminal.startProcess(executable: params.executable,

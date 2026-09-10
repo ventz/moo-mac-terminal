@@ -2,9 +2,9 @@
 # or all failure scenarios are handled, so that we never leave the shell in
 # a weird state. If you find a way to break this, please report a bug!
 
-function tecolot_restore_xdg_data_dir -d "restore the original XDG_DATA_DIR value"
+function moo_restore_xdg_data_dir -d "restore the original XDG_DATA_DIR value"
     # If we don't have our own data dir then we don't need to do anything.
-    if not set -q TECOLOT_SHELL_INTEGRATION_XDG_DIR
+    if not set -q MOO_SHELL_INTEGRATION_XDG_DIR
         return
     end
 
@@ -17,7 +17,7 @@ function tecolot_restore_xdg_data_dir -d "restore the original XDG_DATA_DIR valu
     set --function --path xdg_data_dirs "$XDG_DATA_DIRS"
 
     # If our data dir is in the list then remove it.
-    if set --function index (contains --index "$TECOLOT_SHELL_INTEGRATION_XDG_DIR" $xdg_data_dirs)
+    if set --function index (contains --index "$MOO_SHELL_INTEGRATION_XDG_DIR" $xdg_data_dirs)
         set --erase --function xdg_data_dirs[$index]
     end
 
@@ -28,28 +28,28 @@ function tecolot_restore_xdg_data_dir -d "restore the original XDG_DATA_DIR valu
         set --erase --global XDG_DATA_DIRS
     end
 
-    set --erase TECOLOT_SHELL_INTEGRATION_XDG_DIR
+    set --erase MOO_SHELL_INTEGRATION_XDG_DIR
 end
 
-function tecolot_exit -d "exit the shell integration setup"
-    functions -e tecolot_restore_xdg_data_dir
-    functions -e tecolot_exit
+function moo_exit -d "exit the shell integration setup"
+    functions -e moo_restore_xdg_data_dir
+    functions -e moo_exit
     exit 0
 end
 
 # We always try to restore the XDG data dir
-tecolot_restore_xdg_data_dir
+moo_restore_xdg_data_dir
 
 # If we aren't interactive or we've already run, don't run.
-status --is-interactive || tecolot_exit
+status --is-interactive || moo_exit
 
 # We do the full setup on the first prompt render. We do this so that other
 # shell integrations that setup the prompt and modify things are able to run
 # first. We want to run _last_.
-function __tecolot_setup --on-event fish_prompt -d "Setup tecolot integration"
-    functions -e __tecolot_setup
+function __moo_setup --on-event fish_prompt -d "Setup moo integration"
+    functions -e __moo_setup
 
-    set --local features (string split , $TECOLOT_SHELL_FEATURES)
+    set --local features (string split , $MOO_SHELL_FEATURES)
 
     # Parse the fish version for feature detection.
     # Default to 0.0 if version is unavailable or malformed.
@@ -67,9 +67,9 @@ function __tecolot_setup --on-event fish_prompt -d "Setup tecolot integration"
 
     # Our OSC133A (prompt start) sequence. If we're using Fish >= 4.1
     # then it supports click_events so we enable that.
-    set -g __tecolot_prompt_start_mark "\e]133;A\a"
+    set -g __moo_prompt_start_mark "\e]133;A\a"
     if test "$fish_major" -gt 4; or test "$fish_major" -eq 4 -a "$fish_minor" -ge 1
-        set -g __tecolot_prompt_start_mark "\e]133;A;click_events=1\a"
+        set -g __moo_prompt_start_mark "\e]133;A;click_events=1\a"
     end
 
     if string match -q 'cursor*' -- $features
@@ -77,27 +77,27 @@ function __tecolot_setup --on-event fish_prompt -d "Setup tecolot integration"
         contains cursor:steady $features && set cursor 6  # steady bar
 
         # Change the cursor to a beam on prompt.
-        function __tecolot_set_cursor_beam --on-event fish_prompt -V cursor -d "Set cursor shape"
+        function __moo_set_cursor_beam --on-event fish_prompt -V cursor -d "Set cursor shape"
             if not functions -q fish_vi_cursor_handle
                 echo -en "\e[$cursor q"
             end
         end
-        function __tecolot_reset_cursor --on-event fish_preexec -d "Reset cursor shape"
+        function __moo_reset_cursor --on-event fish_preexec -d "Reset cursor shape"
             if not functions -q fish_vi_cursor_handle
                 echo -en "\e[0 q"
             end
         end
     end
 
-    # Add Tecolot binary to PATH if the path feature is enabled
-    if contains path $features; and test -n "$TECOLOT_BIN_DIR"
-        fish_add_path --global --path --append "$TECOLOT_BIN_DIR"
+    # Add Moo binary to PATH if the path feature is enabled
+    if contains path $features; and test -n "$MOO_BIN_DIR"
+        fish_add_path --global --path --append "$MOO_BIN_DIR"
     end
 
     # When using sudo shell integration feature, ensure $TERMINFO is set
     # and `sudo` is not already a function or alias
     if contains sudo $features; and test -n "$TERMINFO"; and test file = (type -t sudo 2> /dev/null; or echo "x")
-        # Wrap `sudo` command to ensure Tecolot terminfo is preserved
+        # Wrap `sudo` command to ensure Moo terminfo is preserved
         function sudo -d "Wrap sudo to preserve terminfo"
             set --function sudo_has_sudoedit_flags no
             for arg in $argv
@@ -121,37 +121,37 @@ function __tecolot_setup --on-event fish_prompt -d "Setup tecolot integration"
 
     # SSH Integration
     #
-    # Wrap `ssh` with `tecolot +ssh` and translate the shell-integration
+    # Wrap `ssh` with `moo +ssh` and translate the shell-integration
     # feature flags into command options.
-    set -l features (string split ',' -- "$TECOLOT_SHELL_FEATURES")
+    set -l features (string split ',' -- "$MOO_SHELL_FEATURES")
     if contains ssh-env $features; or contains ssh-terminfo $features
-        function ssh --wraps=ssh --description "SSH wrapper with Tecolot integration"
-            set -l features (string split ',' -- "$TECOLOT_SHELL_FEATURES")
+        function ssh --wraps=ssh --description "SSH wrapper with Moo integration"
+            set -l features (string split ',' -- "$MOO_SHELL_FEATURES")
             set -l flags
             contains ssh-env $features; or set -a flags --forward-env=false
             contains ssh-terminfo $features; or set -a flags --terminfo=false
-            "$TECOLOT_BIN_DIR/tecolot" +ssh $flags -- $argv
+            "$MOO_BIN_DIR/moo" +ssh $flags -- $argv
         end
     end
 
     # Setup prompt marking
-    function __tecolot_mark_prompt_start --on-event fish_prompt --on-event fish_posterror
+    function __moo_mark_prompt_start --on-event fish_prompt --on-event fish_posterror
         # If we never got the output end event, then we need to send it now.
-        if test "$__tecolot_prompt_state" != prompt-start
+        if test "$__moo_prompt_state" != prompt-start
             echo -en "\e]133;D\a"
         end
 
-        set --global __tecolot_prompt_state prompt-start
-        echo -en $__tecolot_prompt_start_mark
+        set --global __moo_prompt_state prompt-start
+        echo -en $__moo_prompt_start_mark
     end
 
-    function __tecolot_mark_output_start --on-event fish_preexec
-        set --global __tecolot_prompt_state pre-exec
+    function __moo_mark_output_start --on-event fish_preexec
+        set --global __moo_prompt_state pre-exec
         echo -en "\e]133;C\a"
     end
 
-    function __tecolot_mark_output_end --on-event fish_postexec
-        set --global __tecolot_prompt_state post-exec
+    function __moo_mark_output_end --on-event fish_postexec
+        set --global __moo_prompt_state post-exec
         echo -en "\e]133;D;$status\a"
     end
 
@@ -164,15 +164,15 @@ function __tecolot_setup --on-event fish_prompt -d "Setup tecolot integration"
         printf \e\]7\;file://%s%s\a $hostname (string escape --style=url $PWD)
     end
 
-    # Enable fish to handle reflow because Tecolot clears the prompt on resize.
+    # Enable fish to handle reflow because Moo clears the prompt on resize.
     set --global fish_handle_reflow 1
 
     # Initial calls for first prompt
     if string match -q 'cursor*' -- $features
-        __tecolot_set_cursor_beam
+        __moo_set_cursor_beam
     end
-    __tecolot_mark_prompt_start
+    __moo_mark_prompt_start
     __update_cwd_osc
 end
 
-tecolot_exit
+moo_exit

@@ -674,7 +674,7 @@ final class LaunchParametersTests {
         #expect (params.environment.contains ("TERM=xterm-256color"))
         #expect (params.environment.contains ("TERM_FEATURES=\(TerminalFeatureReporting.featureString)"))
         #expect (!params.environment.contains { $0.hasPrefix("TERM_PROGRAM=") })
-        #expect (params.environment.contains { $0.hasPrefix("TECOLOT_RESOURCES_DIR=") })
+        #expect (params.environment.contains { $0.hasPrefix("MOO_RESOURCES_DIR=") })
     }
 
     @Test func termNameFlowsIntoEnvironment () {
@@ -861,7 +861,7 @@ final class LaunchParametersTests {
 
         let params = ProfileApplier.launchParameters(for: profile)
 
-        #expect(params.environment.contains("TECOLOT_SHELL_FEATURES=title"))
+        #expect(params.environment.contains("MOO_SHELL_FEATURES=title"))
     }
 }
 
@@ -923,10 +923,10 @@ final class MooShellIntegrationTests {
         )
 
         #expect(result.args == input.args)
-        #expect(result.environment.contains("TERM_PROGRAM=tecolot"))
+        #expect(result.environment.contains("TERM_PROGRAM=moo"))
         #expect(result.environment.contains("TERM_PROGRAM_VERSION=1.2.3"))
-        #expect(result.environment.contains("TECOLOT_SHELL_FEATURES=title"))
-        #expect(result.environment.contains("TECOLOT_RESOURCES_DIR=/tmp/tecolot resources"))
+        #expect(result.environment.contains("MOO_SHELL_FEATURES=title"))
+        #expect(result.environment.contains("MOO_RESOURCES_DIR=/tmp/tecolot resources"))
         #expect(!result.environment.contains { $0.hasPrefix("ZDOTDIR=") })
     }
 
@@ -942,7 +942,7 @@ final class MooShellIntegrationTests {
             terminalProgramVersion: "1"
         )
 
-        #expect(result.environment.contains("TECOLOT_SHELL_FEATURES=title"))
+        #expect(result.environment.contains("MOO_SHELL_FEATURES=title"))
     }
 
     @Test func injectsZshAndPreservesZDotDirectory () {
@@ -961,7 +961,7 @@ final class MooShellIntegrationTests {
             terminalProgramVersion: "1"
         )
 
-        #expect(result.environment.contains("TECOLOT_ZSH_ZDOTDIR=/Users/test/.config/zsh"))
+        #expect(result.environment.contains("MOO_ZSH_ZDOTDIR=/Users/test/.config/zsh"))
         #expect(result.environment.contains("ZDOTDIR=/tmp/tecolot resources/shell-integration/zsh"))
     }
 
@@ -982,7 +982,7 @@ final class MooShellIntegrationTests {
         )
 
         let integration = "/tmp/tecolot resources/shell-integration"
-        #expect(result.environment.contains("TECOLOT_SHELL_INTEGRATION_XDG_DIR=\(integration)"))
+        #expect(result.environment.contains("MOO_SHELL_INTEGRATION_XDG_DIR=\(integration)"))
         #expect(result.environment.contains("XDG_DATA_DIRS=\(integration):/opt/share:/usr/share"))
     }
 
@@ -1002,7 +1002,7 @@ final class MooShellIntegrationTests {
             terminalProgramVersion: "1"
         )
 
-        #expect(result.args == ["--execute", "use tecolot *", "--login"])
+        #expect(result.args == ["--execute", "use moo *", "--login"])
     }
 
     @Test func doesNotInjectAppleBash () {
@@ -1023,7 +1023,7 @@ final class MooShellIntegrationTests {
 
         #expect(result.args.isEmpty)
         #expect(!result.environment.contains { $0.hasPrefix("ENV=") })
-        #expect(result.environment.contains("TECOLOT_RESOURCES_DIR=/tmp/tecolot resources"))
+        #expect(result.environment.contains("MOO_RESOURCES_DIR=/tmp/tecolot resources"))
     }
 
     @Test func injectsSupportedBashAndPreservesFlags () throws {
@@ -1044,11 +1044,11 @@ final class MooShellIntegrationTests {
         )
 
         #expect(result.args == ["--posix", "-l"])
-        #expect(result.environment.contains("TECOLOT_BASH_INJECT=1 --noprofile"))
-        #expect(result.environment.contains("TECOLOT_BASH_RCFILE=/tmp/test.bashrc"))
-        #expect(result.environment.contains("TECOLOT_BASH_ENV=/tmp/original-env"))
+        #expect(result.environment.contains("MOO_BASH_INJECT=1 --noprofile"))
+        #expect(result.environment.contains("MOO_BASH_RCFILE=/tmp/test.bashrc"))
+        #expect(result.environment.contains("MOO_BASH_ENV=/tmp/original-env"))
         #expect(result.environment.contains {
-            $0.hasPrefix("ENV=") && $0.hasSuffix("/shell-integration/bash/tecolot.bash")
+            $0.hasPrefix("ENV=") && $0.hasSuffix("/shell-integration/bash/moo.bash")
         })
     }
 

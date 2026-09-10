@@ -17,17 +17,17 @@
 
 # This script is sourced automatically by zsh when ZDOTDIR is set to this
 # directory. It therefore assumes it's running within our shell integration
-# environment and should not be sourced manually (unlike tecolot-integration).
+# environment and should not be sourced manually (unlike moo-integration).
 #
 # This file can get sourced with aliases enabled. To avoid alias expansion
 # we quote everything that can be quoted. Some aliases will still break us
 # though.
 
-# Restore the original ZDOTDIR value if TECOLOT_ZSH_ZDOTDIR is set.
+# Restore the original ZDOTDIR value if MOO_ZSH_ZDOTDIR is set.
 # Otherwise, unset the ZDOTDIR that was set during shell injection.
-if [[ -n "${TECOLOT_ZSH_ZDOTDIR+X}" ]]; then
-    'builtin' 'export' ZDOTDIR="$TECOLOT_ZSH_ZDOTDIR"
-    'builtin' 'unset' 'TECOLOT_ZSH_ZDOTDIR'
+if [[ -n "${MOO_ZSH_ZDOTDIR+X}" ]]; then
+    'builtin' 'export' ZDOTDIR="$MOO_ZSH_ZDOTDIR"
+    'builtin' 'unset' 'MOO_ZSH_ZDOTDIR'
 else
     'builtin' 'unset' 'ZDOTDIR'
 fi
@@ -36,26 +36,26 @@ fi
 {
     # Zsh treats unset ZDOTDIR as if it was HOME. We do the same.
     #
-    # Source the user's .zshenv before sourcing tecolot-integration because the
-    # former might set fpath and other things without which tecolot-integration
+    # Source the user's .zshenv before sourcing moo-integration because the
+    # former might set fpath and other things without which moo-integration
     # won't work.
     #
     # Use typeset in case we are in a function with warn_create_global in
     # effect. Unlikely but better safe than sorry.
-    'builtin' 'typeset' _tecolot_file=${ZDOTDIR-$HOME}"/.zshenv"
+    'builtin' 'typeset' _moo_file=${ZDOTDIR-$HOME}"/.zshenv"
     # Zsh ignores unreadable rc files. We do the same.
     # Zsh ignores rc files that are directories, and so does source.
-    [[ ! -r "$_tecolot_file" ]] || 'builtin' 'source' '--' "$_tecolot_file"
+    [[ ! -r "$_moo_file" ]] || 'builtin' 'source' '--' "$_moo_file"
 } always {
     if [[ -o 'interactive' ]]; then
         # ${(%):-%x} is the path to the current file.
         # On top of it we add :A:h to get the directory.
-        'builtin' 'typeset' _tecolot_file="${${(%):-%x}:A:h}"/tecolot-integration
-        if [[ -r "$_tecolot_file" ]]; then
-            'builtin' 'autoload' '-Uz' '--' "$_tecolot_file"
-            "${_tecolot_file:t}"
-            'builtin' 'unfunction' '--' "${_tecolot_file:t}"
+        'builtin' 'typeset' _moo_file="${${(%):-%x}:A:h}"/moo-integration
+        if [[ -r "$_moo_file" ]]; then
+            'builtin' 'autoload' '-Uz' '--' "$_moo_file"
+            "${_moo_file:t}"
+            'builtin' 'unfunction' '--' "${_moo_file:t}"
         fi
     fi
-    'builtin' 'unset' '_tecolot_file'
+    'builtin' 'unset' '_moo_file'
 }
