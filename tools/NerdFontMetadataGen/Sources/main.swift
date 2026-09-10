@@ -1,13 +1,13 @@
 //
-// NerdFontMetadataGen — deterministic generator for Tecolot's Nerd Font
+// NerdFontMetadataGen — deterministic generator for Moo's Nerd Font
 // codepoint metadata.
 //
 // Inputs (pinned in this tool's `inputs/` directory and the app bundle):
 //   - inputs/glyphnames.json           the Nerd Fonts release glyph list
-//   - Tecolot/NerdFont/NerdFontResources/SymbolsNerdFont-Regular.ttf
+//   - Moo/NerdFont/NerdFontResources/SymbolsNerdFont-Regular.ttf
 //
 // Output:
-//   - Tecolot/NerdFont/NerdFontGlyphMetadata.generated.swift
+//   - Moo/NerdFont/NerdFontGlyphMetadata.generated.swift
 //
 // The generator fails, with a clear message, when: the metadata and font
 // versions differ; a codepoint appears twice with conflicting placement
@@ -35,8 +35,8 @@ let toolURL = URL(fileURLWithPath: #filePath)     // .../tools/NerdFontMetadataG
 let toolRoot = toolURL.deletingLastPathComponent().deletingLastPathComponent()
 let repoRoot = toolRoot.deletingLastPathComponent().deletingLastPathComponent()
 let glyphNamesURL = toolRoot.appendingPathComponent("inputs/glyphnames.json")
-let fontURL = repoRoot.appendingPathComponent("Tecolot/NerdFont/NerdFontResources/SymbolsNerdFont-Regular.ttf")
-let outputURL = repoRoot.appendingPathComponent("Tecolot/NerdFont/NerdFontGlyphMetadata.generated.swift")
+let fontURL = repoRoot.appendingPathComponent("Moo/NerdFont/NerdFontResources/SymbolsNerdFont-Regular.ttf")
+let outputURL = repoRoot.appendingPathComponent("Moo/NerdFont/NerdFontGlyphMetadata.generated.swift")
 
 // MARK: Parse glyphnames.json
 

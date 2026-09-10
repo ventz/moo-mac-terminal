@@ -598,21 +598,18 @@ struct TerminalPrintCommands: Commands {
 }
 
 struct AppInfoCommands: Commands {
-    /// Moo is a fork, and the About panel says so plainly. Nearly all of this
-    /// program is Miguel de Icaza's work — Tecolot itself and the SwiftTerm
-    /// engine underneath it — so his name goes first and is named, not merely
-    /// implied by a license file nobody opens.
+    /// Moo is built on Miguel de Icaza's work — SwiftTerm and Tecolot — and
+    /// the About panel says so by name rather than leaving it to a license
+    /// file nobody opens.
     private static let credits: NSAttributedString = {
         let text = """
-        Moo is a fork of Tecolot by Miguel de Icaza.
+        Built on SwiftTerm and Tecolot by Miguel de Icaza.
+        © 2026 Miguel de Icaza, MIT License
 
-        Tecolot — © 2026 Miguel de Icaza, MIT License
+        https://github.com/migueldeicaza/SwiftTerm
         https://github.com/migueldeicaza/Tecolot
 
-        SwiftTerm, the terminal engine — © Miguel de Icaza, MIT License
-        https://github.com/migueldeicaza/SwiftTerm
-
-        Fork changes © 2026 Ventz Petkov, MIT License
+        Moo © 2026 Ventz Petkov, MIT License
 
         Includes Symbols Nerd Font (Nerd Fonts 3.4.0),
         © Nerd Fonts contributors, MIT License.

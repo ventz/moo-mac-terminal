@@ -43,6 +43,6 @@ struct TerminalDocument: FileDocument {
 
 extension UTType {
     static var terminalSession: UTType {
-        UTType(exportedAs: "com.tirania.tecolot.terminal-session")
+        UTType(exportedAs: "net.vpetkov.moo.terminal-session")
     }
 }

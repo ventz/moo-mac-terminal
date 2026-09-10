@@ -5,8 +5,8 @@
 //  Serves the preview page, its bundled renderer and the files a document
 //  refers to over a private URL scheme:
 //
-//    tecolot-md://preview/app/<resource>          bundled page, JS, CSS, wasm, fonts
-//    tecolot-md://preview/doc/<token>/<relative>  files beside the document
+//    moo-md://preview/app/<resource>          bundled page, JS, CSS, wasm, fonts
+//    moo-md://preview/doc/<token>/<relative>  files beside the document
 //
 //  Not file://. WebKit refuses to instantiate WebAssembly from a file URL
 //  (no Content-Type) and treats every file as its own origin, which breaks
@@ -41,7 +41,7 @@ enum MarkdownDocumentRegistry {
 }
 
 final class MarkdownSchemeHandler: NSObject, WKURLSchemeHandler {
-    static let scheme = "tecolot-md"
+    static let scheme = "moo-md"
     static let host = "preview"
 
     /// What a document may pull in from its directory: images, media and

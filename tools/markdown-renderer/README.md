@@ -1,10 +1,10 @@
 # Markdown renderer
 
-The JavaScript half of Tecolot's Markdown preview tab. It turns a `.md` file
+The JavaScript half of Moo's Markdown preview tab. It turns a `.md` file
 into HTML that matches what github.com renders, and runs inside a `WKWebView`
-served over the app's private `tecolot-md://` scheme.
+served over the app's private `moo-md://` scheme.
 
-The built output is committed under `Tecolot/MarkdownPreview/Resources/`, so
+The built output is committed under `Moo/MarkdownPreview/Resources/`, so
 an Xcode build never needs Node. Rebuild only after changing `src/` or a
 dependency.
 
@@ -13,7 +13,7 @@ dependency.
 ```bash
 cd tools/markdown-renderer
 npm install
-npm run build      # writes Tecolot/MarkdownPreview/Resources/
+npm run build      # writes Moo/MarkdownPreview/Resources/
 npm test           # structural checks against GitHub's markup
 ```
 
@@ -37,8 +37,8 @@ frontend too, so the Markdown itself is treated identically).
 
 ## Page ↔ app bridge
 
-The app calls `window.tecolot.render(markdown)`. The page posts to
-`webkit.messageHandlers.tecolot`: `ready`, `rendered`, `error`, `openLink`,
+The app calls `window.moo.render(markdown)`. The page posts to
+`webkit.messageHandlers.moo`: `ready`, `rendered`, `error`, `openLink`,
 `copy`, `runCommand`. Links never navigate the page; the app decides.
 
 ## Layout of the output

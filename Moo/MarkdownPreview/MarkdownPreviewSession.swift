@@ -154,7 +154,7 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
         pendingMarkdown = nil
         lastMarkdown = markdown
         webView.callAsyncJavaScript(
-            "await window.tecolot.render(markdown)",
+            "await window.moo.render(markdown)",
             arguments: ["markdown": markdown],
             in: nil,
             in: .page
@@ -261,7 +261,7 @@ extension MarkdownPreviewSession: WKNavigationDelegate {
 /// handlers, so this small object stands between it and the session to
 /// avoid a cycle that would keep a closed tab alive.
 private final class MarkdownPreviewBridge: NSObject, WKScriptMessageHandler {
-    static let name = "tecolot"
+    static let name = "moo"
     weak var session: MarkdownPreviewSession?
 
     init(session: MarkdownPreviewSession) {

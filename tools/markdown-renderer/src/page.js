@@ -7,7 +7,7 @@ import './styles.css'
 import {createRenderer, HEADING_PREFIX} from './renderer.js'
 
 const ASSET_BASE = '/app/'
-const bridge = window.webkit?.messageHandlers?.tecolot
+const bridge = window.webkit?.messageHandlers?.moo
 const content = document.getElementById('content')
 const status = document.getElementById('status')
 
@@ -202,6 +202,6 @@ document.addEventListener('click', (event) => {
 // submit must never navigate.
 document.addEventListener('submit', (event) => event.preventDefault())
 
-window.tecolot = {render}
+window.moo = {render}
 
 post({type: 'ready'})

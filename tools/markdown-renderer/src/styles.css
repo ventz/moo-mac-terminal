@@ -1,5 +1,5 @@
 /* github-markdown-css follows prefers-color-scheme, and WKWebView takes
-   that from the window's appearance, which Tecolot sets from the terminal
+   that from the window's appearance, which Moo sets from the terminal
    theme — so the preview flips with the theme for free. */
 @import 'github-markdown-css/github-markdown.css';
 @import 'katex/dist/katex.min.css';

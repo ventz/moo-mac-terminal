@@ -14,7 +14,7 @@ final class ProjectsMigratorTests {
         let projects = [
             Project(
                 id: UUID(),
-                name: "tecolot",
+                name: "moo",
                 accentColor: ProfileColor(hex: "#7aa2f7"),
                 sortIndex: 0
             ),
@@ -103,14 +103,14 @@ final class ProjectStoreTests {
     @Test func addPersistsAcrossReload() throws {
         let directory = try makeTemporaryDirectory()
         let store = ProjectStore(directory: directory)
-        let project = try store.add(name: "tecolot")
+        let project = try store.add(name: "moo")
 
         #expect(store.projects.count == 1)
 
         let reopened = ProjectStore(directory: directory)
         #expect(reopened.projects.count == 1)
         #expect(reopened.projects[0].id == project.id)
-        #expect(reopened.projects[0].name == "tecolot")
+        #expect(reopened.projects[0].name == "moo")
     }
 
     @Test func rejectsBlankAndDuplicateNames() throws {
@@ -303,7 +303,7 @@ final class ProjectAutoNamingTests {
         let project = try store.addAutoNamed()
 
         #expect(project.isAutoNamed)
-        #expect(project.displayName(directory: "/Users/someone/git/tecolot") == "tecolot")
+        #expect(project.displayName(directory: "/Users/someone/git/moo") == "moo")
         #expect(project.displayName(directory: "/tmp") == "tmp")
     }
 

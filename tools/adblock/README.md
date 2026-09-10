@@ -8,7 +8,7 @@ blockers rely on.
 
 ## What is bundled
 
-`build.sh` produces `Tecolot/Browser/Resources/`:
+`build.sh` produces `Moo/Browser/Resources/`:
 
 | File | Source | Rules |
 |---|---|---|

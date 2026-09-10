@@ -22,7 +22,7 @@
 			<string>Editor</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.tirania.tecolot.terminal-session</string>
+				<string>net.vpetkov.moo.terminal-session</string>
 			</array>
 		</dict>
 	</array>
@@ -36,12 +36,12 @@
 			<key>UTTypeDescription</key>
 			<string>Terminal Session</string>
 			<key>UTTypeIdentifier</key>
-			<string>com.tirania.tecolot.terminal-session</string>
+			<string>net.vpetkov.moo.terminal-session</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
 				<array>
-					<string>tecolot</string>
+					<string>moo</string>
 				</array>
 			</dict>
 		</dict>

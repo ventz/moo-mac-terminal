@@ -34,7 +34,7 @@ struct UpdatePolicyTests {
     }
 
     /// Moo ships without an appcast. Without this, Sparkle would inherit
-    /// upstream Tecolot's feed and install Tecolot over the fork.
+    /// upstream's feed and install the upstream app over the fork.
     @Test func rejectsMissingFeedURL() {
         #expect(!UpdatePolicy.permitsUpdates(
             bundleIdentifier: "net.vpetkov.Moo",

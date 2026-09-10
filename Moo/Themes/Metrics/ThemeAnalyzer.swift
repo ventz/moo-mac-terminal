@@ -109,7 +109,7 @@ nonisolated struct ThemeAnalyzer: Sendable {
         }
         dominantAccentIndex = ThemeAnalyzer.accentIndex(near: dominantAccentHue, in: ansi)
 
-        // Interaction colors from fallback resolution (spec-theme-tecolot §2.2)
+        // Interaction colors from fallback resolution (spec-theme-moo §2.2)
         let effectiveCursor = theme.cursor.map { PerceptualColor($0) } ?? foreground
         let hasCustomSelection = theme.selectionBackground != nil
         let effectiveSelection: PerceptualColor

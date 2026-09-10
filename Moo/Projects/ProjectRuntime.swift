@@ -23,7 +23,7 @@ import SwiftTerm
 /// that an agent is blocked on the user — inferring it from silence or from a
 /// sleeping process produces false positives on pagers, editors, `sudo`, `ssh`
 /// and quiet builds. A truthful waiting state needs the agent to say so, which
-/// arrives with the OSC notification handlers and the `tecolot notify` CLI.
+/// arrives with the OSC notification handlers and the `moo notify` CLI.
 enum ProjectStatus: Int, Comparable, Sendable {
     /// No session has been started for this project in this run.
     case cold = 0

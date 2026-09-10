@@ -1,15 +1,10 @@
-# Moo
+# Moo Terminal
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS%2015%2B-lightgrey.svg)](#quick-install)
 
 A native macOS terminal that keeps your work grouped — terminals, Markdown
 previews and web pages side by side in one window, organized into projects.
-
-**Moo is a fork of [Tecolot](https://github.com/migueldeicaza/Tecolot) by
-[Miguel de Icaza](https://github.com/migueldeicaza)**, built on his
-[SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) engine. Nearly all of
-this program is his work. See [Credits](CREDITS.md).
 
 ## Table of Contents
 
@@ -18,24 +13,20 @@ this program is his work. See [Credits](CREDITS.md).
 - [Features](#features)
 - [Usage](#usage)
 - [Building from Source](#building-from-source)
-- [Relationship to Tecolot](#relationship-to-tecolot)
-- [Credits](#credits)
+- [Acknowledgements](#acknowledgements)
+- [Third-Party Components](#third-party-components)
 - [License](#license)
 
 ## Overview
 
-Tecolot is an excellent native terminal. Moo adds one idea to it: a terminal
-window is rarely just terminals. You are reading a README, watching a dev
-server's page, and running a build — and today those live in three different
-applications with three different window stacks.
+A terminal window is rarely just terminals. You are reading a README, watching
+a dev server's page, and running a build — and those normally live in three
+different applications with three different window stacks.
 
 Moo groups terminals into **projects** in a sidebar, and lets a project's tabs
 hold Markdown previews and web pages alongside shells. Switching projects
 switches the whole working set at once; the shells you left behind keep
 running.
-
-It is a personal fork. It is not affiliated with or endorsed by Miguel de
-Icaza, and it publishes no auto-update feed.
 
 ## Quick Install
 
@@ -46,16 +37,11 @@ xcodebuild -downloadComponent MetalToolchain   # one time, ~688 MB
 open Moo.xcodeproj                             # ⌘R to build and run
 ```
 
-Requires macOS 15+ and Xcode 26. The Metal Toolchain is not optional —
-SwiftTerm's renderer compiles a Metal shader, and a stock Xcode fails ~90% of
-the way through the build without it. See
-[Building from Source](#building-from-source) for command-line builds and
-release packaging.
+Requires macOS 15+ and Xcode 26. The Metal Toolchain is not optional — the
+terminal renderer compiles a Metal shader, and a stock Xcode fails ~90% of the
+way through the build without it.
 
 ## Features
-
-Everything Tecolot does — splits, profiles, themes, AppleScript and App
-Intents automation, session persistence — plus:
 
 - **Projects.** A sidebar groups terminals into named projects, each with its
   own tabs. Selecting a project swaps the window's contents; nothing is torn
@@ -67,9 +53,11 @@ Intents automation, session persistence — plus:
   next to the shell that produced it.
 - **Browser tabs.** Open a URL as a real web tab in the same window — a dev
   server, a doc page, an API console — instead of switching to a browser.
-- **Hardened previews and browser tabs.** Local files and remote pages are
-  treated as untrusted: no arbitrary file access, no automatic launching of
-  what a page points at, and ads blocked by default.
+- **Ads blocked, pages sandboxed.** Local files and remote pages are treated as
+  untrusted: no arbitrary file access, no automatic launching of what a page
+  points at, and ad blocking on by default.
+- Plus splits, profiles, themes, AppleScript and App Intents automation, and
+  session persistence.
 
 ## Usage
 
@@ -110,31 +98,52 @@ scripts/create-dmg.sh build/DerivedDataRelease/Build/Products/Release/Moo.app \
 Release builds are universal (`x86_64 arm64`); local Debug builds are
 arm64-only.
 
-A DMG signed with a self-signed or ad-hoc identity will report *"Moo.app is
+A DMG signed with a self-signed or ad-hoc identity reports *"Moo.app is
 damaged"* on another Mac. That message means unsigned, not corrupt. Clear it
 with `xattr -dr com.apple.quarantine /Applications/Moo.app`, or sign with a
 Developer ID certificate and notarize.
 
-## Relationship to Tecolot
+## Acknowledgements
 
-Moo forked from Tecolot at `v0.0.22`. The fork exists to carry changes that are
-personal preference rather than obviously-right-for-everyone, and it tracks
-upstream rather than diverging from it.
+**Moo Terminal exists because of [Miguel de Icaza](https://github.com/migueldeicaza).**
+
+This project started as a personal customization of his macOS terminal,
+[Tecolot](https://github.com/migueldeicaza/Tecolot), built on his terminal
+engine, [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm). Tecolot is the
+application underneath — the windows and panes, the profiles and themes, the
+automation, the persistence — and SwiftTerm is the emulation itself: parsing,
+buffers, rendering, the pty. Nearly every line of this program is his work.
+
+What began as three customizations became this fork:
+
+* **Projects + panes** — a way to manage windows and tabs as one working set
+* **Markdown preview** — Markdown as tabs and windows
+* **Web browser** — browser tabs and windows, with ad blocking
+
+Both Tecolot and SwiftTerm are MIT licensed, © 2026 Miguel de Icaza. Moo is not
+affiliated with or endorsed by him.
 
 **Please report bugs to the right place.** If a problem reproduces in Tecolot
 itself, it belongs [upstream](https://github.com/migueldeicaza/Tecolot/issues),
 where everyone benefits from the fix. Only fork-specific behavior belongs here.
 
-Sparkle auto-update is deliberately disabled: the fork publishes no appcast,
-and inheriting upstream's feed would have Sparkle install Tecolot over Moo.
+SwiftTerm in turn builds on the work of the
+[xterm.js](https://github.com/xtermjs/xterm.js) authors, SourceLair Private
+Company, and Christopher Jeffrey.
 
-## Credits
+## Third-Party Components
 
-Moo would not exist without Miguel de Icaza. Tecolot is the application and
-SwiftTerm is the engine — both his, both MIT licensed. The full attribution
-list, including Sparkle, swift-argument-parser, swift-png and Nerd Fonts, is
-in [CREDITS.md](CREDITS.md).
+| Component | Author | License |
+|---|---|---|
+| [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm) | Miguel de Icaza | MIT |
+| [Sparkle](https://sparkle-project.org) | Sparkle contributors | MIT |
+| [swift-argument-parser](https://github.com/apple/swift-argument-parser) | Apple | Apache 2.0 |
+| [swift-png](https://github.com/tayloraswift/swift-png) | Taylor Swift (tayloraswift) | MPL 2.0 |
+| Symbols Nerd Font (Nerd Fonts 3.4.0) | Nerd Fonts contributors | MIT |
+
+Sparkle auto-update is deliberately disabled: this fork publishes no appcast,
+and inheriting upstream's feed would install the upstream app over Moo.
 
 ## License
 
-[MIT](LICENSE) © Miguel de Icaza (Tecolot, SwiftTerm) and © Ventz Petkov (fork changes)
+[MIT](LICENSE) © Miguel de Icaza (original work) and © Ventz Petkov (fork changes)
