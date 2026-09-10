@@ -226,7 +226,7 @@ public struct TerminalProfile: Identifiable, Codable, Equatable, Sendable {
                                 termProgram: String, termVersion: String,
                                 environmentVariables: [TerminalEnvironmentVariable], bellStyle: BellStyle,
                                 keyBindings: [TerminalKeyBinding]) {
-        (themeName: TerminalTheme.fallback.name, fontFamily: nil, fontSize: 12,
+        (themeName: "Ventz", fontFamily: nil, fontSize: 12,
          fontSmoothing: true, useBrightColorsForBold: true,
          cursorStyle: .blinkBlock, backgroundOpacity: 1.0,
          useThemeColorsForWindowChrome: true,
