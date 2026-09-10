@@ -20,13 +20,14 @@ import UniformTypeIdentifiers
 struct ProjectSidebarView: View {
     @ObservedObject var store: ProjectStore
     var runtime: ProjectRuntime
+    /// The window this sidebar belongs to. Highlighting follows it, so two
+    /// windows on different workspaces each show their own row selected.
+    var scope: WindowScope
     var visibility: ProjectRowVisibility
     /// Supplied by the window so the sidebar matches the terminal's theme and
     /// transparency rather than painting its own material.
     var background: Color
 
-    @AppStorage(ProjectSidebarDefaults.selectedProjectID)
-    private var selectedProjectID: String = ""
 
     @State private var renameTarget: Project?
     @State private var errorMessage: String?
@@ -86,7 +87,7 @@ struct ProjectSidebarView: View {
                             report: runtime.status(for: project.id),
                             branch: runtime.branch(for: project.id),
                             directories: runtime.tabDirectories(for: project.id),
-                            isSelected: project.id.uuidString == selectedProjectID,
+                            isSelected: project.id == scope.selectedProjectID,
                             shortcutNumber: shortcutNumber(for: index),
                             dropEdge: dropTargetID == project.id ? dropEdge : nil,
                             isBeingDragged: draggingID == project.id
@@ -205,14 +206,12 @@ struct ProjectSidebarView: View {
 
     /// Switches the terminal area to this workspace's tabs.
     private func open(_ project: Project) {
-        ProjectSelection.select(project, runtime: runtime)
-        selectedProjectID = project.id.uuidString
+        runtime.select(projectID: project.id, in: scope)
         runtime.refreshLocations(for: [project])
     }
 
     private func openTab(in project: Project) {
-        ProjectSelection.select(project, runtime: runtime)
-        selectedProjectID = project.id.uuidString
+        runtime.select(projectID: project.id, in: scope)
         runtime.session(for: project.id).addTab()
         runtime.invalidate()
     }
@@ -243,8 +242,7 @@ struct ProjectSidebarView: View {
                 message: "A project is a label for a set of terminal tabs."
             ) else { return }
             let project = try store.add(name: name)
-            ProjectSelection.select(project, runtime: runtime)
-            selectedProjectID = project.id.uuidString
+            runtime.select(projectID: project.id, in: scope)
         } catch {
             errorMessage = error.localizedDescription
         }

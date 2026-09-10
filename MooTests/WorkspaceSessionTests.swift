@@ -208,6 +208,116 @@ final class ProjectRuntimeSessionTests {
         runtime.select(projectID: id)
         #expect(runtime.status(for: id).status != .cold)
     }
+
+    // MARK: Per-window selection
+    //
+    // Selection used to be one global value, so every window rendered the same
+    // workspace and the second window pulled the live terminal view out of the
+    // first, leaving it an empty frame. These pin the behavior that fixed it.
+
+    @Test func eachWindowKeepsItsOwnSelection() {
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let first = WindowScope()
+        let second = WindowScope()
+        runtime.register(first)
+        runtime.register(second)
+        let one = UUID()
+        let two = UUID()
+
+        runtime.select(projectID: one, in: first)
+        runtime.select(projectID: two, in: second)
+
+        #expect(first.selectedProjectID == one)
+        #expect(second.selectedProjectID == two)
+    }
+
+    /// A workspace's terminals are AppKit views that live in one window only,
+    /// so a second window must not take one that is already on screen.
+    @Test func selectingAWorkspaceAnotherWindowShowsDoesNotMoveIt() {
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let first = WindowScope()
+        let second = WindowScope()
+        runtime.register(first)
+        runtime.register(second)
+        let shared = UUID()
+        let other = UUID()
+
+        runtime.select(projectID: shared, in: first)
+        runtime.select(projectID: other, in: second)
+        runtime.select(projectID: shared, in: second)
+
+        #expect(first.selectedProjectID == shared)
+        #expect(second.selectedProjectID == other)
+    }
+
+    @Test func reselectingInTheSameWindowStillWorks() {
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let scope = WindowScope()
+        runtime.register(scope)
+        let id = UUID()
+
+        runtime.select(projectID: id, in: scope)
+        runtime.select(projectID: id, in: scope)
+
+        #expect(scope.selectedProjectID == id)
+        #expect(runtime.session(for: id).tabs.count == 1)
+    }
+
+    /// What makes cmd+N a new window rather than a clone.
+    @Test func aNewWindowTakesTheFirstUnshownWorkspace() {
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let first = WindowScope()
+        runtime.register(first)
+        let one = Project(name: "one")
+        let two = Project(name: "two")
+
+        runtime.select(projectID: one.id, in: first)
+
+        #expect(runtime.firstUnshownProject(among: [one, two])?.id == two.id)
+        #expect(runtime.firstUnshownProject(among: [one])  == nil)
+    }
+
+    @Test func visibilitySpansEveryWindow() {
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let scope = WindowScope()
+        runtime.register(scope)
+        let id = UUID()
+        #expect(!runtime.isVisible(id))
+        runtime.select(projectID: id, in: scope)
+        #expect(runtime.isVisible(id))
+    }
+
+    @Test func discardingClearsTheSelectionInEveryWindow() {
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let first = WindowScope()
+        let second = WindowScope()
+        runtime.register(first)
+        runtime.register(second)
+        let id = UUID()
+
+        runtime.select(projectID: id, in: first)
+        runtime.discardSession(for: id)
+
+        #expect(first.selectedProjectID == nil)
+        #expect(second.selectedProjectID == nil)
+        #expect(!runtime.isRunning(id))
+    }
+
+    @Test func unregisteringAWindowReleasesItsWorkspace() {
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let first = WindowScope()
+        let second = WindowScope()
+        runtime.register(first)
+        runtime.register(second)
+        let id = UUID()
+
+        runtime.select(projectID: id, in: first)
+        runtime.unregister(first)
+
+        // With the first window gone the workspace is free to be adopted.
+        runtime.select(projectID: id, in: second)
+        #expect(second.selectedProjectID == id)
+    }
 }
 
 @MainActor

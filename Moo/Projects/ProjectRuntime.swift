@@ -173,8 +173,55 @@ final class ProjectRuntime {
     /// screen: SwiftUI can discard the views, but never these.
     @ObservationIgnored private var sessions: [UUID: WorkspaceSession] = [:]
 
-    /// Which workspace the window is showing.
-    private(set) var selectedProjectID: UUID?
+    // MARK: Per-window selection
+
+    /// Every window's scope, newest last. A window registers on appear and
+    /// unregisters on close.
+    @ObservationIgnored private(set) var scopes: [WindowScope] = []
+
+    /// Used when no window has registered — tests, and previews.
+    @ObservationIgnored private lazy var detachedScope = WindowScope()
+
+    func register(_ scope: WindowScope) {
+        guard !scopes.contains(where: { $0 === scope }) else { return }
+        scopes.append(scope)
+        invalidate()
+    }
+
+    func unregister(_ scope: WindowScope) {
+        scopes.removeAll { $0 === scope }
+        invalidate()
+    }
+
+    /// The scope menu commands act on: the key window's, falling back to the
+    /// main window's, then to the only window, then to the detached scope.
+    var keyScope: WindowScope {
+        if let key = NSApp.keyWindow,
+           let scope = scopes.first(where: { $0.window === key }) {
+            return scope
+        }
+        if let main = NSApp.mainWindow,
+           let scope = scopes.first(where: { $0.window === main }) {
+            return scope
+        }
+        if scopes.count == 1, let only = scopes.first { return only }
+        return scopes.last ?? detachedScope
+    }
+
+    /// The scope showing a workspace, if any window is.
+    func scope(showing projectID: UUID) -> WindowScope? {
+        scopes.first { $0.selectedProjectID == projectID }
+    }
+
+    /// True when any window is showing this workspace.
+    func isVisible(_ projectID: UUID) -> Bool {
+        scope(showing: projectID) != nil || detachedScope.selectedProjectID == projectID
+    }
+
+    /// Which workspace the key window is showing. Menu commands read this.
+    var selectedProjectID: UUID? {
+        keyScope.selectedProjectID
+    }
 
     @ObservationIgnored private let startsProcesses: Bool
 
@@ -192,7 +239,7 @@ final class ProjectRuntime {
     }
 
     var selectedSession: WorkspaceSession? {
-        selectedProjectID.map { session(for: $0) }
+        keyScope.session
     }
 
     /// Switches the window to a workspace.
@@ -201,18 +248,39 @@ final class ProjectRuntime {
     /// terminal area's contents change — so the switch is seamless and cannot
     /// disturb any other workspace's shells.
     func select(projectID: UUID) {
+        select(projectID: projectID, in: keyScope)
+    }
+
+    /// Switches one window to a workspace.
+    ///
+    /// If another window already shows it, that window is brought forward and
+    /// nothing moves. A workspace's terminals are live AppKit views that can
+    /// only be in one window, so showing one in two places would tear it out
+    /// of the first — the bug this rule exists to prevent.
+    func select(projectID: UUID, in scope: WindowScope) {
+        if let other = self.scope(showing: projectID), other !== scope {
+            other.window?.makeKeyAndOrderFront(nil)
+            return
+        }
         let session = session(for: projectID)
         session.ensureTab()
-        guard selectedProjectID != projectID else {
+        guard scope.selectedProjectID != projectID else {
             invalidate()
             return
         }
-        selectedProjectID = projectID
+        scope.selectedProjectID = projectID
         UserDefaults.standard.set(
             projectID.uuidString,
             forKey: ProjectSidebarDefaults.selectedProjectID
         )
         invalidate()
+    }
+
+    /// The workspace a newly opened window should adopt: the first one no
+    /// other window is showing. Nil when every workspace is already on screen,
+    /// which is the caller's cue to create one.
+    func firstUnshownProject(among projects: [Project]) -> Project? {
+        projects.first { scope(showing: $0.id) == nil }
     }
 
     /// Closes the workspace tab that owns a session controller.
@@ -236,8 +304,10 @@ final class ProjectRuntime {
 
     /// True when a controller belongs to the workspace tab currently on screen.
     func isSelected(controller: TerminalSessionController) -> Bool {
-        guard let tab = selectedSession?.selectedTab else { return false }
-        return tab.controllers.contains { $0 === controller }
+        let visible = scopes.compactMap(\.session) + [detachedScope.session].compactMap { $0 }
+        return visible.contains { session in
+            session.selectedTab?.controllers.contains { $0 === controller } ?? false
+        }
     }
 
     /// Closes the visible workspace's active tab. Returns false when there is
@@ -259,8 +329,11 @@ final class ProjectRuntime {
     /// when the workspace itself is deleted.
     func discardSession(for projectID: UUID) {
         sessions.removeValue(forKey: projectID)?.terminateAll()
-        if selectedProjectID == projectID {
-            selectedProjectID = nil
+        for scope in scopes where scope.selectedProjectID == projectID {
+            scope.selectedProjectID = nil
+        }
+        if detachedScope.selectedProjectID == projectID {
+            detachedScope.selectedProjectID = nil
         }
         invalidate()
     }
@@ -292,8 +365,8 @@ final class ProjectRuntime {
         let controllers = session.controllers
         guard !controllers.isEmpty else { return .cold }
 
-        // A workspace that is on screen has no "unread" output by definition.
-        let isVisible = selectedProjectID == projectID
+        // A workspace on screen in any window has no "unread" output.
+        let isVisible = isVisible(projectID)
         let attentionCount = isVisible ? 0 : controllers.filter(\.hasActivity).count
         if attentionCount > 0 {
             return ProjectStatusReport(
