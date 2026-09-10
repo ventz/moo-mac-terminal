@@ -253,14 +253,43 @@ bundle first invalidates as soon as anything inside changes.
 IDENTITY="Developer ID Application: <Account Name> (<TEAM_ID>)"
 APP=build/DerivedDataRelease/Build/Products/Release/Moo.app
 
+# 1. Every standalone Mach-O executable inside Frameworks.
+#    Not just bundles -- see the warning below.
+find "$APP/Contents/Frameworks" -type f -perm +111 | while read -r f; do
+  file "$f" | grep -q "Mach-O" && \
+    codesign --force --sign "$IDENTITY" -o runtime --timestamp "$f"
+done
+
+# 2. Nested bundles (.xpc, .app), deepest path first.
 find "$APP/Contents/Frameworks" \( -name "*.xpc" -o -name "*.app" \) | sort -r \
   | while read -r p; do codesign --force --sign "$IDENTITY" -o runtime --timestamp "$p"; done
-codesign --force --sign "$IDENTITY" -o runtime --timestamp \
-  "$APP/Contents/Frameworks/Sparkle.framework/Versions/B"
+
+# 3. Framework version directories.
+for v in "$APP/Contents/Frameworks/"*.framework/Versions/[A-Z]; do
+  codesign --force --sign "$IDENTITY" -o runtime --timestamp "$v"
+done
+
+# 4. The app last.
 codesign --force --sign "$IDENTITY" -o runtime --timestamp "$APP"
 
 codesign --verify --deep --strict --verbose=2 "$APP"
 ```
+
+> **Signing a framework does not sign standalone executables inside it.**
+> Sparkle ships `Versions/B/Autoupdate`, a bare Mach-O that is neither a bundle
+> nor the framework's main binary. Matching only `*.xpc` and `*.app` leaves it
+> ad-hoc signed, `codesign --verify --deep --strict` still passes, and
+> notarization fails with *"The binary is not signed with a valid Developer ID
+> certificate"* and *"The signature does not include a secure timestamp"* for
+> that path. Step 1 above exists to catch it. Audit before submitting:
+>
+> ```bash
+> find "$APP/Contents/Frameworks" -type f -perm +111 | while read -r f; do
+>   file "$f" | grep -q Mach-O || continue
+>   codesign -dvv "$f" 2>&1 | grep -q "Authority=Developer ID Application" \
+>     || echo "UNSIGNED: $f"
+> done
+> ```
 
 Three details that are not optional:
 
@@ -347,6 +376,7 @@ variables. Resolve by keeping the fork's naming and taking upstream's logic.
 | `spctl: rejected`, `origin=Apple Development…` | Wrong certificate type | Use Developer ID Application |
 | Notarization rejected, `get-task-allow` in the log | Debug entitlement present | Sign with no entitlements |
 | Notarization rejected, timestamp error | `--timestamp` omitted | Re-sign with `--timestamp` |
+| Notarization rejected naming a binary inside a framework (e.g. `Sparkle.framework/.../Autoupdate`) | Signing the framework does not sign standalone executables nested in it | Sign every Mach-O individually first — see step 1 of Signing a Build |
 | `security find-identity` does not list the certificate | Private key missing | Import the `.p12`, or regenerate the CSR and request a new certificate |
 | `openssl pkcs12` fails with `unsupported ... RC2-40-CBC` | OpenSSL 3.x dropped RC2; Keychain Access still uses it | Use `/usr/bin/openssl` (LibreSSL) or add `-legacy`. The password was fine |
 | Password prompt returns `Can't read Password` | No TTY — running through a non-interactive prompt | Run it in a real terminal window |
