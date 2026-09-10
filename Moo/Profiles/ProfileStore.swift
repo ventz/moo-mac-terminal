@@ -72,7 +72,7 @@ public final class ProfileStore: ObservableObject {
     nonisolated static let documentVersion = 1
     private nonisolated static let builtInDefaultProfile = TerminalProfile(
         id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
-        name: "Default"
+        name: "Ventz"
     )
 
     public init(
