@@ -904,7 +904,7 @@ final class TerminalFeatureReportingTests {
 }
 
 final class MooShellIntegrationTests {
-    private let resources = URL(fileURLWithPath: "/tmp/tecolot resources", isDirectory: true)
+    private let resources = URL(fileURLWithPath: "/tmp/moo resources", isDirectory: true)
 
     @Test func exportsTerminalIdentityWithoutAutomaticInjection () {
         let input = LaunchParameters(
@@ -926,7 +926,7 @@ final class MooShellIntegrationTests {
         #expect(result.environment.contains("TERM_PROGRAM=moo"))
         #expect(result.environment.contains("TERM_PROGRAM_VERSION=1.2.3"))
         #expect(result.environment.contains("MOO_SHELL_FEATURES=title"))
-        #expect(result.environment.contains("MOO_RESOURCES_DIR=/tmp/tecolot resources"))
+        #expect(result.environment.contains("MOO_RESOURCES_DIR=/tmp/moo resources"))
         #expect(!result.environment.contains { $0.hasPrefix("ZDOTDIR=") })
     }
 
@@ -962,7 +962,7 @@ final class MooShellIntegrationTests {
         )
 
         #expect(result.environment.contains("MOO_ZSH_ZDOTDIR=/Users/test/.config/zsh"))
-        #expect(result.environment.contains("ZDOTDIR=/tmp/tecolot resources/shell-integration/zsh"))
+        #expect(result.environment.contains("ZDOTDIR=/tmp/moo resources/shell-integration/zsh"))
     }
 
     @Test func injectsFishThroughXDGDataDirectories () {
@@ -981,7 +981,7 @@ final class MooShellIntegrationTests {
             terminalProgramVersion: "1"
         )
 
-        let integration = "/tmp/tecolot resources/shell-integration"
+        let integration = "/tmp/moo resources/shell-integration"
         #expect(result.environment.contains("MOO_SHELL_INTEGRATION_XDG_DIR=\(integration)"))
         #expect(result.environment.contains("XDG_DATA_DIRS=\(integration):/opt/share:/usr/share"))
     }
@@ -1023,7 +1023,7 @@ final class MooShellIntegrationTests {
 
         #expect(result.args.isEmpty)
         #expect(!result.environment.contains { $0.hasPrefix("ENV=") })
-        #expect(result.environment.contains("MOO_RESOURCES_DIR=/tmp/tecolot resources"))
+        #expect(result.environment.contains("MOO_RESOURCES_DIR=/tmp/moo resources"))
     }
 
     @Test func injectsSupportedBashAndPreservesFlags () throws {

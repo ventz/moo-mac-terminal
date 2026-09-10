@@ -8,7 +8,7 @@
 //
 //  Moo publishes no appcast, so SUFeedURL is absent and the updater never
 //  starts. That absence is the switch, and it is deliberate: inheriting
-//  upstream Tecolot's feed would have Sparkle install Tecolot over Moo.
+//  upstream's feed would have Sparkle install the upstream app over Moo.
 //
 
 import Combine

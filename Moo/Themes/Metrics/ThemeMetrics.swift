@@ -3,7 +3,7 @@
 //  Moo
 //
 //  The full set of perceptual metrics computed for one theme in a single
-//  analysis pass (spec-theme.md §9/§52, adapted per spec-theme-tecolot.md).
+//  analysis pass (spec-theme.md §9/§52, adapted per spec-theme-moo.md).
 //  All metrics are computed even when the UI does not surface them yet.
 //
 import Foundation

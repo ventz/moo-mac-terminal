@@ -1,8 +1,8 @@
 {
-  "name": "tecolot-markdown-renderer",
+  "name": "moo-markdown-renderer",
   "version": "1.0.0",
   "private": true,
-  "description": "GitHub-faithful Markdown renderer bundled into Tecolot's preview tab",
+  "description": "GitHub-faithful Markdown renderer bundled into Moo's preview tab",
   "type": "module",
   "scripts": {
     "build": "node build.mjs",

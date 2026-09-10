@@ -1,4 +1,4 @@
-// Bundles the preview page into Tecolot/MarkdownPreview/Resources. The
+// Bundles the preview page into Moo/MarkdownPreview/Resources. The
 // output is committed, so an Xcode build never needs Node; run
 // `npm run build` after changing anything under src/ or bumping a package.
 //
@@ -12,7 +12,7 @@ import {dirname, join, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const outdir = resolve(here, '../../Tecolot/MarkdownPreview/Resources')
+const outdir = resolve(here, '../../Moo/MarkdownPreview/Resources')
 
 mkdirSync(outdir, {recursive: true})
 for (const name of readdirSync(outdir)) {

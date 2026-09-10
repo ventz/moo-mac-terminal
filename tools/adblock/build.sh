@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Builds the ad-blocking rulesets bundled with Tecolot's browser tabs.
+# Builds the ad-blocking rulesets bundled with Moo's browser tabs.
 #
 # Sources: AdGuard's Safari-optimized filter lists — EasyList plus AdGuard's
 # own base list, and AdGuard Tracking Protection — already stripped of rules
@@ -10,7 +10,7 @@
 # DEFLATE so ~24 MB of JSON ships as ~3 MB. The app inflates and compiles
 # them once per version with WKContentRuleListStore.
 #
-# Output goes to Tecolot/Browser/Resources/ and is committed, so an Xcode
+# Output goes to Moo/Browser/Resources/ and is committed, so an Xcode
 # build never needs this script. Re-run it to refresh the lists.
 #
 # Requirements: swift (Xcode), curl, python3, git.
@@ -19,7 +19,7 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
-OUT="$REPO/Tecolot/Browser/Resources"
+OUT="$REPO/Moo/Browser/Resources"
 WORK="${ADBLOCK_WORK_DIR:-$HERE/.work}"
 CONVERTER_REPO="https://github.com/AdguardTeam/SafariConverterLib.git"
 CONVERTER_TAG="v4.3.0"

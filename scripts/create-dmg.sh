@@ -9,7 +9,7 @@ fi
 
 app_path="$1"
 output_path="$2"
-volume_name="${3:-Tecolot}"
+volume_name="${3:-Moo}"
 
 if [[ ! -d "$app_path" || "$app_path" != *.app ]]; then
     echo "The app path is not an application bundle: $app_path" >&2
@@ -26,7 +26,7 @@ mkdir -p "$output_directory"
 output_directory="$(cd "$output_directory" && pwd)"
 output_path="$output_directory/$(basename "$output_path")"
 
-staging_directory="$(mktemp -d "$output_directory/tecolot-dmg.XXXXXX")"
+staging_directory="$(mktemp -d "$output_directory/moo-dmg.XXXXXX")"
 cleanup() {
     rm -rf "$staging_directory"
 }

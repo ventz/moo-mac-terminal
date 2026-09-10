@@ -32,14 +32,14 @@ jobs:
       - name: Resolve packages
         run: |
           xcodebuild -resolvePackageDependencies \
-            -project Tecolot.xcodeproj \
-            -scheme Tecolot
+            -project Moo.xcodeproj \
+            -scheme Moo
 
-      - name: Build Tecolot
+      - name: Build Moo
         run: |
           xcodebuild build \
-            -project Tecolot.xcodeproj \
-            -scheme Tecolot \
+            -project Moo.xcodeproj \
+            -scheme Moo \
             -configuration Debug \
             -destination "platform=macOS" \
             -skipPackagePluginValidation \

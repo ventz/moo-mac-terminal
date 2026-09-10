@@ -132,7 +132,7 @@ final class AppModel {
         do {
             if !fileManager.fileExists(atPath: destination.path) {
                 let staging = destination.deletingLastPathComponent().appendingPathComponent(
-                    ".tecolot-legacy-import-\(UUID().uuidString)"
+                    ".moo-legacy-import-\(UUID().uuidString)"
                 )
                 defer { try? fileManager.removeItem(at: staging) }
                 try fileManager.copyItem(at: source, to: staging)
