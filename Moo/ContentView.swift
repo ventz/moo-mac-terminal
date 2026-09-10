@@ -20,6 +20,9 @@ struct ContentView: View {
         startsProcesses: ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] != "1"
     )
     @State private var runtime = ProjectRuntime.shared
+    /// This window's own workspace selection. Not the runtime's: two windows
+    /// reading one global selection fought over the same terminal views.
+    @State private var scope = WindowScope()
     /// The sidebar width when a resize drag began, so the drag is absolute
     /// rather than accumulating rounding error per frame.
     @State private var dragStartWidth: Double?
@@ -43,7 +46,7 @@ struct ContentView: View {
     /// was most recently on screen, kept attached but hidden so switching
     /// back is instant. Nil when the workspace has no terminal tab at all.
     private var terminalWorkspace: TerminalPaneWorkspace? {
-        guard let session = runtime.selectedSession else { return fallbackWorkspace }
+        guard let session = scope.session else { return fallbackWorkspace }
         return session.mostRecentTerminalTab?.panes
     }
 
@@ -56,7 +59,7 @@ struct ContentView: View {
 
     /// The web tab on screen, if the selected tab is one.
     private var selectedWebContent: (any WebTabContent)? {
-        runtime.selectedSession?.selectedTab?.web
+        scope.session?.selectedTab?.web
     }
 
     private var showsTerminal: Bool {
@@ -65,8 +68,8 @@ struct ContentView: View {
 
     /// Changes whenever a different tab lands on screen, in any workspace.
     private var onScreenTabKey: String {
-        let project = runtime.selectedProjectID?.uuidString ?? "-"
-        let tab = runtime.selectedSession?.selectedTabID?.uuidString ?? "-"
+        let project = scope.selectedProjectID?.uuidString ?? "-"
+        let tab = scope.session?.selectedTabID?.uuidString ?? "-"
         return project + "/" + tab
     }
 
@@ -76,7 +79,7 @@ struct ContentView: View {
     /// app. Once the attempt has been made it stops gating, so a store that
     /// cannot be written still gets a working terminal.
     private var isAwaitingInitialProject: Bool {
-        runtime.selectedProjectID == nil && !didAttemptInitialProject
+        scope.selectedProjectID == nil && !didAttemptInitialProject
     }
 
     private var rootController: TerminalSessionController? {
@@ -120,7 +123,7 @@ struct ContentView: View {
         // macOS Terminal puts them — and, like Terminal, only once there is
         // more than one tab. A strip showing a single tab is pure overhead.
         VStack(spacing: 0) {
-            if let session = runtime.selectedSession, session.tabs.count > 1 {
+            if let session = scope.session, session.tabs.count > 1 {
                 WorkspaceTabBar(
                     session: session,
                     background: tabStripBackground,
@@ -140,6 +143,7 @@ struct ContentView: View {
                 ProjectSidebarView(
                     store: projects,
                     runtime: runtime,
+                    scope: scope,
                     visibility: rowVisibility,
                     background: sidebarBackground
                 )
@@ -167,7 +171,11 @@ struct ContentView: View {
         .animation(.easeInOut(duration: 0.18), value: sidebarIsVisible)
         // Must live on the outer view: the terminal area is not rendered until
         // a workspace is selected, so selecting from there would never run.
-        .onAppear(perform: selectInitialProjectIfNeeded)
+        .onAppear {
+            runtime.register(scope)
+            selectInitialProjectIfNeeded()
+        }
+        .onDisappear { runtime.unregister(scope) }
         .onChange(of: projects.projects) { _, _ in
             selectInitialProjectIfNeeded()
         }
@@ -252,7 +260,7 @@ struct ContentView: View {
     }
 
     private var selectedProject: Project? {
-        projects.project(withID: runtime.selectedProjectID)
+        projects.project(withID: scope.selectedProjectID)
     }
 
     private var terminalArea: some View {
@@ -285,7 +293,8 @@ struct ContentView: View {
             }
             .background(WindowTabbingConfigurator(
                 theme: usesThemeWindowChrome ? windowTheme : nil,
-                backgroundOpacity: chromeBackgroundOpacity
+                backgroundOpacity: chromeBackgroundOpacity,
+                scope: scope
             ))
             .preferredColorScheme(
                 usesThemeWindowChrome ? (windowTheme.isDark ? .dark : .light) : nil
@@ -352,15 +361,23 @@ struct ContentView: View {
     /// Opens straight into a workspace when one exists, so the launch terminal
     /// does not linger outside every workspace as an extra shell.
     private func selectInitialProjectIfNeeded() {
-        guard runtime.selectedProjectID == nil else { return }
+        guard scope.selectedProjectID == nil else { return }
         defer { didAttemptInitialProject = true }
 
         let remembered = UserDefaults.standard
             .string(forKey: ProjectSidebarDefaults.selectedProjectID)
             .flatMap(UUID.init(uuidString:))
 
-        if let project = projects.project(withID: remembered) ?? projects.projects.first {
-            runtime.select(projectID: project.id)
+        // A second window must not adopt a workspace the first is showing, so
+        // the remembered one is only used when it is free. Otherwise take the
+        // first unshown workspace, and failing that create one — which is what
+        // makes cmd+N a genuinely new window rather than a clone.
+        let candidate = projects.project(withID: remembered).flatMap {
+            runtime.scope(showing: $0.id) == nil ? $0 : nil
+        } ?? runtime.firstUnshownProject(among: projects.projects)
+
+        if let project = candidate {
+            runtime.select(projectID: project.id, in: scope)
             return
         }
 
@@ -373,7 +390,7 @@ struct ContentView: View {
             // terminal instead of leaving a blank window.
             return
         }
-        runtime.select(projectID: created.id)
+        runtime.select(projectID: created.id, in: scope)
     }
 
     /// Hands keyboard focus to whatever just came on screen. Deferred a turn
@@ -461,6 +478,9 @@ struct ThemePickerPopover: View {
 struct WindowTabbingConfigurator: NSViewRepresentable {
     let theme: TerminalTheme?
     var backgroundOpacity: Double = 1
+    /// Bound so the runtime can tell which window is key, and so selecting a
+    /// workspace another window holds can bring that window forward.
+    var scope: WindowScope?
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
@@ -475,6 +495,7 @@ struct WindowTabbingConfigurator: NSViewRepresentable {
     private func configureWindow(for view: NSView) {
         DispatchQueue.main.async {
             guard let window = view.window else { return }
+            scope?.window = window
             window.tabbingIdentifier = "TerminalDocument"
             window.tabbingMode = .preferred
             // The tab strip occupies the titlebar and already names the active
