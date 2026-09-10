@@ -1,10 +1,10 @@
-# Tecolot shell integration
-export module tecolot {
+# Moo shell integration
+export module moo {
   def has_feature [feature: string] {
-    $feature in ($env.TECOLOT_SHELL_FEATURES | default "" | split row ',')
+    $feature in ($env.MOO_SHELL_FEATURES | default "" | split row ',')
   }
 
-  # Wrap `ssh` with `tecolot +ssh` and translate the shell-integration
+  # Wrap `ssh` with `moo +ssh` and translate the shell-integration
   # feature flags into command options.
   @complete external
   export def --wrapped ssh [...args] {
@@ -13,7 +13,7 @@ export module tecolot {
       return
     }
 
-    let tecolot = ($env.TECOLOT_BIN_DIR? | default "") | path join "tecolot"
+    let moo = ($env.MOO_BIN_DIR? | default "") | path join "moo"
     mut flags = []
     if not (has_feature "ssh-env") {
       $flags = ($flags ++ ["--forward-env=false"])
@@ -21,10 +21,10 @@ export module tecolot {
     if not (has_feature "ssh-terminfo") {
       $flags = ($flags ++ ["--terminfo=false"])
     }
-    ^$tecolot "+ssh" ...$flags "--" ...$args
+    ^$moo "+ssh" ...$flags "--" ...$args
   }
 
-  # Wrap `sudo` to preserve Tecolot's TERMINFO environment variable
+  # Wrap `sudo` to preserve Moo's TERMINFO environment variable
   @complete external
   export def --wrapped sudo [...args] {
     mut sudo_args = $args
@@ -47,10 +47,10 @@ export module tecolot {
   }
 }
 
-# Clean up XDG_DATA_DIRS by removing TECOLOT_SHELL_INTEGRATION_XDG_DIR
-if 'TECOLOT_SHELL_INTEGRATION_XDG_DIR' in $env {
+# Clean up XDG_DATA_DIRS by removing MOO_SHELL_INTEGRATION_XDG_DIR
+if 'MOO_SHELL_INTEGRATION_XDG_DIR' in $env {
   if 'XDG_DATA_DIRS' in $env {
-    $env.XDG_DATA_DIRS = ($env.XDG_DATA_DIRS | str replace $"($env.TECOLOT_SHELL_INTEGRATION_XDG_DIR):" "")
+    $env.XDG_DATA_DIRS = ($env.XDG_DATA_DIRS | str replace $"($env.MOO_SHELL_INTEGRATION_XDG_DIR):" "")
   }
-  hide-env TECOLOT_SHELL_INTEGRATION_XDG_DIR
+  hide-env MOO_SHELL_INTEGRATION_XDG_DIR
 }

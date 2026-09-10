@@ -20,16 +20,16 @@ if [[ "$-" != *i* ]]; then builtin return; fi
 
 # When automatic shell integration is active, we were started in POSIX
 # mode and need to manually recreate the bash startup sequence.
-if [ -n "$TECOLOT_BASH_INJECT" ]; then
+if [ -n "$MOO_BASH_INJECT" ]; then
   # Store a temporary copy of our startup flags and unset these global
   # environment variables so we can safely handle reentrancy.
-  builtin declare __tecolot_bash_flags="$TECOLOT_BASH_INJECT"
-  builtin unset ENV TECOLOT_BASH_INJECT
+  builtin declare __moo_bash_flags="$MOO_BASH_INJECT"
+  builtin unset ENV MOO_BASH_INJECT
 
   # Restore an existing ENV that was replaced by the shell integration code.
-  if [[ -n "$TECOLOT_BASH_ENV" ]]; then
-    builtin export ENV=$TECOLOT_BASH_ENV
-    builtin unset TECOLOT_BASH_ENV
+  if [[ -n "$MOO_BASH_ENV" ]]; then
+    builtin export ENV=$MOO_BASH_ENV
+    builtin unset MOO_BASH_ENV
   fi
 
   # Restore bash's default 'posix' behavior. Also reset 'inherit_errexit',
@@ -38,57 +38,57 @@ if [ -n "$TECOLOT_BASH_INJECT" ]; then
   builtin shopt -u inherit_errexit 2>/dev/null
 
   # Unexport HISTFILE if it was set by the shell integration code.
-  if [[ -n "$TECOLOT_BASH_UNEXPORT_HISTFILE" ]]; then
+  if [[ -n "$MOO_BASH_UNEXPORT_HISTFILE" ]]; then
     builtin export -n HISTFILE
-    builtin unset TECOLOT_BASH_UNEXPORT_HISTFILE
+    builtin unset MOO_BASH_UNEXPORT_HISTFILE
   fi
 
   # Manually source the startup files. See INVOCATION in bash(1) and
   # run_startup_files() in shell.c in the Bash source code.
   if builtin shopt -q login_shell; then
-    if [[ $__tecolot_bash_flags != *"--noprofile"* ]]; then
+    if [[ $__moo_bash_flags != *"--noprofile"* ]]; then
       [ -r /etc/profile ] && builtin source "/etc/profile"
-      for __tecolot_rcfile in "$HOME/.bash_profile" "$HOME/.bash_login" "$HOME/.profile"; do
-        [ -r "$__tecolot_rcfile" ] && {
-          builtin source "$__tecolot_rcfile"
+      for __moo_rcfile in "$HOME/.bash_profile" "$HOME/.bash_login" "$HOME/.profile"; do
+        [ -r "$__moo_rcfile" ] && {
+          builtin source "$__moo_rcfile"
           break
         }
       done
     fi
   else
-    if [[ $__tecolot_bash_flags != *"--norc"* ]]; then
+    if [[ $__moo_bash_flags != *"--norc"* ]]; then
       # The location of the system bashrc is determined at bash build
       # time via -DSYS_BASHRC and can therefore vary across distros:
       #  Arch, Debian, Ubuntu use /etc/bash.bashrc
       #  Fedora uses /etc/bashrc sourced from ~/.bashrc instead of SYS_BASHRC
       #  Void Linux uses /etc/bash/bashrc
       #  Nixos uses /etc/bashrc
-      for __tecolot_rcfile in /etc/bash.bashrc /etc/bash/bashrc /etc/bashrc; do
-        [ -r "$__tecolot_rcfile" ] && {
-          builtin source "$__tecolot_rcfile"
+      for __moo_rcfile in /etc/bash.bashrc /etc/bash/bashrc /etc/bashrc; do
+        [ -r "$__moo_rcfile" ] && {
+          builtin source "$__moo_rcfile"
           break
         }
       done
-      if [[ -z "$TECOLOT_BASH_RCFILE" ]]; then TECOLOT_BASH_RCFILE="$HOME/.bashrc"; fi
-      [ -r "$TECOLOT_BASH_RCFILE" ] && builtin source "$TECOLOT_BASH_RCFILE"
+      if [[ -z "$MOO_BASH_RCFILE" ]]; then MOO_BASH_RCFILE="$HOME/.bashrc"; fi
+      [ -r "$MOO_BASH_RCFILE" ] && builtin source "$MOO_BASH_RCFILE"
     fi
   fi
 
-  builtin unset __tecolot_rcfile
-  builtin unset __tecolot_bash_flags
-  builtin unset TECOLOT_BASH_RCFILE
+  builtin unset __moo_rcfile
+  builtin unset __moo_bash_flags
+  builtin unset MOO_BASH_RCFILE
 fi
 
-# Add Tecolot binary to PATH if the path feature is enabled
-if [[ "$TECOLOT_SHELL_FEATURES" == *"path"* && -n "$TECOLOT_BIN_DIR" ]]; then
-  if [[ ":$PATH:" != *":$TECOLOT_BIN_DIR:"* ]]; then
-    export PATH="$PATH:$TECOLOT_BIN_DIR"
+# Add Moo binary to PATH if the path feature is enabled
+if [[ "$MOO_SHELL_FEATURES" == *"path"* && -n "$MOO_BIN_DIR" ]]; then
+  if [[ ":$PATH:" != *":$MOO_BIN_DIR:"* ]]; then
+    export PATH="$PATH:$MOO_BIN_DIR"
   fi
 fi
 
 # Sudo
-if [[ "$TECOLOT_SHELL_FEATURES" == *"sudo"* && -n "$TERMINFO" ]]; then
-  # Wrap `sudo` command to ensure Tecolot terminfo is preserved.
+if [[ "$MOO_SHELL_FEATURES" == *"sudo"* && -n "$TERMINFO" ]]; then
+  # Wrap `sudo` command to ensure Moo terminfo is preserved.
   #
   # This approach supports wrapping a `sudo` alias, but the alias definition
   # must come _after_ this function is defined. Otherwise, the alias expansion
@@ -116,28 +116,28 @@ fi
 
 # SSH Integration
 #
-# Wrap `ssh` with `tecolot +ssh` and translate the shell-integration
+# Wrap `ssh` with `moo +ssh` and translate the shell-integration
 # feature flags into command options.
-if [[ "$TECOLOT_SHELL_FEATURES" == *ssh-* ]]; then
+if [[ "$MOO_SHELL_FEATURES" == *ssh-* ]]; then
   function ssh() {
     builtin local -a flags
     flags=()
-    [[ "$TECOLOT_SHELL_FEATURES" != *ssh-env* ]] && flags+=(--forward-env=false)
-    [[ "$TECOLOT_SHELL_FEATURES" != *ssh-terminfo* ]] && flags+=(--terminfo=false)
-    "$TECOLOT_BIN_DIR/tecolot" +ssh "${flags[@]}" -- "$@"
+    [[ "$MOO_SHELL_FEATURES" != *ssh-env* ]] && flags+=(--forward-env=false)
+    [[ "$MOO_SHELL_FEATURES" != *ssh-terminfo* ]] && flags+=(--terminfo=false)
+    "$MOO_BIN_DIR/moo" +ssh "${flags[@]}" -- "$@"
   }
 fi
 
 # This is set to 1 when we're executing a command so that we don't
 # send prompt marks multiple times.
-_tecolot_executing=""
-_tecolot_last_reported_cwd=""
+_moo_executing=""
+_moo_last_reported_cwd=""
 
-function __tecolot_precmd() {
+function __moo_precmd() {
   local ret="$?"
-  if test "$_tecolot_executing" != "0"; then
-    _TECOLOT_SAVE_PS1="$PS1"
-    _TECOLOT_SAVE_PS2="$PS2"
+  if test "$_moo_executing" != "0"; then
+    _MOO_SAVE_PS1="$PS1"
+    _MOO_SAVE_PS2="$PS2"
 
     # Use 133;P (not 133;A) inside PS1 to avoid fresh-line behavior on
     # readline redraws (e.g., vi mode switches, Ctrl-L). The initial
@@ -158,21 +158,21 @@ function __tecolot_precmd() {
     fi
 
     # Cursor
-    if [[ "$TECOLOT_SHELL_FEATURES" == *"cursor"* ]]; then
+    if [[ "$MOO_SHELL_FEATURES" == *"cursor"* ]]; then
       builtin local cursor=5  # blinking bar
-      [[ "$TECOLOT_SHELL_FEATURES" == *"cursor:steady"* ]] && cursor=6  # steady bar
+      [[ "$MOO_SHELL_FEATURES" == *"cursor:steady"* ]] && cursor=6  # steady bar
 
       [[ "$PS1" != *"\[\e[${cursor} q\]"* ]] && PS1=$PS1"\[\e[${cursor} q\]"
       [[ "$PS0" != *'\[\e[0 q\]'* ]] && PS0=$PS0'\[\e[0 q\]' # reset
     fi
 
     # Title (working directory)
-    if [[ "$TECOLOT_SHELL_FEATURES" == *"title"* ]]; then
+    if [[ "$MOO_SHELL_FEATURES" == *"title"* ]]; then
       PS1=$PS1'\[\e]2;\w\a\]'
     fi
   fi
 
-  if test "$_tecolot_executing" != ""; then
+  if test "$_moo_executing" != ""; then
     # End of current command. Report its status.
     builtin printf "\e]133;D;%s;aid=%s\a" "$ret" "$BASHPID"
   fi
@@ -191,51 +191,51 @@ function __tecolot_precmd() {
   # unfortunately bash provides no hooks to detect cwd changes
   # in particular this means cwd reporting will not happen for a
   # command like cd /test && cat. PS0 is evaluated before cd is run.
-  if [[ "$_tecolot_last_reported_cwd" != "$PWD" ]]; then
-    _tecolot_last_reported_cwd="$PWD"
+  if [[ "$_moo_last_reported_cwd" != "$PWD" ]]; then
+    _moo_last_reported_cwd="$PWD"
     builtin printf "\e]7;kitty-shell-cwd://%s%s\a" "$HOSTNAME" "$PWD"
   fi
 
-  _tecolot_executing=0
+  _moo_executing=0
 }
 
-function __tecolot_preexec() {
+function __moo_preexec() {
   builtin local cmd="$1"
 
-  PS1="$_TECOLOT_SAVE_PS1"
-  PS2="$_TECOLOT_SAVE_PS2"
+  PS1="$_MOO_SAVE_PS1"
+  PS2="$_MOO_SAVE_PS2"
 
   # Title (current command)
-  if [[ -n $cmd && "$TECOLOT_SHELL_FEATURES" == *"title"* ]]; then
+  if [[ -n $cmd && "$MOO_SHELL_FEATURES" == *"title"* ]]; then
     builtin printf "\e]2;%s\a" "${cmd//[[:cntrl:]]/}"
   fi
 
   # End of input, start of output.
   builtin printf "\e]133;C;\a"
-  _tecolot_executing=1
+  _moo_executing=1
 }
 
 if (( BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 4) )); then
-  __tecolot_preexec_hook() {
+  __moo_preexec_hook() {
     builtin local cmd
     cmd=$(LC_ALL=C HISTTIMEFORMAT='' builtin history 1)
     cmd="${cmd#*[[:digit:]][* ] }"  # remove leading history number
-    [[ -n "$cmd" ]] && __tecolot_preexec "$cmd"
+    [[ -n "$cmd" ]] && __moo_preexec "$cmd"
   }
 
-  __tecolot_hook() {
+  __moo_hook() {
     builtin local ret=$?
-    __tecolot_precmd "$ret"
+    __moo_precmd "$ret"
 
     # Append preexec hook to PS0 if not already present.
     # Use function substitution in 5.3+, otherwise command substitution.
-    if [[ "$PS0" != *"__tecolot_preexec_hook"* ]]; then
+    if [[ "$PS0" != *"__moo_preexec_hook"* ]]; then
       if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 3) )); then
         # shellcheck disable=SC2016
-        PS0+='${ __tecolot_preexec_hook; }'
+        PS0+='${ __moo_preexec_hook; }'
       else
         # shellcheck disable=SC2016
-        PS0+='$(__tecolot_preexec_hook >/dev/tty)'
+        PS0+='$(__moo_preexec_hook >/dev/tty)'
       fi
     fi
   }
@@ -244,26 +244,26 @@ if (( BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 4) )
   #
   # The 2>/dev/null suppresses "command not found" in subshells that inherit
   # PROMPT_COMMAND without the function definition. This also silences any
-  # errors from inside __tecolot_hook itself, but those are all terminal escape
+  # errors from inside __moo_hook itself, but those are all terminal escape
   # sequences and non-actionable.
   #
   # shellcheck disable=SC2128,SC2178,SC2179
-  if [[ ";${PROMPT_COMMAND[*]:-};" != *";__tecolot_hook 2>/dev/null;"* ]]; then
+  if [[ ";${PROMPT_COMMAND[*]:-};" != *";__moo_hook 2>/dev/null;"* ]]; then
     if [[ -z "${PROMPT_COMMAND[*]}" ]]; then
       if (( BASH_VERSINFO[0] > 5 || (BASH_VERSINFO[0] == 5 && BASH_VERSINFO[1] >= 1) )); then
-        PROMPT_COMMAND=("__tecolot_hook 2>/dev/null")
+        PROMPT_COMMAND=("__moo_hook 2>/dev/null")
       else
-        PROMPT_COMMAND="__tecolot_hook 2>/dev/null"
+        PROMPT_COMMAND="__moo_hook 2>/dev/null"
       fi
     elif [[ $(builtin declare -p PROMPT_COMMAND 2>/dev/null) == "declare -a "* ]]; then
-      PROMPT_COMMAND+=("__tecolot_hook 2>/dev/null")
+      PROMPT_COMMAND+=("__moo_hook 2>/dev/null")
     else
       [[ "${PROMPT_COMMAND}" =~ (\;[[:space:]]*|$'\n')$ ]] || PROMPT_COMMAND+=";"
-      PROMPT_COMMAND+="__tecolot_hook 2>/dev/null"
+      PROMPT_COMMAND+="__moo_hook 2>/dev/null"
     fi
   fi
 else
   builtin source "$(dirname -- "${BASH_SOURCE[0]}")/bash-preexec.sh"
-  preexec_functions+=(__tecolot_preexec)
-  precmd_functions+=(__tecolot_precmd)
+  preexec_functions+=(__moo_preexec)
+  precmd_functions+=(__moo_precmd)
 fi

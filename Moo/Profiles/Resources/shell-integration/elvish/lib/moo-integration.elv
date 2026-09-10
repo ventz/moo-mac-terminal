@@ -2,21 +2,21 @@
   use platform
   use str
 
-  # Clean up XDG_DATA_DIRS by removing TECOLOT_SHELL_INTEGRATION_XDG_DIR
-  if (and (has-env TECOLOT_SHELL_INTEGRATION_XDG_DIR) (has-env XDG_DATA_DIRS)) {
-    set-env XDG_DATA_DIRS (str:replace $E:TECOLOT_SHELL_INTEGRATION_XDG_DIR":" "" $E:XDG_DATA_DIRS)
-    unset-env TECOLOT_SHELL_INTEGRATION_XDG_DIR
+  # Clean up XDG_DATA_DIRS by removing MOO_SHELL_INTEGRATION_XDG_DIR
+  if (and (has-env MOO_SHELL_INTEGRATION_XDG_DIR) (has-env XDG_DATA_DIRS)) {
+    set-env XDG_DATA_DIRS (str:replace $E:MOO_SHELL_INTEGRATION_XDG_DIR":" "" $E:XDG_DATA_DIRS)
+    unset-env MOO_SHELL_INTEGRATION_XDG_DIR
   }
 
   # List of enabled shell integration features
-  var features = [(str:split ',' $E:TECOLOT_SHELL_FEATURES)]
+  var features = [(str:split ',' $E:MOO_SHELL_FEATURES)]
 
   # State tracking for semantic prompt sequences
   # Values: 'prompt-start', 'pre-exec', 'post-exec'
-  fn set-prompt-state {|new| set-env __tecolot_prompt_state $new }
+  fn set-prompt-state {|new| set-env __moo_prompt_state $new }
 
   fn mark-prompt-start {
-    if (not-eq $E:__tecolot_prompt_state 'prompt-start') {
+    if (not-eq $E:__moo_prompt_state 'prompt-start') {
       printf "\e]133;D;aid="$pid"\a"
     }
     set-prompt-state 'prompt-start'
@@ -78,10 +78,10 @@
 
   # SSH Integration
   #
-  # Wrap `ssh` with `tecolot +ssh` and translate the shell-integration
+  # Wrap `ssh` with `moo +ssh` and translate the shell-integration
   # feature flags into command options.
   fn ssh-integration {|@args|
-    var tecolot = $E:TECOLOT_BIN_DIR/"tecolot"
+    var moo = $E:MOO_BIN_DIR/"moo"
     var flags = []
     if (not (has-value $features ssh-env)) {
       set flags = (conj $flags --forward-env=false)
@@ -89,7 +89,7 @@
     if (not (has-value $features ssh-terminfo)) {
       set flags = (conj $flags --terminfo=false)
     }
-    $tecolot +ssh $@flags -- $@args
+    $moo +ssh $@flags -- $@args
   }
 
   defer {
@@ -100,7 +100,7 @@
   set edit:after-readline  = (conj $edit:after-readline $mark-output-start~)
   set edit:after-command   = (conj $edit:after-command $mark-output-end~)
 
-  if (str:contains $E:TECOLOT_SHELL_FEATURES "cursor") {
+  if (str:contains $E:MOO_SHELL_FEATURES "cursor") {
     var cursor = "5"    # blinking bar
     if (has-value $features cursor:steady) {
       set cursor = "6"  # steady bar
@@ -111,15 +111,15 @@
     set edit:before-readline = (conj $edit:before-readline $beam~)
     set edit:after-readline  = (conj $edit:after-readline {|_| reset })
   }
-  if (and (has-value $features path) (has-env TECOLOT_BIN_DIR)) {
-    if (not (has-value $paths $E:TECOLOT_BIN_DIR)) {
-        set paths = [$@paths $E:TECOLOT_BIN_DIR]
+  if (and (has-value $features path) (has-env MOO_BIN_DIR)) {
+    if (not (has-value $paths $E:MOO_BIN_DIR)) {
+        set paths = [$@paths $E:MOO_BIN_DIR]
     }
   }
   if (and (has-value $features sudo) (not-eq "" $E:TERMINFO) (has-external sudo)) {
     edit:add-var sudo~ $sudo-with-terminfo~
   }
-  if (and (str:contains $E:TECOLOT_SHELL_FEATURES ssh-) (has-external ssh)) {
+  if (and (str:contains $E:MOO_SHELL_FEATURES ssh-) (has-external ssh)) {
     edit:add-var ssh~ $ssh-integration~
   }
 

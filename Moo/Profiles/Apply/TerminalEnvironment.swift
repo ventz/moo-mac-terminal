@@ -49,14 +49,14 @@ public enum TerminalEnvironment {
         "WEZTERM_EXECUTABLE",
         "KITTY_PID",
         "KITTY_WINDOW_ID",
-        "TECOLOT_RESOURCES_DIR",
-        "TECOLOT_SHELL_FEATURES",
-        "TECOLOT_ZSH_ZDOTDIR",
-        "TECOLOT_SHELL_INTEGRATION_XDG_DIR",
-        "TECOLOT_BASH_ENV",
-        "TECOLOT_BASH_RCFILE",
-        "TECOLOT_BASH_INJECT",
-        "TECOLOT_BASH_UNEXPORT_HISTFILE"
+        "MOO_RESOURCES_DIR",
+        "MOO_SHELL_FEATURES",
+        "MOO_ZSH_ZDOTDIR",
+        "MOO_SHELL_INTEGRATION_XDG_DIR",
+        "MOO_BASH_ENV",
+        "MOO_BASH_RCFILE",
+        "MOO_BASH_INJECT",
+        "MOO_BASH_UNEXPORT_HISTFILE"
     ]
 
     private static let shellStateVariables: Set<String> = [
