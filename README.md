@@ -21,6 +21,7 @@
 - [Features](#features)
 - [Usage](#usage)
 - [Building from Source](#building-from-source)
+- [Documentation](#documentation)
 - [Acknowledgements](#acknowledgements)
 - [Third-Party Components](#third-party-components)
 - [License](#license)
@@ -116,6 +117,14 @@ A DMG signed with a self-signed or ad-hoc identity reports *"Moo.app is
 damaged"* on another Mac. That message means unsigned, not corrupt. Clear it
 with `xattr -dr com.apple.quarantine /Applications/Moo.app`, or sign with a
 Developer ID certificate and notarize.
+
+## Documentation
+
+**[docs/DEVELOPING.md](docs/DEVELOPING.md)** — the full developer guide:
+build prerequisites, code signing and why the certificate type matters,
+obtaining a Developer ID certificate, notarization setup, cutting a release,
+tracking upstream, and a troubleshooting table for the errors macOS gives you
+that blame the wrong thing.
 
 ## Acknowledgements
 
