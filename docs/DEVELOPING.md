@@ -185,6 +185,23 @@ the key was not exported — redo from step 2, making sure the category is
 `-noout` matters: without it the command prints the decrypted private key to
 the terminal.
 
+> **OpenSSL 3.x cannot read a Keychain Access `.p12` by default.** It fails with
+> `Error outputting keys and certificates` and
+> `unsupported ... Algorithm (RC2-40-CBC)`. That is not a bad password and not a
+> corrupt file — OpenSSL 3 dropped RC2 from its default provider, and Keychain
+> Access still uses `pbeWithSHA1And40BitRC2-CBC` for the certificate bag. If the
+> output shows a `MAC:` line first, the password was already accepted.
+>
+> Use macOS's own LibreSSL, which still supports it:
+> ```bash
+> /usr/bin/openssl pkcs12 -info -in DeveloperID.p12 -noout
+> ```
+> or force the legacy provider: `openssl pkcs12 ... -legacy`.
+>
+> The weak RC2 cipher protects only the certificate bag, which is public data.
+> The private key sits in a separate shrouded key bag. The export password and
+> where the file is stored are what actually protect it.
+
 As a rough sanity check, a cert-plus-key export runs around 3 KB; a cert-only
 export is closer to 1.5 KB. Size is a hint, not proof — run the check above.
 
@@ -331,3 +348,5 @@ variables. Resolve by keeping the fork's naming and taking upstream's logic.
 | Notarization rejected, `get-task-allow` in the log | Debug entitlement present | Sign with no entitlements |
 | Notarization rejected, timestamp error | `--timestamp` omitted | Re-sign with `--timestamp` |
 | `security find-identity` does not list the certificate | Private key missing | Import the `.p12`, or regenerate the CSR and request a new certificate |
+| `openssl pkcs12` fails with `unsupported ... RC2-40-CBC` | OpenSSL 3.x dropped RC2; Keychain Access still uses it | Use `/usr/bin/openssl` (LibreSSL) or add `-legacy`. The password was fine |
+| Password prompt returns `Can't read Password` | No TTY — running through a non-interactive prompt | Run it in a real terminal window |
