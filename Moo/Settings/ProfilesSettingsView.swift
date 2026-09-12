@@ -305,7 +305,7 @@ enum ProfileSettingsSection {
         case .shell: self = .shell
         case .keyboard: self = .keyboard
         case .advanced: self = .advanced
-        case .general, .profiles, .projects, .data: return nil
+        case .general, .profiles, .projects, .notifications, .data: return nil
         }
     }
 

@@ -216,9 +216,11 @@ final class ProjectModelTests {
 }
 
 final class ProjectStatusTests {
-    /// Display priority: an unread-output project outranks a merely running
-    /// one, which outranks idle, which outranks a project that is not open.
+    /// Display priority: a program asking for the user outranks unread output,
+    /// which outranks a merely running project, which outranks idle, which
+    /// outranks a project that is not open.
     @Test func statusOrdering() {
+        #expect(ProjectStatus.waiting > ProjectStatus.attention)
         #expect(ProjectStatus.attention > ProjectStatus.running)
         #expect(ProjectStatus.running > ProjectStatus.idle)
         #expect(ProjectStatus.idle > ProjectStatus.cold)
