@@ -105,6 +105,51 @@ enum LinkRouter {
         markdownExtensions.contains((path as NSString).pathExtension.lowercased())
     }
 
+    /// The unbroken run of text around `column` in one terminal row, one
+    /// string per cell. SwiftTerm's implicit detection follows Ghostty and
+    /// only recognizes a path that has a slash, so a bare `README.md` printed
+    /// by `ls` is never offered as a link; the terminal view falls back to
+    /// this word and opens it only if it names an existing file.
+    nonisolated static func word(inCells cells: [String], at column: Int) -> String? {
+        func breaks(_ cell: String) -> Bool {
+            // An empty cell is the second half of a wide character, not a gap.
+            // An unwritten one reads as NUL — `ls` skips across gaps with tabs.
+            !cell.isEmpty && cell.unicodeScalars.allSatisfy {
+                $0 == "\0" || CharacterSet.whitespaces.contains($0) || wordDelimiters.contains($0)
+            }
+        }
+        guard cells.indices.contains(column), !breaks(cells[column]) else { return nil }
+        var start = column
+        while start > cells.startIndex, !breaks(cells[start - 1]) { start -= 1 }
+        var end = column
+        while end + 1 < cells.endIndex, !breaks(cells[end + 1]) { end += 1 }
+        let word = cells[start...end].joined()
+            .trimmingCharacters(in: CharacterSet(charactersIn: ".,;:"))
+        return word.isEmpty ? nil : word
+    }
+
+    private nonisolated static let wordDelimiters = CharacterSet(charactersIn: "\"'`()[]{}<>|")
+
+    /// Splits a copied terminal row back into one string per cell. A wide
+    /// character's trailing cell (width 0) becomes an empty string; whether
+    /// the row text carries a character for that cell is read from its length.
+    nonisolated static func cells(fromRowText text: String, cellWidths: [Int]) -> [String] {
+        let characters = Array(text)
+        let skipsTrailingHalves = characters.count != cellWidths.count
+        var cells: [String] = []
+        cells.reserveCapacity(cellWidths.count)
+        var next = characters.startIndex
+        for width in cellWidths {
+            if width == 0 && skipsTrailingHalves {
+                cells.append("")
+                continue
+            }
+            cells.append(next < characters.endIndex ? String(characters[next]) : " ")
+            next += 1
+        }
+        return cells
+    }
+
     /// Turns detected text into an existing file path, or nil. Mirrors what
     /// SwiftTerm's default handler accepts — tilde expansion and a trailing
     /// `:line[:column]` — plus resolution against the terminal's directory.

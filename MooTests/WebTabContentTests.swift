@@ -288,6 +288,34 @@ final class LinkRouterTests {
         #expect(!LinkRouter.isExecutable(URL(fileURLWithPath: directory + "/README.md")))
     }
 
+    @Test func bareWordUnderAClickIsFoundInItsRow() {
+        // `ls` output: tabs leave unwritten cells, which read as NUL.
+        func cells(_ text: String) -> [String] { text.map { String($0) } }
+        var row: [String] = cells("CLAUDE.md")
+        row += ["\0", "\0"]
+        row += cells("README.md")
+        row += [" "]
+        row += cells("(notes.md),")
+        #expect(LinkRouter.word(inCells: row, at: 0) == "CLAUDE.md")
+        #expect(LinkRouter.word(inCells: row, at: 13) == "README.md")
+        #expect(LinkRouter.word(inCells: row, at: 23) == "notes.md")
+        #expect(LinkRouter.word(inCells: row, at: 9) == nil)
+        #expect(LinkRouter.word(inCells: row, at: 99) == nil)
+        #expect(LinkRouter.word(inCells: Array("README.md:12:3").map(String.init), at: 2) == "README.md:12:3")
+        #expect(LinkRouter.word(inCells: Array("a ...").map(String.init), at: 3) == nil)
+    }
+
+    @Test func copiedRowsSplitBackIntoCells() {
+        // The snapshot copy turns unwritten cells into spaces.
+        let ls = LinkRouter.cells(fromRowText: "a.md    README.md", cellWidths: Array(repeating: 1, count: 17))
+        #expect(LinkRouter.word(inCells: ls, at: 10) == "README.md")
+        // A wide character's trailing half is an empty cell inside the word.
+        let wide = LinkRouter.cells(fromRowText: "日本.md x", cellWidths: [2, 0, 2, 0, 1, 1, 1, 1, 1])
+        #expect(wide.count == 9)
+        #expect(LinkRouter.word(inCells: wide, at: 1) == "日本.md")
+        #expect(LinkRouter.word(inCells: wide, at: 8) == "x")
+    }
+
     @Test func nonMarkdownAndDirectoriesStayExternal() {
         #expect(LinkRouter.classify("main.swift", workingDirectory: directory) == .external)
         #expect(LinkRouter.classify("docs.md", workingDirectory: directory) == .external)
