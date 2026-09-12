@@ -52,13 +52,47 @@ public enum AskBeforeClosing: String, Codable, CaseIterable, Sendable, CustomStr
 /// A component that can appear in a terminal window title.
 ///
 /// Raw string values are persisted so future versions can add components
-/// without changing the profile document format.
+/// without changing the profile document format; unknown values are dropped
+/// when a profile loads. Declared in the order they appear in the title.
 public enum TerminalTitleComponent: String, Codable, CaseIterable, Hashable, Sendable {
+    /// The title the running program set with OSC 0/2
     case activeTitle
+    /// The last component of the shell's OSC 7 directory
     case workingDirectory
+    /// The whole directory path instead of its last component
     case fullPath
+    /// The foreground process of the terminal, such as "vim"
+    case activeProcessName
+    /// The foreground process's arguments
+    case processArguments
+    /// The shell's argv[0], such as "-zsh"
+    case shellCommandName
     case profileName
+    /// The pty device, such as "ttys003"
+    case ttyName
+    /// Columns×rows
     case dimensions
+
+    /// A sub-option only applies while its parent is enabled
+    public var parent: TerminalTitleComponent? {
+        switch self {
+        case .fullPath: return .workingDirectory
+        case .processArguments: return .activeProcessName
+        default: return nil
+        }
+    }
+
+    /// Enables the parent of every enabled sub-option. Profiles written before
+    /// sub-options existed could enable "Full path" alone.
+    static func normalized(_ components: some Sequence<TerminalTitleComponent>) -> Set<TerminalTitleComponent> {
+        var result = Set(components)
+        for component in result {
+            if let parent = component.parent {
+                result.insert(parent)
+            }
+        }
+        return result
+    }
 }
 
 public struct TerminalKeyModifiers: OptionSet, Codable, Hashable, Sendable {
@@ -302,7 +336,15 @@ public struct TerminalProfile: Identifiable, Codable, Equatable, Sendable {
             self.scrollbackLines = defaults.scrollbackLines
         }
         self.titleOverride = try c.decodeIfPresent (String.self, forKey: .titleOverride) ?? defaults.titleOverride
-        self.titleComponents = try c.decodeIfPresent (Set<TerminalTitleComponent>.self, forKey: .titleComponents) ?? defaults.titleComponents
+        // Decoded as strings so a component from a newer version is skipped
+        // rather than failing the whole profile
+        if let rawComponents = try c.decodeIfPresent ([String].self, forKey: .titleComponents) {
+            self.titleComponents = TerminalTitleComponent.normalized (
+                rawComponents.compactMap (TerminalTitleComponent.init(rawValue:))
+            )
+        } else {
+            self.titleComponents = defaults.titleComponents
+        }
         self.shell = try c.decodeIfPresent (ShellCommand.self, forKey: .shell) ?? defaults.shell
         self.whenShellExits = try c.decodeIfPresent (ShellExitBehavior.self, forKey: .whenShellExits) ?? defaults.whenShellExits
         self.askBeforeClosing = try c.decodeIfPresent (AskBeforeClosing.self, forKey: .askBeforeClosing) ?? defaults.askBeforeClosing
@@ -345,7 +387,8 @@ public struct TerminalProfile: Identifiable, Codable, Equatable, Sendable {
         // Encoded unconditionally: an explicit null means "unlimited scrollback"
         try c.encode (scrollbackLines, forKey: .scrollbackLines)
         try c.encodeIfPresent (titleOverride, forKey: .titleOverride)
-        try c.encode (titleComponents, forKey: .titleComponents)
+        // Title order, so exported profiles do not churn between saves
+        try c.encode (TerminalTitleComponent.allCases.filter (titleComponents.contains), forKey: .titleComponents)
         try c.encode (shell, forKey: .shell)
         try c.encode (whenShellExits, forKey: .whenShellExits)
         try c.encode (askBeforeClosing, forKey: .askBeforeClosing)

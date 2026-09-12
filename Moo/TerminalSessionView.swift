@@ -44,6 +44,10 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     /// its tabs the way the native tab bar used to.
     private(set) var tabTitle: String = ""
     @ObservationIgnored private var titleUpdateTask: Task<Void, Never>?
+    /// Polls the foreground process while the title shows it
+    @ObservationIgnored private var processTitleTimer: Timer?
+    /// The pty's device name, fixed once the process starts
+    @ObservationIgnored private var cachedTTYName: String?
     @ObservationIgnored private var postedDirectory: String?
     @ObservationIgnored private var zoomGesture: NSMagnificationGestureRecognizer?
     @ObservationIgnored private var keyEventMonitor: Any?
@@ -92,6 +96,7 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
             NSEvent.removeMonitor(keyEventMonitor)
         }
         titleUpdateTask?.cancel()
+        processTitleTimer?.invalidate()
         snapshotWorkItem?.cancel()
     }
 
@@ -144,6 +149,7 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         previewBackgroundOpacity = nil
         applyAppearance()
         updateWindowTitle()
+        updateProcessTitlePolling()
     }
 
     /// Sets or clears (nil) the per-tab theme override and re-applies colors
@@ -272,6 +278,7 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
 
     func sizeChanged(source _: LocalProcessTerminalView, newCols _: Int, newRows _: Int) {
         // LocalProcessTerminalView updates the PTY. Do not resize the window here.
+        updateWindowTitle()
     }
 
     func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
@@ -820,6 +827,7 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
                               environment: environment,
                               execName: params.execName,
                               currentDirectory: params.currentDirectory)
+        updateProcessTitlePolling()
         terminal.sizeChanged(source: terminal,
                              newCols: dimensions.cols,
                              newRows: dimensions.rows)
@@ -881,46 +889,87 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
             focused.updateWindowTitle()
             return
         }
-        guard let terminal else { return }
-        let dimensions = terminal.terminalDimensions
-        var components: [String] = []
-
-        func appendIfPresent (_ value: String?) {
-            guard let value, !value.isEmpty else { return }
-            components.append (value)
-        }
-
-        appendIfPresent (profile.titleOverride)
-        if profile.titleComponents.contains (.activeTitle) {
-            appendIfPresent (displayedTerminalTitle)
-        }
-        if profile.titleComponents.contains (.dimensions) {
-            appendIfPresent ("\(dimensions.cols) x \(dimensions.rows)")
-        }
-        if let directory = currentWorkingDirectory {
-            if profile.titleComponents.contains (.fullPath) {
-                appendIfPresent (directory)
-            } else if profile.titleComponents.contains (.workingDirectory) {
-                appendIfPresent (URL (fileURLWithPath: directory).lastPathComponent)
-            }
-        }
-        if profile.titleComponents.contains (.profileName) {
-            appendIfPresent (profile.name)
-        }
-
-        let newTitle = components.joined (separator: " — ")
-        guard let window = terminal.window else { return }
+        guard let terminal, let window = terminal.window else { return }
+        let newTitle = TerminalTitleComposer.title(
+            for: profile.titleComponents,
+            inputs: titleInputs(for: terminal)
+        )
         let document = window.windowController?.document as? NSDocument
         let documentName = document?.displayName ?? ""
         let title = newTitle.isEmpty ? documentName : newTitle
         let hasPaneActivity = workspace?.controllers.contains(where: \.hasActivity)
             ?? hasActivity
         let effectiveTitle = hasPaneActivity ? "● \(title)" : title
-        window.title = effectiveTitle
+        // The process poll lands here twice a second; leave an unchanged title alone.
+        if window.title != effectiveTitle {
+            window.title = effectiveTitle
+        }
 
-        if !newTitle.isEmpty {
+        if !newTitle.isEmpty, document?.displayName != newTitle {
             document?.displayName = newTitle
         }
+    }
+
+    /// Process details cost system calls, so only what the title shows is read.
+    private func titleInputs(for terminal: LocalProcessTerminalView) -> TerminalTitleInputs {
+        let components = profile.titleComponents
+        let dimensions = terminal.terminalDimensions
+        var inputs = TerminalTitleInputs(
+            customTitle: profile.titleOverride,
+            activeTitle: displayedTerminalTitle,
+            workingDirectory: currentWorkingDirectory,
+            profileName: profile.name,
+            columns: dimensions.cols,
+            rows: dimensions.rows
+        )
+        guard let process = terminal.process, process.running else { return inputs }
+        let shell = process.shellPid
+        if components.contains(.shellCommandName) {
+            inputs.shellCommand = TerminalProcessInspector.commandLine(of: shell)
+        }
+        if components.contains(.activeProcessName),
+           let group = TerminalProcessInspector.foregroundProcessGroup(ptyDescriptor: process.childfd) {
+            inputs.foregroundIsShell = group == shell
+            inputs.foregroundCommand = TerminalProcessInspector.commandLine(of: group)
+        }
+        if components.contains(.ttyName) {
+            if cachedTTYName == nil {
+                cachedTTYName = TerminalProcessInspector.ttyName(ptyDescriptor: process.childfd)
+            }
+            inputs.ttyName = cachedTTYName
+        }
+        return inputs
+    }
+
+    /// Nothing reports that the foreground process changed, so a title that
+    /// shows it is polled, as Terminal.app does.
+    private func updateProcessTitlePolling() {
+        let needsPolling = didStartProcess && profile.titleComponents.contains(.activeProcessName)
+        guard needsPolling != (processTitleTimer != nil) else { return }
+        if needsPolling {
+            let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    self?.pollProcessTitle()
+                }
+            }
+            RunLoop.main.add(timer, forMode: .common)
+            processTitleTimer = timer
+        } else {
+            processTitleTimer?.invalidate()
+            processTitleTimer = nil
+        }
+    }
+
+    private func pollProcessTitle() {
+        guard let terminal, terminal.process?.running == true else {
+            processTitleTimer?.invalidate()
+            processTitleTimer = nil
+            return
+        }
+        // Only the focused pane titles its window.
+        guard terminal.window != nil else { return }
+        if let focused = workspace?.focusedController, focused !== self { return }
+        updateWindowTitle()
     }
 
     private func updateLogging() {
