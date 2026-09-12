@@ -17,6 +17,12 @@ html, body {
   min-height: 100vh;
 }
 
+/* The same transparency shows through a rubber-band scroll: pulling past
+   the top or bottom drags the page away and leaves a see-through band. */
+html {
+  overscroll-behavior: none;
+}
+
 /* GitHub's README column: 980px wide, centred, with its padding. */
 #content {
   box-sizing: border-box;
