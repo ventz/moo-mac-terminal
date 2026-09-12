@@ -58,6 +58,11 @@ private struct ProfileStoreStateMigrator: VersionedDocumentMigrator {
     }
 }
 
+/// Reads only the optional theme a profile document can carry
+nonisolated private struct EmbeddedThemeProbe: Decodable {
+    var theme: TerminalTheme?
+}
+
 @MainActor
 public final class ProfileStore: ObservableObject {
     @Published public private(set) var profiles: [TerminalProfile] = []
@@ -68,6 +73,8 @@ public final class ProfileStore: ObservableObject {
     private var backupDirectory: URL
     private let issueCenter: PersistenceIssueCenter?
     private var storeStateIsReadOnly = false
+    /// Themes found inside profile files, waiting for adoptEmbeddedThemes(using:)
+    private var pendingEmbeddedThemes: [TerminalProfile.ID: TerminalTheme] = [:]
 
     nonisolated static let documentVersion = 1
     private static let builtInDefaultProfile = TerminalProfile(
@@ -260,8 +267,13 @@ public final class ProfileStore: ObservableObject {
         }
     }
 
+    /// Imports a profile document. When the document carries a theme,
+    /// adoptTheme installs it and returns the theme name the profile should use.
     @discardableResult
-    public func importProfile(from url: URL) throws -> TerminalProfile {
+    public func importProfile(
+        from url: URL,
+        adoptTheme: ((TerminalTheme) throws -> String)? = nil
+    ) throws -> TerminalProfile {
         let data = try Data(contentsOf: url)
         let migrator = ProfileDocumentMigrator()
         let sourceVersion = try migrator.sourceVersion(in: data)
@@ -273,15 +285,43 @@ public final class ProfileStore: ObservableObject {
         }
         var incoming = try migrator.decode(data, from: sourceVersion)
         try migrator.validate(incoming)
+        if let adoptTheme, let theme = ProfileStore.embeddedTheme(in: data) {
+            incoming.themeName = try adoptTheme(theme)
+        }
         if profile(withID: incoming.id) != nil { incoming.id = UUID() }
         if profile(named: incoming.name) != nil { incoming.name = uniqueName(basedOn: incoming.name) }
         try add(incoming)
         return incoming
     }
 
-    public func exportProfile(_ id: TerminalProfile.ID, to url: URL) throws {
+    /// Writes a profile document; pass the profile's theme to make the file
+    /// self-contained.
+    public func exportProfile(_ id: TerminalProfile.ID, to url: URL, theme: TerminalTheme? = nil) throws {
         guard let target = profile(withID: id) else { throw ProfilesError.profileNotFound }
-        try ProfileStore.encodedProfile(target).write(to: url, options: .atomic)
+        try ProfileStore.encodedProfile(target, theme: theme).write(to: url, options: .atomic)
+    }
+
+    /// Installs the themes carried by profile files found at load time, points
+    /// each profile at the name adoptTheme returns, and rewrites the file
+    /// without the theme so later theme edits in Moo survive a relaunch.
+    public func adoptEmbeddedThemes(using adoptTheme: (TerminalTheme) throws -> String) {
+        let pending = pendingEmbeddedThemes
+        pendingEmbeddedThemes = [:]
+        for (id, theme) in pending {
+            guard var target = profile(withID: id) else { continue }
+            do {
+                target.themeName = try adoptTheme(theme)
+            } catch {
+                reportWriteFailure(
+                    error,
+                    domain: .profiles,
+                    sourceURL: ProfileStore.url(for: target, in: profilesDirectory)
+                )
+                continue
+            }
+            // update() reports its own write failures
+            try? update(target)
+        }
     }
 
     func uniqueName(basedOn base: String) -> String {
@@ -321,10 +361,14 @@ public final class ProfileStore: ObservableObject {
         directory.appendingPathComponent("\(profile.id.uuidString).json")
     }
 
-    static func encodedProfile(_ profile: TerminalProfile) throws -> Data {
+    static func encodedProfile(_ profile: TerminalProfile, theme: TerminalTheme? = nil) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(ProfileDocument(version: documentVersion, profile: profile))
+        return try encoder.encode(ProfileDocument(version: documentVersion, profile: profile, theme: theme))
+    }
+
+    nonisolated static func embeddedTheme(in data: Data) -> TerminalTheme? {
+        try? JSONDecoder().decode(EmbeddedThemeProbe.self, from: data).theme
     }
 
     static func write(profile: TerminalProfile, in directory: URL) throws {
@@ -349,6 +393,7 @@ public final class ProfileStore: ObservableObject {
         }
         var values: [TerminalProfile] = []
         var issues: [PersistenceIssue] = []
+        var embedded: [TerminalProfile.ID: TerminalTheme] = [:]
         for file in files where file.pathExtension == "json" {
             let result = VersionedFileLoader.load(
                 from: file,
@@ -356,9 +401,15 @@ public final class ProfileStore: ObservableObject {
                 backupRoot: backupDirectory,
                 migrator: ProfileDocumentMigrator()
             )
-            if let profile = result.value { values.append(profile) }
+            if let profile = result.value {
+                values.append(profile)
+                if let theme = (try? Data(contentsOf: file)).flatMap(ProfileStore.embeddedTheme(in:)) {
+                    embedded[profile.id] = theme
+                }
+            }
             if let issue = result.issue { issues.append(issue) }
         }
+        pendingEmbeddedThemes = embedded
         return (values, issues)
     }
 

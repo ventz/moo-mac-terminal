@@ -105,6 +105,27 @@ final class ThemeStoreTests {
         #expect (store.theme (named: "My Dracula").name == TerminalTheme.fallback.name)
     }
 
+    @Test func adoptingEmbeddedThemeReusesReplacesOrRenames () throws {
+        let (store, dir) = try makeStore ()
+        defer { try? FileManager.default.removeItem (at: dir) }
+
+        var carried = store.theme (named: "Dracula")
+        carried.name = "Carried"
+        #expect (try store.adoptEmbeddedTheme (carried) == "Carried")
+        #expect (store.theme (named: "Carried").isBuiltIn == false)
+        #expect (try store.adoptEmbeddedTheme (carried) == "Carried")
+
+        carried.background = ProfileColor (hex: "#000000")!
+        #expect (try store.adoptEmbeddedTheme (carried) == "Carried")
+        #expect (store.theme (named: "Carried").background.hexString == "#000000")
+
+        var recolored = store.theme (named: "Dracula")
+        recolored.background = ProfileColor (hex: "#000000")!
+        #expect (try store.adoptEmbeddedTheme (recolored) == "Dracula 2")
+        #expect (store.theme (named: "Dracula").isBuiltIn)
+        #expect (try store.adoptEmbeddedTheme (store.theme (named: "Dracula")) == "Dracula")
+    }
+
     @Test func deletionReloadsThemesWhenFavoritePersistenceFails() throws {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("theme-delete-partial-tests-\(UUID().uuidString)")
@@ -405,6 +426,55 @@ final class ProfileStoreTests {
         #expect (imported.id != store.defaultProfileID)
         #expect (imported.name == "Default copy")
         #expect (store.profiles.count == 2)
+    }
+
+    @Test func exportCarriesThemeAndImportAdoptsIt () throws {
+        let (store, dir) = try makeStore ()
+        defer { try? FileManager.default.removeItem (at: dir) }
+        var theme = TerminalTheme.fallback
+        theme.name = "Carried"
+        theme.background = ProfileColor (hex: "#000000")!
+        let file = dir.appendingPathComponent ("export.mooprofile")
+        try store.exportProfile (store.defaultProfileID, to: file, theme: theme)
+
+        var adopted: [TerminalTheme] = []
+        let imported = try store.importProfile (from: file) { incoming in
+            adopted.append (incoming)
+            return "Carried 2"
+        }
+        #expect (adopted.map (\.name) == ["Carried"])
+        #expect (adopted.first?.background.hexString == "#000000")
+        #expect (imported.themeName == "Carried 2")
+    }
+
+    @Test func embeddedThemeInProfileFileIsAdoptedOnceAndStripped () throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent ("profile-embedded-theme-tests-\(UUID ().uuidString)")
+        defer { try? FileManager.default.removeItem (at: dir) }
+        let profilesDirectory = dir.appendingPathComponent ("Profiles")
+        try FileManager.default.createDirectory (at: profilesDirectory, withIntermediateDirectories: true)
+        var profile = TerminalProfile (name: "Carrier")
+        profile.themeName = "Carried"
+        var theme = TerminalTheme.fallback
+        theme.name = "Carried"
+        let file = ProfileStore.url (for: profile, in: profilesDirectory)
+        try ProfileStore.encodedProfile (profile, theme: theme).write (to: file)
+
+        let store = try ProfileStore (directory: dir)
+        var adopted: [String] = []
+        store.adoptEmbeddedThemes { incoming in
+            adopted.append (incoming.name)
+            return "Carried 2"
+        }
+        #expect (adopted == ["Carried"])
+        #expect (store.profile (withID: profile.id)?.themeName == "Carried 2")
+        let rewritten = try String (contentsOf: file, encoding: .utf8)
+        #expect (!rewritten.contains ("\"theme\""))
+
+        store.adoptEmbeddedThemes { _ in
+            Issue.record ("an adopted theme must not be offered again")
+            return ""
+        }
     }
 
     @Test func unlimitedScrollbackSurvivesRoundTrip () throws {

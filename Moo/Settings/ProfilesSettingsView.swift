@@ -44,13 +44,16 @@ struct ProfilesSettingsView: View {
         .onChange(of: profiles.profiles.map(\.id)) {
             repairActiveProfileSelection()
         }
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json]) { result in
+        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.mooProfile, .json]) { result in
             switch result {
             case .success(let url):
                 let gotAccess = url.startAccessingSecurityScopedResource()
                 defer { if gotAccess { url.stopAccessingSecurityScopedResource() } }
                 do {
-                    activeProfileID = try profiles.importProfile(from: url).id
+                    activeProfileID = try profiles.importProfile(
+                        from: url,
+                        adoptTheme: { try themes.adoptEmbeddedTheme($0) }
+                    ).id
                 } catch {
                     report(error)
                 }
@@ -60,7 +63,7 @@ struct ProfilesSettingsView: View {
         }
         .fileExporter(isPresented: $showExporter,
                       document: exportDocument,
-                      contentType: .json,
+                      contentType: .mooProfile,
                       defaultFilename: exportDocument?.filename ?? "Profile") { result in
             if case .failure(let error) = result {
                 report(error)
@@ -239,8 +242,16 @@ struct ProfilesSettingsView: View {
 
     private func exportSelectedProfile() {
         guard let profile = selectedProfile else { return }
-        exportDocument = ProfileExportDocument(profile: profile)
-        showExporter = true
+        // Built-in themes ship with every copy of Moo; carry only a custom one
+        let theme = themes.themes.first { $0.name == profile.themeName && !$0.isBuiltIn }
+        do {
+            // Encode on the main actor; fileWrapper(configuration:) runs off it
+            let data = try ProfileStore.encodedProfile(profile, theme: theme)
+            exportDocument = ProfileExportDocument(filename: profile.name, data: data)
+            showExporter = true
+        } catch {
+            report(error)
+        }
     }
 
     private func repairActiveProfileSelection() {
@@ -995,16 +1006,15 @@ extension FontPanelManager: NSWindowDelegate {
 
 /// FileDocument wrapper so fileExporter can save a profile
 struct ProfileExportDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.json] }
+    static var readableContentTypes: [UTType] { [.mooProfile, .json] }
 
-    var profile: TerminalProfile
+    var filename: String
+    /// The encoded profile document, built on the main actor
+    var data: Data
 
-    var filename: String {
-        profile.name
-    }
-
-    init(profile: TerminalProfile) {
-        self.profile = profile
+    init(filename: String, data: Data) {
+        self.filename = filename
+        self.data = data
     }
 
     init(configuration: ReadConfiguration) throws {
@@ -1012,14 +1022,7 @@ struct ProfileExportDocument: FileDocument {
     }
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        struct Envelope: Codable {
-            var version: Int
-            var profile: TerminalProfile
-        }
-        let data = try encoder.encode(Envelope(version: 1, profile: profile))
-        return FileWrapper(regularFileWithContents: data)
+        FileWrapper(regularFileWithContents: data)
     }
 }
 

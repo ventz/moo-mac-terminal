@@ -45,4 +45,8 @@ extension UTType {
     static var terminalSession: UTType {
         UTType(exportedAs: "net.vpetkov.moo.terminal-session")
     }
+
+    static var mooProfile: UTType {
+        UTType(exportedAs: "net.vpetkov.moo.profile")
+    }
 }

@@ -48,6 +48,23 @@ Based on Tecolot, copyright © 2026 Miguel de Icaza. MIT licensed.</string>
 				</array>
 			</dict>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.json</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Moo Profile</string>
+			<key>UTTypeIdentifier</key>
+			<string>net.vpetkov.moo.profile</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>mooprofile</string>
+				</array>
+			</dict>
+		</dict>
 	</array>
 </dict>
 </plist>

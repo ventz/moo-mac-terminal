@@ -338,6 +338,32 @@ public final class ThemeStore: ObservableObject {
         return imported
     }
 
+    /// Installs a theme carried inside a profile file and returns the name the
+    /// profile should reference. Identical colors reuse the existing theme, a
+    /// user theme of the same name is replaced (the file is the source of
+    /// truth), and a clash with a built-in theme is saved under a new name.
+    @discardableResult
+    public func adoptEmbeddedTheme(_ theme: TerminalTheme) throws -> String {
+        try UserThemeMigrator().validate(theme)
+        var incoming = theme
+        incoming.isBuiltIn = false
+        if let existing = themes.first(where: {
+            $0.name.localizedCaseInsensitiveCompare(incoming.name) == .orderedSame
+        }) {
+            if existing.contentHash == incoming.contentHash {
+                return existing.name
+            }
+            if !existing.isBuiltIn {
+                incoming.name = existing.name
+                try saveUserTheme(incoming, replacing: existing.name)
+                return incoming.name
+            }
+            incoming.name = uniqueThemeName(basedOn: incoming.name)
+        }
+        try saveUserTheme(incoming)
+        return incoming.name
+    }
+
     nonisolated static func loadBundledThemes() -> [TerminalTheme] {
         guard let resourceURL = Bundle.main.url(forResource: "Themes", withExtension: nil) else {
             return []
