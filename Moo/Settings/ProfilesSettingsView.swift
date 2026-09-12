@@ -378,6 +378,48 @@ struct ProfileSettingsPage: View {
     @ViewBuilder
     private var windowSettings: some View {
         Form {
+            Section("Title") {
+                TextField("Custom title:", text: Binding(
+                    get: { profile.titleOverride ?? "" },
+                    set: { newValue in update { $0.titleOverride = newValue.isEmpty ? nil : newValue } }
+                ), prompt: Text("Default"))
+                HStack(alignment: .top, spacing: 40) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        titleComponentToggle(.activeTitle)
+                        titleComponentToggle(.workingDirectory)
+                        titleComponentToggle(.fullPath)
+                        titleComponentToggle(.activeProcessName)
+                        titleComponentToggle(.processArguments)
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        titleComponentToggle(.shellCommandName)
+                        titleComponentToggle(.profileName)
+                        titleComponentToggle(.ttyName)
+                        titleComponentToggle(.dimensions)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .toggleStyle(.checkbox)
+            }
+            Section("Window Size") {
+                HStack(spacing: 32) {
+                    dimensionField("Columns:", keyPath: \.columns)
+                    dimensionField("Rows:", keyPath: \.rows)
+                    Spacer(minLength: 0)
+                }
+            }
+            Section("Scrollback") {
+                Toggle("Limit scrollback", isOn: Binding(
+                    get: { profile.scrollbackLines != nil },
+                    set: { limited in update { $0.scrollbackLines = limited ? 10_000 : nil } }
+                ))
+                if profile.scrollbackLines != nil {
+                    TextField("Scrollback lines:", value: Binding(
+                        get: { profile.scrollbackLines ?? 10_000 },
+                        set: { newValue in update { $0.scrollbackLines = max(0, newValue) } }
+                    ), format: .number)
+                }
+            }
             Section {
                 Toggle(
                     "Match window chrome to theme",
@@ -398,40 +440,43 @@ struct ProfileSettingsPage: View {
             } footer: {
                 Text("Applies the theme to the title bar, tabs, and toolbar controls. Turn this off to follow the system appearance. The sidebar and tab strip otherwise take the background opacity set on the Text page.")
             }
-            Section {
-                TextField("Columns:", value: binding(\.columns), format: .number)
-                TextField("Rows:", value: binding(\.rows), format: .number)
-                Toggle("Limit scrollback", isOn: Binding(
-                    get: { profile.scrollbackLines != nil },
-                    set: { limited in update { $0.scrollbackLines = limited ? 10_000 : nil } }
-                ))
-                if profile.scrollbackLines != nil {
-                    TextField("Scrollback lines:", value: Binding(
-                        get: { profile.scrollbackLines ?? 10_000 },
-                        set: { newValue in update { $0.scrollbackLines = max(0, newValue) } }
-                    ), format: .number)
-                }
-            }
-            Section("Title") {
-                TextField("Custom title:", text: Binding(
-                    get: { profile.titleOverride ?? "" },
-                    set: { newValue in update { $0.titleOverride = newValue.isEmpty ? nil : newValue } }
-                ), prompt: Text("Default"))
-                ForEach(TerminalTitleComponent.allCases, id: \.self) { component in
-                    Toggle(titleComponentLabel(component), isOn: Binding(
-                        get: { profile.titleComponents.contains(component) },
-                        set: { isEnabled in
-                            update {
-                                if isEnabled {
-                                    $0.titleComponents.insert(component)
-                                } else {
-                                    $0.titleComponents.remove(component)
-                                }
-                            }
+        }
+    }
+
+    /// A title checkbox; sub-options sit indented under their parent and are
+    /// disabled while it is off
+    private func titleComponentToggle(_ component: TerminalTitleComponent) -> some View {
+        let parentEnabled = component.parent.map { profile.titleComponents.contains($0) } ?? true
+        return Toggle(titleComponentLabel(component), isOn: Binding(
+            get: { profile.titleComponents.contains(component) },
+            set: { isEnabled in
+                update {
+                    if isEnabled {
+                        $0.titleComponents.insert(component)
+                    } else {
+                        // Turning a parent off clears its sub-options, which
+                        // keeps loading a profile from turning the parent back on.
+                        $0.titleComponents = $0.titleComponents.filter {
+                            $0 != component && $0.parent != component
                         }
-                    ))
+                    }
                 }
             }
+        ))
+        .disabled(!parentEnabled)
+        .padding(.leading, component.parent == nil ? 0 : 20)
+    }
+
+    /// A compact number box, as in Terminal.app's "Columns: [100]  Rows: [51]"
+    private func dimensionField(_ label: String, keyPath: WritableKeyPath<TerminalProfile, Int>) -> some View {
+        HStack(spacing: 8) {
+            Text(label)
+            TextField(label, value: Binding(
+                get: { profile[keyPath: keyPath] },
+                set: { newValue in update { $0[keyPath: keyPath] = max(1, newValue) } }
+            ), format: .number)
+            .labelsHidden()
+            .frame(width: 64)
         }
     }
 
@@ -588,8 +633,12 @@ struct ProfileSettingsPage: View {
         switch component {
         case .activeTitle: return "Active title"
         case .workingDirectory: return "Working directory"
-        case .fullPath: return "Full path"
+        case .fullPath: return "Path"
+        case .activeProcessName: return "Active process name"
+        case .processArguments: return "Arguments"
+        case .shellCommandName: return "Shell command name"
         case .profileName: return "Profile name"
+        case .ttyName: return "TTY name"
         case .dimensions: return "Dimensions"
         }
     }
@@ -1056,7 +1105,7 @@ struct ProfileExportDocument: FileDocument {
 #Preview("Window Settings") {
     ProfileSettingsPagePreview(section: .window)
         .environmentObject(SettingsPreviewData.themes)
-        .frame(width: 560, height: 430)
+        .frame(width: 560, height: 640)
 }
 
 #Preview("Shell Settings") {
