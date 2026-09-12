@@ -106,6 +106,17 @@ struct ContentView: View {
         chromeController?.effectiveBackgroundOpacity ?? 1
     }
 
+    /// The tab strip and the sidebar each follow the terminal's opacity unless
+    /// the profile pins them opaque, which keeps their text legible over a
+    /// busy desktop while the terminal stays translucent.
+    private var tabStripBackgroundOpacity: Double {
+        chromeController?.profile.keepsTabStripOpaque == true ? 1 : chromeBackgroundOpacity
+    }
+
+    private var sidebarBackgroundOpacity: Double {
+        chromeController?.profile.keepsSidebarOpaque == true ? 1 : chromeBackgroundOpacity
+    }
+
     private var rowVisibility: ProjectRowVisibility {
         ProjectRowVisibility(
             showsStatus: showsStatus,
@@ -228,18 +239,19 @@ struct ContentView: View {
         // Carries the profile's background opacity, so the chrome is exactly
         // as transparent as the terminal it sits against. A solid strip over a
         // translucent window reads as a patch stuck on top of it.
-        return windowTheme.background.swiftUIColor.opacity(chromeBackgroundOpacity)
+        return windowTheme.background.swiftUIColor.opacity(tabStripBackgroundOpacity)
     }
 
     /// The sidebar sits beside the terminal rather than behind text, so it is
     /// darkened a little to separate the two without drawing a divider — and
-    /// it takes the same opacity, so the whole window is uniformly transparent.
+    /// it takes the same opacity, so the whole window is uniformly transparent
+    /// — unless the profile pins it opaque.
     private var sidebarBackground: Color {
         guard usesThemeWindowChrome else {
             return Color(nsColor: .underPageBackgroundColor)
         }
         return Self.darkened(windowTheme.background, by: 0.35)
-            .opacity(chromeBackgroundOpacity)
+            .opacity(sidebarBackgroundOpacity)
     }
 
     /// Blends a theme colour toward black. Works for light themes too, where

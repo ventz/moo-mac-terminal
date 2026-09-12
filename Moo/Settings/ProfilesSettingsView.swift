@@ -383,10 +383,20 @@ struct ProfileSettingsPage: View {
                     "Match window chrome to theme",
                     isOn: binding(\.useThemeColorsForWindowChrome)
                 )
+                Toggle(
+                    "Keep the projects sidebar opaque",
+                    isOn: binding(\.keepsSidebarOpaque)
+                )
+                .disabled(!profile.useThemeColorsForWindowChrome)
+                Toggle(
+                    "Keep the tab strip opaque",
+                    isOn: binding(\.keepsTabStripOpaque)
+                )
+                .disabled(!profile.useThemeColorsForWindowChrome)
             } header: {
                 Text("Window chrome")
             } footer: {
-                Text("Applies the theme to the title bar, tabs, and toolbar controls. Turn this off to follow the system appearance.")
+                Text("Applies the theme to the title bar, tabs, and toolbar controls. Turn this off to follow the system appearance. The sidebar and tab strip otherwise take the background opacity set on the Text page.")
             }
             Section {
                 TextField("Columns:", value: binding(\.columns), format: .number)
