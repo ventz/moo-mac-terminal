@@ -371,4 +371,61 @@ final class WorkspaceTabClosePolicyTests {
         #expect(session.tabs.count == 1)
         #expect(session.selectedTab?.id == revived.id)
     }
+
+    // MARK: New tabs inherit the working directory
+
+    /// ⌘T beside a terminal sitting in a directory starts the new shell there,
+    /// not in the home directory.
+    @Test func newTabInheritsTheWorkingDirectoryOfTheCurrentTab() {
+        let session = makeSession()
+        let first = session.ensureTab()
+        first.panes?.focusedController?
+            .updateCurrentDirectory("kitty-shell-cwd://host/Users/ventz/git/moo-mac-terminal")
+
+        let added = session.addTab()
+        #expect(added.panes?.focusedController?.pendingLaunchDirectory
+                == "/Users/ventz/git/moo-mac-terminal")
+    }
+
+    /// With inheritance switched off in General settings the new shell falls
+    /// back to the plain launch, which lands in the home directory.
+    @Test func newTabIgnoresTheWorkingDirectoryWhenInheritanceIsOff() {
+        let defaults = UserDefaults.standard
+        defaults.set(false, forKey: "newTabsUseCurrentDirectory")
+        defaults.set(false, forKey: "newTabsUseCurrentProfile")
+        defer {
+            defaults.removeObject(forKey: "newTabsUseCurrentDirectory")
+            defaults.removeObject(forKey: "newTabsUseCurrentProfile")
+        }
+
+        let session = makeSession()
+        let first = session.ensureTab()
+        first.panes?.focusedController?
+            .updateCurrentDirectory("kitty-shell-cwd://host/Users/ventz/git")
+
+        let added = session.addTab()
+        #expect(added.panes?.focusedController?.pendingLaunchDirectory == nil)
+    }
+
+    /// A shell that never reported OSC 7 has nothing to pass on, and the new
+    /// tab must still open rather than fail.
+    @Test func newTabFallsBackWhenTheSourceNeverReportedADirectory() {
+        let session = makeSession()
+        session.ensureTab()
+        let added = session.addTab()
+        #expect(added.panes?.focusedController?.pendingLaunchDirectory == nil)
+    }
+
+    /// With a Markdown preview or browser tab on screen, ⌘T copies the last
+    /// terminal's directory instead of giving up.
+    @Test func newTabInheritsFromTheLastTerminalWhileAWebTabIsShowing() {
+        let session = makeSession()
+        let terminal = session.ensureTab()
+        terminal.panes?.focusedController?
+            .updateCurrentDirectory("kitty-shell-cwd://host/Users/ventz/git")
+        session.addTab(web: StubWebContent())
+
+        let added = session.addTab()
+        #expect(added.panes?.focusedController?.pendingLaunchDirectory == "/Users/ventz/git")
+    }
 }

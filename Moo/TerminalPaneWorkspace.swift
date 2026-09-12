@@ -50,9 +50,13 @@ final class TerminalPaneWorkspace {
     @ObservationIgnored private let startsProcesses: Bool
     @ObservationIgnored weak var hostView: TerminalPaneHostView?
 
-    init(startsProcesses: Bool = true) {
+    init(startsProcesses: Bool = true,
+         inheritingFrom source: TerminalSessionController? = nil) {
         self.startsProcesses = startsProcesses
         let controller = TerminalSessionController(startsProcess: startsProcesses)
+        if let source {
+            controller.prepareForNewTab(from: source)
+        }
         root = TerminalPaneNode(content: .terminal(controller))
         focusedControllerID = controller.id
         controller.workspace = self

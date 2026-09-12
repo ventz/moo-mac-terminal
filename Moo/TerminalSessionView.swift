@@ -129,6 +129,30 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         launchDirectory = source.currentWorkingDirectory
     }
 
+    /// Seeds a workspace tab from the terminal it was opened beside, honoring
+    /// the General settings. Native tabs get the same treatment through
+    /// `WindowOpener.inheritedTabSpec()`; workspace tabs never go through a
+    /// LaunchSpec, so they ask here instead.
+    @MainActor
+    func prepareForNewTab(from source: TerminalSessionController) {
+        guard !didResolveLaunch else { return }
+        let defaults = UserDefaults.standard
+        let inheritsDirectory = defaults.object(forKey: "newTabsUseCurrentDirectory") as? Bool ?? true
+        let inheritsProfile = defaults.object(forKey: "newTabsUseCurrentProfile") as? Bool ?? true
+        // With both off there is nothing to copy; leave the normal launch
+        // resolution in charge so the default profile still applies.
+        guard inheritsDirectory || inheritsProfile else { return }
+        didResolveLaunch = true
+        profile = inheritsProfile ? source.profile : AppModel.shared.profiles.defaultProfile
+        themeOverride = inheritsProfile ? source.themeOverride : nil
+        launchDirectory = inheritsDirectory ? source.currentWorkingDirectory : nil
+    }
+
+    /// The directory the next shell launch will start in: inherited from the
+    /// terminal this session was opened beside, or nil for a plain launch
+    /// (which lands in the home directory).
+    var pendingLaunchDirectory: String? { launchDirectory }
+
     /// The directory the shell reported via OSC 7, as a filesystem path
     var currentWorkingDirectory: String? {
         guard let posted = postedDirectory, let url = URL(string: posted) else {
@@ -293,7 +317,13 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         scheduleTerminalTitleUpdate()
     }
 
-    func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {
+    func hostCurrentDirectoryUpdate(source _: TerminalView, directory: String?) {
+        updateCurrentDirectory(directory)
+    }
+
+    /// Records the directory the shell reported via OSC 7. Split out from the
+    /// delegate hook so callers that are not SwiftTerm can drive it.
+    func updateCurrentDirectory(_ directory: String?) {
         guard postedDirectory != directory else { return }
         postedDirectory = directory
         updateWindowTitle()

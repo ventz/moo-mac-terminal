@@ -26,8 +26,11 @@ final class WorkspaceTab: Identifiable {
     var title: String
 
     /// A terminal tab. The split tree owns its terminal session controllers.
-    init(startsProcesses: Bool = true, title: String = "Terminal") {
-        content = .terminal(TerminalPaneWorkspace(startsProcesses: startsProcesses))
+    init(startsProcesses: Bool = true,
+         title: String = "Terminal",
+         inheritingFrom source: TerminalSessionController? = nil) {
+        content = .terminal(TerminalPaneWorkspace(startsProcesses: startsProcesses,
+                                                  inheritingFrom: source))
         self.title = title
     }
 
@@ -151,10 +154,19 @@ final class WorkspaceSession {
         return addTab()
     }
 
-    /// Adds a terminal tab and selects it.
+    /// Adds a terminal tab and selects it. The new shell starts in the
+    /// working directory of the terminal it was opened beside, and under the
+    /// same profile, per the General settings.
     @discardableResult
     func addTab() -> WorkspaceTab {
-        insert(WorkspaceTab(startsProcesses: startsProcesses))
+        insert(WorkspaceTab(startsProcesses: startsProcesses,
+                            inheritingFrom: inheritanceSource))
+    }
+
+    /// The terminal a new tab copies from: the focused pane of the tab on
+    /// screen, or of the last terminal tab when a web tab is showing.
+    private var inheritanceSource: TerminalSessionController? {
+        mostRecentTerminalTab?.panes?.focusedController
     }
 
     /// Adds a web tab — a markdown preview or a browser — and selects it.
