@@ -603,6 +603,8 @@ struct AppInfoCommands: Commands {
     /// file nobody opens.
     private static let credits: NSAttributedString = {
         let text = """
+        https://github.com/ventz/moo-mac-terminal
+
         Built on SwiftTerm and Tecolot by Miguel de Icaza.
         © 2026 Miguel de Icaza, MIT License
 
