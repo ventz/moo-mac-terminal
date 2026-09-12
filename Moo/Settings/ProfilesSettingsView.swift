@@ -24,6 +24,16 @@ struct ProfilesSettingsView: View {
         activeProfileID.flatMap { profiles.profile(withID: $0) }
     }
 
+    /// A non-optional binding for the list. Selecting nothing is not a state
+    /// the editor can show, so an empty selection reads as the default
+    /// profile rather than leaving the list on a sentinel row.
+    private var profileListSelection: Binding<TerminalProfile.ID> {
+        Binding(
+            get: { activeProfileID ?? profiles.defaultProfileID },
+            set: { activeProfileID = $0 }
+        )
+    }
+
     var body: some View {
         Group {
             if profiles.profiles.isEmpty {
@@ -91,7 +101,7 @@ struct ProfilesSettingsView: View {
 
     private var profileList: some View {
         VStack(spacing: 0) {
-            List(selection: $activeProfileID) {
+            List(selection: profileListSelection) {
                 ForEach(profiles.profiles) { profile in
                     HStack {
                         Text(profile.name)
