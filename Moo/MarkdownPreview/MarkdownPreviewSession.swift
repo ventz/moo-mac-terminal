@@ -228,8 +228,13 @@ extension MarkdownPreviewSession: WKNavigationDelegate {
             decisionHandler(.cancel)
             return
         }
+        // The handler hands back a symlink-resolved path, so compare against
+        // ours resolved the same way. A document under `~/proj -> git/...`
+        // otherwise never matches, its own page is refused without an error,
+        // and the tab sits on "Loading…" for good.
         let isOwnPage = url.scheme == MarkdownSchemeHandler.scheme
-            && MarkdownSchemeHandler.fileURL(for: url) == fileURL
+            && MarkdownSchemeHandler.fileURL(for: url)?.path
+                == MarkdownSchemeHandler.canonicalPath(fileURL.path)
         if isOwnPage {
             decisionHandler(.allow)
         } else {

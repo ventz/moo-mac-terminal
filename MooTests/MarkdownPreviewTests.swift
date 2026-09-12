@@ -144,6 +144,33 @@ final class MarkdownPreviewSessionTests {
         #expect(!session.hasHostedView)
         window.close()
     }
+
+    /// A document reached through a symlinked directory, as `~/proj` pointing
+    /// into `~/git` is. The navigation policy compared the handler's resolved
+    /// path with the session's unresolved one, refused the page, and the tab
+    /// stayed on "Loading…".
+    @Test func rendersADocumentReachedThroughASymlink() async throws {
+        let real = makeDocument("# Linked\n")
+        let link = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MarkdownPreviewSessionTests-link-\(UUID().uuidString)")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: real.deletingLastPathComponent())
+        defer { try? FileManager.default.removeItem(at: link) }
+
+        let session = MarkdownPreviewSession(fileURL: link.appendingPathComponent("README.md"))
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = session.hostedView
+
+        await waitUntil(15) { session.state == .ready }
+        #expect(session.state == .ready, "a document behind a symlink never loaded: \(session.state)")
+
+        session.terminate()
+        window.close()
+    }
 }
 
 @MainActor
