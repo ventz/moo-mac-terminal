@@ -32,6 +32,23 @@ final class TerminalWindowSizeStore {
         window.setFrame(constrainedFrame(frame, for: window), display: false)
     }
 
+    /// Sizes a brand-new window from its profile when there is no saved frame.
+    ///
+    /// Windows opened through WindowOpener get their profile size explicitly,
+    /// but a document window created by SwiftUI (cmd+N, or the first launch
+    /// window) never passes through it — so without this it keeps AppKit's
+    /// default size and the profile's columns and rows are ignored.
+    ///
+    /// Runs once per window: `configure` registers an observer, and a second
+    /// call returns early, so a later re-render cannot fight a user's resize.
+    func configureNewWindow(_ window: NSWindow, profileContentSize: @autoclosure () -> NSSize) {
+        guard observers[ObjectIdentifier(window)] == nil else { return }
+        if !configure(window, restoresFrame: true) {
+            setProfileContentSize(profileContentSize(), on: window)
+            recordFrame(of: window)
+        }
+    }
+
     @discardableResult
     func configure(_ window: NSWindow, restoresFrame: Bool = true) -> Bool {
         let identifier = ObjectIdentifier(window)

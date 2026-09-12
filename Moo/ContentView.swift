@@ -306,6 +306,7 @@ struct ContentView: View {
             .background(WindowTabbingConfigurator(
                 theme: usesThemeWindowChrome ? windowTheme : nil,
                 backgroundOpacity: chromeBackgroundOpacity,
+                sizingProfile: chromeController?.profile ?? profiles.defaultProfile,
                 scope: scope
             ))
             .preferredColorScheme(
@@ -490,6 +491,8 @@ struct ThemePickerPopover: View {
 struct WindowTabbingConfigurator: NSViewRepresentable {
     let theme: TerminalTheme?
     var backgroundOpacity: Double = 1
+    /// The profile a new window is sized from when it has no saved frame.
+    var sizingProfile: TerminalProfile?
     /// Bound so the runtime can tell which window is key, and so selecting a
     /// workspace another window holds can bring that window forward.
     var scope: WindowScope?
@@ -514,7 +517,14 @@ struct WindowTabbingConfigurator: NSViewRepresentable {
             // terminal, so the window title would only repeat it.
             // A normal titlebar. macOS Terminal keeps its title row and puts
             // tabs in a row of their own below it, so Moo does the same.
-            TerminalWindowSizeStore.shared.configure(window)
+            if let sizingProfile {
+                TerminalWindowSizeStore.shared.configureNewWindow(
+                    window,
+                    profileContentSize: TerminalProfileWindowSizer.contentSize(for: sizingProfile)
+                )
+            } else {
+                TerminalWindowSizeStore.shared.configure(window)
+            }
             TerminalWindowAppearance.apply(
                 theme: theme,
                 backgroundOpacity: backgroundOpacity,
