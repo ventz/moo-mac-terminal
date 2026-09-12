@@ -2,6 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright © 2026 Ventz Petkov.
+Based on Tecolot, copyright © 2026 Miguel de Icaza. MIT licensed.</string>
 	<key>CFBundleIconFile</key>
 	<string>Moo</string>
 	<key>NSAppTransportSecurity</key>
