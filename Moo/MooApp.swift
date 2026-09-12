@@ -424,7 +424,7 @@ struct TerminalCommands: Commands {
                     controller.workspace?.split(controller, orientation: .horizontal)
                 }
             }
-            .keyboardShortcut("d", modifiers: [.command, .option])
+            .keyboardShortcut("d", modifiers: [.command, .shift])
             .disabled(!isEnabled)
 
             // cmd+W closes the split you are in when there is more than one,
