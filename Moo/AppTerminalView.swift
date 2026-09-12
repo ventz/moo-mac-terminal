@@ -65,6 +65,17 @@ final class AppTerminalView: LocalProcessTerminalView {
 
     nonisolated private let eventDelivery = TerminalSessionEventDelivery()
 
+    /// A click in an unfocused split moves focus there. SwiftTerm does not take
+    /// first responder on its own, so without this the keystrokes after the
+    /// click still go to the pane that had focus.
+    override func mouseDown(with event: NSEvent) {
+        if window?.firstResponder !== self,
+           window?.makeFirstResponder(self) == true {
+            sessionController?.didBecomeFocused()
+        }
+        super.mouseDown(with: event)
+    }
+
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "net.vpetkov.Moo",
         category: "Links"
