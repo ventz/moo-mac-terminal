@@ -71,6 +71,9 @@ final class AppModel {
             issueCenter: issueCenter,
             backupDirectory: backups
         )
+        // A profile file dropped in with its theme embedded installs that theme
+        let themeStore = themes
+        profiles.adoptEmbeddedThemes { try themeStore.adoptEmbeddedTheme($0) }
         let themeIndex = ThemeCatalogIndex()
         self.themeIndex = themeIndex
         themeIndex.update(themes: themes.themes)

@@ -344,4 +344,6 @@ public struct TerminalProfile: Identifiable, Codable, Equatable, Sendable {
 struct ProfileDocument: Codable {
     var version: Int
     var profile: TerminalProfile
+    /// The profile's theme, so one file carries both; absent for built-in themes
+    var theme: TerminalTheme? = nil
 }
