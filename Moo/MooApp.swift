@@ -17,6 +17,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSWindow.allowsAutomaticWindowTabbing = true
         _ = SecureKeyboardEntry.shared
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else {
+            return
+        }
+        AttentionCenter.shared.installBannerHandling()
+        AttentionStatusItem.shared.install()
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {

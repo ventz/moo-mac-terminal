@@ -84,6 +84,8 @@ struct SettingsView: View {
             profileSettingsDetail(for: currentDestination)
         case .projects:
             ProjectsSettingsView()
+        case .notifications:
+            NotificationsSettingsView()
         case .data:
             DataRecoveryView(issueCenter: issueCenter, recovery: recovery)
         }
@@ -266,6 +268,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
 
     case profiles
     case projects
+    case notifications
     case data
 
     var id: Self { self }
@@ -275,6 +278,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
         case .general: return "General"
         case .profiles: return "Profiles"
         case .projects: return "Projects"
+        case .notifications: return "Notifications"
         case .text: return "Appearance"
         case .window: return "Window"
         case .shell: return "Shell"
@@ -289,6 +293,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
         case .general: return "gearshape"
         case .profiles: return "person.2.badge.gearshape"
         case .projects: return "sidebar.left"
+        case .notifications: return "bell.badge"
         case .text: return "textformat"
         case .window: return "macwindow"
         case .shell: return "terminal"
@@ -302,7 +307,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
         switch self {
         case .text, .window, .shell, .keyboard, .advanced:
             return true
-        case .general, .profiles, .projects, .data:
+        case .general, .profiles, .projects, .notifications, .data:
             return false
         }
     }

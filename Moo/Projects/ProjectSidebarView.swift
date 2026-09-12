@@ -375,6 +375,11 @@ struct ProjectRowView: View {
     }
 
     private var statusText: String {
+        // What the program said beats a generic "Waiting": it is the reason
+        // to switch to this project.
+        if report.status == .waiting, let message = report.message, !message.isEmpty {
+            return message
+        }
         if report.status == .attention, report.attentionCount > 1 {
             return "Activity in \(report.attentionCount) tabs"
         }
@@ -387,6 +392,7 @@ struct ProjectRowView: View {
         case .idle: return .secondary
         case .running: return .blue
         case .attention: return .orange
+        case .waiting: return .attentionWaiting
         }
     }
 

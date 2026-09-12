@@ -19,11 +19,11 @@ import SwiftTerm
 /// What a project's sidebar row reports. Ordered by display priority: a
 /// project showing several of these at once reports the highest.
 ///
-/// Deliberately absent: any "waiting for input" state. A terminal cannot know
-/// that an agent is blocked on the user — inferring it from silence or from a
-/// sleeping process produces false positives on pagers, editors, `sudo`, `ssh`
-/// and quiet builds. A truthful waiting state needs the agent to say so, which
-/// arrives with the OSC notification handlers and the `moo notify` CLI.
+/// `waiting` is never inferred. A terminal cannot know that an agent is
+/// blocked on the user — guessing from silence or from a sleeping process
+/// produces false positives on pagers, editors, `sudo`, `ssh` and quiet
+/// builds. It comes only from a program saying so with a notification escape
+/// sequence, collected by AttentionCenter.
 enum ProjectStatus: Int, Comparable, Sendable {
     /// No session has been started for this project in this run.
     case cold = 0
@@ -33,6 +33,9 @@ enum ProjectStatus: Int, Comparable, Sendable {
     case running = 2
     /// Output arrived while the project was not frontmost.
     case attention = 3
+    /// A program in one of the project's panes sent a notification the user
+    /// has not looked at yet.
+    case waiting = 4
 
     static func < (lhs: ProjectStatus, rhs: ProjectStatus) -> Bool {
         lhs.rawValue < rhs.rawValue
@@ -44,6 +47,7 @@ enum ProjectStatus: Int, Comparable, Sendable {
         case .idle: return "Idle"
         case .running: return "Running"
         case .attention: return "Activity"
+        case .waiting: return "Waiting"
         }
     }
 }
@@ -52,6 +56,7 @@ enum ProjectStatus: Int, Comparable, Sendable {
 /// lit is inspectable rather than folklore.
 enum ProjectStatusSource: String, Sendable {
     case noSession
+    case notification
     case unreadOutput
     case childProcess
     case atPrompt
@@ -60,8 +65,11 @@ enum ProjectStatusSource: String, Sendable {
 struct ProjectStatusReport: Equatable, Sendable {
     var status: ProjectStatus
     var source: ProjectStatusSource
-    /// How many of the project's sessions have unread output.
+    /// How many of the project's sessions have unread output — or, while
+    /// waiting, how many unread notifications there are.
     var attentionCount: Int
+    /// The newest unread notification's text, while waiting.
+    var message: String? = nil
 
     static let cold = ProjectStatusReport(
         status: .cold,
@@ -302,6 +310,23 @@ final class ProjectRuntime {
         return false
     }
 
+    struct ControllerLocation {
+        let projectID: UUID
+        let session: WorkspaceSession
+        let tab: WorkspaceTab
+    }
+
+    /// The workspace and tab a controller lives in, on screen or not. Nil for
+    /// a terminal outside every workspace.
+    func location(of controller: TerminalSessionController) -> ControllerLocation? {
+        for (projectID, session) in sessions {
+            if let tab = session.tab(containing: controller) {
+                return ControllerLocation(projectID: projectID, session: session, tab: tab)
+            }
+        }
+        return nil
+    }
+
     /// True when a controller belongs to the workspace tab currently on screen.
     func isSelected(controller: TerminalSessionController) -> Bool {
         let visible = scopes.compactMap(\.session) + [detachedScope.session].compactMap { $0 }
@@ -364,6 +389,20 @@ final class ProjectRuntime {
         guard let session = sessions[projectID], !session.isEmpty else { return .cold }
         let controllers = session.controllers
         guard !controllers.isEmpty else { return .cold }
+
+        // Before the visibility check: a notification stays unread until its
+        // own pane is looked at, even in a workspace that is on screen.
+        let waiting = AttentionDefaults.marksWaitingEnabled
+            ? AttentionCenter.shared.unreadItems(from: Set(controllers.map(\.id)))
+            : []
+        if let newest = waiting.first {
+            return ProjectStatusReport(
+                status: .waiting,
+                source: .notification,
+                attentionCount: waiting.count,
+                message: newest.body.isEmpty ? newest.title : newest.body
+            )
+        }
 
         // A workspace on screen in any window has no "unread" output.
         let isVisible = isVisible(projectID)

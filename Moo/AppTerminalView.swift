@@ -8,32 +8,71 @@ import Foundation
 import os
 import SwiftTerm
 
+/// Stores a main-actor callback behind a stable object reference.
+///
+/// Do not store the function directly in the generic lock. A generic `inout`
+/// read can write a new reabstraction thunk back to the stored function. Each
+/// read can then add a thunk and create an unbounded call and release chain.
+nonisolated final class LockedMainActorCallback<Input: Sendable>: Sendable {
+    private final class Callback: Sendable {
+        let body: @MainActor @Sendable (Input) -> Void
+
+        init(_ body: @escaping @MainActor @Sendable (Input) -> Void) {
+            self.body = body
+        }
+    }
+
+    private let callback = OSAllocatedUnfairLock<Callback?>(initialState: nil)
+
+    func replace(with body: (@MainActor @Sendable (Input) -> Void)?) {
+        let next = body.map(Callback.init)
+        callback.withLock { $0 = next }
+    }
+
+    var current: (@MainActor @Sendable (Input) -> Void)? {
+        callback.withLock { $0 }?.body
+    }
+}
+
 private final class TerminalSessionEventDelivery: Sendable {
     private enum Event: Sendable {
         case bell
         case output
+        case osc(TerminalOscEvent)
     }
 
-    private let handler = OSAllocatedUnfairLock<(@MainActor @Sendable (Event) -> Void)?>(
-        initialState: nil)
+    private let handler = LockedMainActorCallback<Event>()
     private let lastOutputNotification = OSAllocatedUnfairLock(initialState: Date.distantPast)
 
     @MainActor
     func setController(_ controller: TerminalSessionController?) {
-        handler.withLock { storedHandler in
-            storedHandler = { [weak controller] event in
-                switch event {
-                case .bell:
-                    controller?.noteBell()
-                case .output:
-                    controller?.noteOutputActivity()
-                }
+        handler.replace { [weak controller] event in
+            switch event {
+            case .bell:
+                controller?.noteBell()
+            case .output:
+                controller?.noteOutputActivity()
+            case .osc(let event):
+                controller?.noteOscEvent(event)
+            }
+        }
+    }
+
+    /// OSC events arrive on SwiftTerm's observer queue. The main queue, not a
+    /// Task, carries them across: kitty splits one notification over several
+    /// sequences, and only a serial queue keeps those in order.
+    nonisolated func sendOsc(_ event: TerminalOscEvent) {
+        guard TerminalNotificationParser.observedCodes.contains(event.code),
+              let handler = handler.current else { return }
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated {
+                handler(.osc(event))
             }
         }
     }
 
     nonisolated func sendBell() {
-        guard let handler = handler.withLock({ $0 }) else { return }
+        guard let handler = handler.current else { return }
         Task { @MainActor in
             handler(.bell)
         }
@@ -46,7 +85,7 @@ private final class TerminalSessionEventDelivery: Sendable {
             lastNotification = now
             return true
         }
-        guard shouldNotify, let handler = handler.withLock({ $0 }) else { return }
+        guard shouldNotify, let handler = handler.current else { return }
         Task { @MainActor in
             handler(.output)
         }
@@ -60,11 +99,12 @@ final class AppTerminalView: LocalProcessTerminalView {
             setProcessOutputHandler { [eventDelivery] in
                 eventDelivery.sendOutput()
             }
+            observeNotificationsIfNeeded()
         }
     }
 
     nonisolated private let eventDelivery = TerminalSessionEventDelivery()
-
+    private var oscObservation: TerminalOscObservation?
     var fileDropShellResolver = TerminalShellResolver()
 
     override func viewDidMoveToWindow() {
@@ -114,6 +154,36 @@ final class AppTerminalView: LocalProcessTerminalView {
             sessionController?.didBecomeFocused()
         }
         super.mouseDown(with: event)
+    }
+
+    /// SwiftTerm keeps the view's `Terminal` internal, and the OSC observer is
+    /// declared on `Terminal`. Reflection reaches it without forking SwiftTerm;
+    /// `TerminalNotificationObservationTests` fails if an update renames it.
+    var terminalEngine: Terminal? {
+        var mirror: Mirror? = Mirror(reflecting: self)
+        while let current = mirror {
+            for child in current.children where child.label == "terminal" {
+                if let engine = child.value as? Terminal {
+                    return engine
+                }
+            }
+            mirror = current.superclassMirror
+        }
+        return nil
+    }
+
+    /// Watches for the escape sequences programs use to ask for the user.
+    /// Observed rather than overridden, so SwiftTerm's own handling of those
+    /// codes — the OSC 9;4 progress bar — is untouched.
+    private func observeNotificationsIfNeeded() {
+        guard oscObservation == nil, sessionController != nil else { return }
+        guard let engine = terminalEngine else {
+            Self.logger.error("SwiftTerm's Terminal is unreachable; terminal notifications are off")
+            return
+        }
+        oscObservation = engine.observeOscEvents { [eventDelivery] event in
+            eventDelivery.sendOsc(event)
+        }
     }
 
     private static let logger = Logger(

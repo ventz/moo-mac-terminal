@@ -79,6 +79,8 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     private var previewBackgroundOpacity: Double?
 
     private(set) var hasActivity = false
+    /// kitty notifications arrive in pieces; this holds the unfinished ones.
+    @ObservationIgnored private var kittyNotifications = KittyNotificationAssembler()
 
     init(startsProcess: Bool = true) {
         self.startsProcess = startsProcess
@@ -268,6 +270,11 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         workspace?.markFocused(self)
         TerminalSessionRegistry.shared.focus(controller: self, for: window)
         setHasActivity(false)
+        // Only a pane the user can actually see counts as read: this also runs
+        // for the first responder of a window sitting behind another app.
+        if NSApp.isActive, window.isKeyWindow {
+            AttentionCenter.shared.markRead(surfaceID: id)
+        }
         updateWindowTitle()
     }
 
@@ -353,6 +360,15 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         ProjectRuntime.shared.noteTerminalOutput()
         guard terminal?.window?.isKeyWindow == false else { return }
         setHasActivity(true)
+    }
+
+    /// A notification escape sequence from the program in this pane.
+    func noteOscEvent(_ event: TerminalOscEvent) {
+        let notification = event.code == 99
+            ? kittyNotifications.consume(event.payload)
+            : TerminalNotificationParser.parse(code: event.code, payload: event.payload)
+        guard let notification else { return }
+        AttentionCenter.shared.post(notification, from: self)
     }
 
     func processTerminated(source: TerminalView, exitCode: Int32?) {
@@ -530,6 +546,7 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
 
     func terminate() {
         flushBufferSnapshot()
+        AttentionCenter.shared.removeItems(from: id)
         terminal?.terminate()
     }
 
@@ -1260,7 +1277,9 @@ private enum BellBadge {
             queue: .main
         ) { _ in
             Self.count = 0
-            NSApp.dockTile.badgeLabel = nil
+            // Bells are seen by coming back to the app; unread notifications
+            // are not, so their count stays on the badge.
+            NSApp.dockTile.badgeLabel = AttentionCenter.shared.displayedDockBadgeLabel
         }
     }
 }

@@ -29,6 +29,7 @@ struct WorkspaceTabBar: View {
     var showThemePicker: (() -> Void)?
 
     @State private var hoveredTabID: WorkspaceTab.ID?
+    @AppStorage(AttentionDefaults.marksWaiting) private var marksWaiting = true
 
     var body: some View {
         HStack(spacing: 5) {
@@ -58,6 +59,14 @@ struct WorkspaceTabBar: View {
 
         return ZStack {
             HStack(spacing: 4) {
+                // A program in this tab asked for the user and has not been
+                // looked at yet: the same mark as the sidebar's "waiting".
+                if marksWaiting, AttentionCenter.shared.hasUnread(from: tab.controllers) {
+                    Circle()
+                        .fill(Color.attentionWaiting)
+                        .frame(width: 6, height: 6)
+                        .help("Waiting for you")
+                }
                 // Terminals are the default and carry no icon; a web tab is
                 // marked so the strip shows at a glance which tabs are shells.
                 if tab.kind != .terminal {

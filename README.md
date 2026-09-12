@@ -58,6 +58,9 @@ way through the build without it.
 - **Live project status.** Each row reports whether it is idle, running a
   command, or has unread output, read from the shell's actual child processes
   rather than guessed from screen activity.
+- **Waiting-for-you notifications.** When an agent such as Claude Code asks for
+  input, the project row, its tab and a menu bar list say so. Click an entry to
+  jump straight to that window, project, tab and split.
 - **Markdown preview tabs.** Open a `.md` file as a rendered, GitHub-styled tab
   next to the shell that produced it.
 - **Browser tabs.** Open a URL as a real web tab in the same window — a dev
@@ -73,7 +76,17 @@ way through the build without it.
 Create a project from the sidebar, or `⌘T` for a new tab inside the current
 one. The status dot on each project row is live: **Idle** at a prompt,
 **Running** with a command in flight, **Activity** when a background project
-produced output.
+produced output, **Waiting** when a program sent a notification you have not
+looked at.
+
+**Notifications** come from the escape sequences iTerm2, Ghostty and kitty
+display (OSC 9, OSC 777, OSC 99). They collect in the menu bar bell and in
+Window → Notifications; `⇧⌘U` jumps to the newest unread one. An entry is read
+once you focus its pane. Settings → Notifications chooses the rest: banners,
+menu bar icon, Dock badge and bounce, tab marks, a sound, and reading the
+message aloud. Claude Code only sends them to terminals it
+recognizes, so point it at Ghostty's format once: inside Claude Code, run
+`/config` and set **Notifications** to `ghostty`.
 
 **Preview a Markdown file** with `⇧⌘M` (File → Open Markdown Preview…), or
 command-click any `.md` path printed in the terminal — `ls`, `git status` and

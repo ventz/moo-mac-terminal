@@ -105,5 +105,6 @@ struct ArrangementCommands: Commands {
         ProjectCommands(store: projects)
         MarkdownPreviewCommands()
         BrowserCommands()
+        AttentionCommands()
     }
 }
