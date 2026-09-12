@@ -45,19 +45,6 @@ final class ThemeTests {
         #expect (theme.background.hexString == "#282c34")
         #expect (theme.cursor?.hexString == "#30d158")
     }
-
-    @Test func ventzThemeIsTheDefaultAndMatchesGhostty () throws {
-        let theme = try #require (
-            ThemeStore.loadBundledThemes ().first { $0.name == "Ventz" }
-        )
-        #expect (TerminalProfile.standardValues.themeName == theme.name)
-        #expect (theme.isDark)
-        #expect (theme.background.hexString == "#000000")
-        #expect (theme.foreground.hexString == "#ffffff")
-        #expect (theme.selectionBackground?.hexString == "#942192")
-        #expect (theme.selectionText?.hexString == "#ffffff")
-    }
-
     @Test func bundledThemesAllValid () {
         let themes = ThemeStore.loadBundledThemes ()
         #expect (themes.count >= 100)
@@ -347,8 +334,8 @@ final class ProfileStoreTests {
         let profile = try #require(store.profiles.first)
         #expect (store.profiles.count == 1)
         #expect (store.defaultProfileID == profile.id)
-        #expect (store.defaultProfile.name == "Ventz")
-        #expect (store.defaultProfile.themeName == "Ventz")
+        #expect (store.defaultProfile.name == "Default")
+        #expect (store.defaultProfile.themeName == "SwiftTerm")
         let stateURL = dir.appendingPathComponent("store.json")
         #expect (FileManager.default.fileExists(atPath: stateURL.path))
         let state = try #require(try JSONSerialization.jsonObject(
@@ -377,7 +364,7 @@ final class ProfileStoreTests {
         extra.useThemeColorsForWindowChrome = false
         try store.add (extra)
         #expect (store.profiles.count == 2)
-        #expect (store.defaultProfile.name == "Ventz")
+        #expect (store.defaultProfile.name == "Default")
 
         #expect (throws: ProfilesError.duplicateName) {
             try store.add (TerminalProfile (name: "Servers"))
@@ -416,7 +403,7 @@ final class ProfileStoreTests {
         try store.exportProfile (store.defaultProfileID, to: file)
         let imported = try store.importProfile (from: file)
         #expect (imported.id != store.defaultProfileID)
-        #expect (imported.name == "Ventz copy")
+        #expect (imported.name == "Default copy")
         #expect (store.profiles.count == 2)
     }
 
@@ -637,7 +624,7 @@ final class ProfileStoreTests {
         )
 
         let store = try ProfileStore(directory: temporaryDirectory)
-        #expect(store.profiles.map(\.name) == ["Ventz"])
+        #expect(store.profiles.map(\.name) == ["Default"])
         try store.useStorage(directory: persistentDirectory)
 
         #expect(store.profiles.map(\.name) == ["Historical Profile"])
