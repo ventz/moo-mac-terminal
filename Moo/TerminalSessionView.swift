@@ -68,7 +68,11 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     @ObservationIgnored private weak var observedWindow: NSWindow?
     @ObservationIgnored private var windowKeyObserver: NSObjectProtocol?
     @ObservationIgnored private var windowUpdateObserver: NSObjectProtocol?
-    @ObservationIgnored private var previewBackgroundOpacity: Double?
+    /// Observed, not ignored: the window chrome (tab strip, sidebar, titlebar)
+    /// reads `effectiveBackgroundOpacity` from SwiftUI, so an ignored stored
+    /// property left the chrome at the old value for the whole slider drag and
+    /// only caught up when the profile was committed.
+    private var previewBackgroundOpacity: Double?
 
     private(set) var hasActivity = false
 

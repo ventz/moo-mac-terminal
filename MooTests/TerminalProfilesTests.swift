@@ -408,6 +408,28 @@ final class ProfileStoreTests {
         #expect (store.profiles.count == 2)
     }
 
+    @Test func opaqueChromeFlagsDefaultOffAndPersist () throws {
+        let stock = TerminalProfile (name: "Stock")
+        #expect (stock.keepsSidebarOpaque == false)
+        #expect (stock.keepsTabStripOpaque == false)
+        #expect (stock.backgroundOpacity == 0.85)
+
+        var pinned = stock
+        pinned.keepsSidebarOpaque = true
+        let data = try JSONEncoder ().encode (pinned)
+        let decoded = try JSONDecoder ().decode (TerminalProfile.self, from: data)
+        #expect (decoded.keepsSidebarOpaque)
+        #expect (decoded.keepsTabStripOpaque == false)
+
+        // A profile written before these keys existed keeps loading, opaque off
+        let legacy = try JSONDecoder ().decode (
+            TerminalProfile.self,
+            from: Data (#"{"name":"Legacy"}"#.utf8)
+        )
+        #expect (legacy.keepsSidebarOpaque == false)
+        #expect (legacy.keepsTabStripOpaque == false)
+    }
+
     @Test func cannotDeleteLastProfile () throws {
         let (store, dir) = try makeStore ()
         defer { try? FileManager.default.removeItem (at: dir) }
