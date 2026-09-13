@@ -25,6 +25,15 @@ final class WindowScope: Identifiable {
     /// The workspace this window is showing.
     var selectedProjectID: UUID?
 
+    /// Whether this window shows the projects sidebar. Per window, so cmd+B in
+    /// one window leaves the others alone. A new window starts from the last
+    /// choice made in any window.
+    var isSidebarVisible = UserDefaults.standard.bool(forKey: ProjectSidebarDefaults.isVisible)
+
+    /// Set once the window starts closing. Its view renders no terminal from
+    /// then on, so tearing the workspace down cannot start a shell in it.
+    var isClosed = false
+
     /// The window this scope belongs to, set once the view is in one. Weak:
     /// the scope must not keep a closed window alive.
     @ObservationIgnored weak var window: NSWindow?

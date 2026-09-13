@@ -145,9 +145,9 @@ final class SecureKeyboardEntry {
 }
 
 struct NewItemCommands: Commands {
-    // Read through AppStorage, not UserDefaults directly, so the menu title
-    // and behavior follow the sidebar being toggled rather than going stale.
-    @AppStorage(ProjectSidebarDefaults.isVisible) private var sidebarIsVisible = false
+    // The key window's sidebar, read through the runtime so the menu title and
+    // behavior follow both a toggle and a switch to another window.
+    private var sidebarIsVisible: Bool { ProjectRuntime.shared.keyScope.isSidebarVisible }
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {

@@ -34,7 +34,9 @@ struct ContentView: View {
     @EnvironmentObject private var themeIndex: ThemeCatalogIndex
     @EnvironmentObject private var projects: ProjectStore
 
-    @AppStorage(ProjectSidebarDefaults.isVisible) private var sidebarIsVisible = false
+    /// This window's sidebar, not the app's: cmd+B in one window leaves the
+    /// others as they were.
+    private var sidebarIsVisible: Bool { scope.isSidebarVisible }
     @AppStorage(ProjectSidebarDefaults.width) private var sidebarWidth = ProjectSidebarDefaults.defaultWidth
     @AppStorage(ProjectSidebarDefaults.showsStatus) private var showsStatus = true
     @AppStorage(ProjectSidebarDefaults.showsBranch) private var showsBranch = true
@@ -172,7 +174,8 @@ struct ContentView: View {
                     }
                 }
 
-                if isAwaitingInitialProject {
+                // A closing window shows nothing: see ProjectRuntime.windowWillClose.
+                if isAwaitingInitialProject || scope.isClosed {
                     Color.clear
                 } else {
                     terminalArea
@@ -374,7 +377,7 @@ struct ContentView: View {
     /// Opens straight into a workspace when one exists, so the launch terminal
     /// does not linger outside every workspace as an extra shell.
     private func selectInitialProjectIfNeeded() {
-        guard scope.selectedProjectID == nil else { return }
+        guard scope.selectedProjectID == nil, !scope.isClosed else { return }
         defer { didAttemptInitialProject = true }
 
         let remembered = UserDefaults.standard

@@ -27,16 +27,21 @@ enum ProjectCloseCoordinator {
     ///   (ctrl+D, `exit`) rather than the user asking to close. That terminal
     ///   is already dead, so declining the prompt has to leave a fresh tab
     ///   behind instead of a dead one.
+    /// - Parameter scope: the window to act on. Defaults to the key window,
+    ///   which is right for a menu command but wrong for a shell exiting in a
+    ///   window behind it.
     static func closeSelected(
         afterShellExit: Bool = false,
+        in scope: WindowScope? = nil,
         runtime: ProjectRuntime = .shared,
         store: ProjectStore = AppModel.shared.projects
     ) -> ProjectCloseOutcome {
+        let scope = scope ?? runtime.keyScope
         // Any workspace with tabs owns the close of one of them, sidebar or
         // not: cmd+T creates in-app tabs regardless of the sidebar, so cmd+W
         // must take them away under the same rule — otherwise a close with
         // the sidebar hidden fell through to the window and killed every tab.
-        guard let session = runtime.selectedSession,
+        guard let session = scope.selectedProjectID.flatMap(runtime.existingSession(for:)),
               let tab = session.selectedTab else {
             return .allowWindowClose
         }
@@ -58,8 +63,8 @@ enum ProjectCloseCoordinator {
         // The last terminal tab. Retiring the workspace is the sidebar's
         // business; with it hidden the window *is* the terminal, and closing
         // that is the window's, exactly as before workspaces existed.
-        guard UserDefaults.standard.bool(forKey: ProjectSidebarDefaults.isVisible),
-              let projectID = runtime.selectedProjectID,
+        guard scope.isSidebarVisible,
+              let projectID = scope.selectedProjectID,
               let project = store.project(withID: projectID) else {
             return .allowWindowClose
         }
@@ -92,7 +97,7 @@ enum ProjectCloseCoordinator {
 
             // Land somewhere sensible, or close the window if nothing is left.
             if let next = store.projects.first {
-                ProjectSelection.select(next, runtime: runtime)
+                runtime.select(projectID: next.id, in: scope)
             } else {
                 window.close()
             }
