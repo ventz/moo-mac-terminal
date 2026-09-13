@@ -346,19 +346,10 @@ final class AttentionAlertSettingsTests {
 
 @MainActor
 final class TerminalNotificationObservationTests {
-    /// The observer lives on SwiftTerm's internal `Terminal`, reached by
-    /// reflection. If a SwiftTerm update renames that property, notifications
-    /// would silently stop; this fails instead.
-    @Test func appTerminalViewReachesItsEngine() {
-        let view = AppTerminalView(frame: NSRect(x: 0, y: 0, width: 400, height: 200))
-        #expect(view.terminalEngine != nil)
-    }
-
     @Test func aNotifySequenceReachesTheObserver() async throws {
         let view = AppTerminalView(frame: NSRect(x: 0, y: 0, width: 400, height: 200))
-        let engine = try #require(view.terminalEngine)
         let seen = OSAllocatedUnfairLock<[TerminalOscEvent]>(initialState: [])
-        let observation = engine.observeOscEvents { event in
+        let observation = view.observeOscEvents { event in
             seen.withLock { $0.append(event) }
         }
         defer { observation.cancel() }
