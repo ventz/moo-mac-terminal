@@ -116,8 +116,11 @@ public struct TerminalTheme: Identifiable, Codable, Equatable, Sendable {
             ProfileColor (hex: "#14f0f0")!, ProfileColor (hex: "#e9ebeb")!
         ],
         foreground: ProfileColor (hex: "#ffffff")!,
-        background: ProfileColor (hex: "#282c34")!,
+        background: ProfileColor (hex: "#000000")!,
         cursor: ProfileColor (hex: "#30d158")!,
+        // Yellow, so a selection stands out on the black background.
+        selectionBackground: ProfileColor (hex: "#ffd60a")!,
+        selectionText: ProfileColor (hex: "#000000")!,
         isBuiltIn: true
     )
 }

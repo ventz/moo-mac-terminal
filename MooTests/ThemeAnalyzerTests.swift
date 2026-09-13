@@ -197,7 +197,8 @@ final class ThemeAnalyzerTests {
         #expect(renamed.contentHash == TerminalTheme.fallback.contentHash)
 
         var recolored = TerminalTheme.fallback
-        recolored.background = ProfileColor(hex: "#000000")!
+        // Any color other than the fallback's own black background.
+        recolored.background = ProfileColor(hex: "#ffffff")!
         #expect(recolored.contentHash != TerminalTheme.fallback.contentHash)
     }
 }
