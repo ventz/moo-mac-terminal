@@ -139,6 +139,11 @@ obtaining a Developer ID certificate, notarization setup, cutting a release,
 tracking upstream, and a troubleshooting table for the errors macOS gives you
 that blame the wrong thing.
 
+**[docs/PERFORMANCE.md](docs/PERFORMANCE.md)** — how Moo compares with
+Ghostty on throughput, keystroke latency and idle CPU, where the latency goes,
+the SwiftTerm engine changes that paid off and the ones that did not, and how
+each number was measured.
+
 ## Acknowledgements
 
 **Moo Terminal exists because of [Miguel de Icaza](https://github.com/migueldeicaza).**
