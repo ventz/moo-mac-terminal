@@ -63,6 +63,15 @@ nonisolated private struct EmbeddedThemeProbe: Decodable {
     var theme: TerminalTheme?
 }
 
+private struct EmbeddedSettingsProbe: Decodable {
+    struct ProfileID: Decodable {
+        var id: UUID?
+    }
+
+    var settings: [String: AppSettingValue]?
+    var profile: ProfileID?
+}
+
 @MainActor
 public final class ProfileStore: ObservableObject {
     @Published public private(set) var profiles: [TerminalProfile] = []
@@ -361,10 +370,24 @@ public final class ProfileStore: ObservableObject {
         directory.appendingPathComponent("\(profile.id.uuidString).json")
     }
 
-    static func encodedProfile(_ profile: TerminalProfile, theme: TerminalTheme? = nil) throws -> Data {
+    static func encodedProfile(
+        _ profile: TerminalProfile,
+        theme: TerminalTheme? = nil,
+        settings: [String: AppSettingValue]? = nil
+    ) throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(ProfileDocument(version: documentVersion, profile: profile, theme: theme))
+        return try encoder.encode(ProfileDocument(
+            version: documentVersion, profile: profile, theme: theme, settings: settings
+        ))
+    }
+
+    /// The app settings a profile document carries, with the id the profile
+    /// had when it was exported
+    static func embeddedSettings(in data: Data) -> (settings: [String: AppSettingValue], profileID: UUID?)? {
+        guard let probe = try? JSONDecoder().decode(EmbeddedSettingsProbe.self, from: data),
+              let settings = probe.settings else { return nil }
+        return (settings, probe.profile?.id)
     }
 
     nonisolated static func embeddedTheme(in data: Data) -> TerminalTheme? {

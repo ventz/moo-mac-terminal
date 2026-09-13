@@ -410,4 +410,7 @@ struct ProfileDocument: Codable {
     var profile: TerminalProfile
     /// The profile's theme, so one file carries both; absent for built-in themes
     var theme: TerminalTheme? = nil
+    /// Moo's app-wide settings, written by Export and offered on Import;
+    /// absent from the files the profile store keeps
+    var settings: [String: AppSettingValue]? = nil
 }

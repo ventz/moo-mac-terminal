@@ -455,6 +455,55 @@ final class ProfileStoreTests {
         #expect (store.profiles.count == 2)
     }
 
+    /// Every setting a profile holds survives export and import. A field added
+    /// to TerminalProfile fails the first check until it is set here, and the
+    /// second until it is encoded.
+    @Test func exportImportCarriesEverySetting () throws {
+        let (store, dir) = try makeStore ()
+        defer { try? FileManager.default.removeItem (at: dir) }
+        var profile = TerminalProfile (name: "Everything")
+        profile.themeName = "Carried"
+        profile.fontFamily = "Menlo"
+        profile.fontSize = 15
+        profile.fontSmoothing = false
+        profile.useBrightColorsForBold = false
+        profile.cursorStyle = .steadyBar
+        profile.backgroundOpacity = 0.5
+        profile.useThemeColorsForWindowChrome = false
+        profile.keepsSidebarOpaque = true
+        profile.keepsTabStripOpaque = true
+        profile.columns = 130
+        profile.rows = 32
+        profile.scrollbackLines = nil
+        profile.titleOverride = "Work"
+        profile.titleComponents = Set (TerminalTitleComponent.allCases)
+        profile.shell = .command ("htop", runInShell: false)
+        profile.whenShellExits = .keepOpen
+        profile.askBeforeClosing = .always
+        profile.optionAsMetaKey = false
+        profile.backspaceSendsControlH = true
+        profile.hidePointerWhileTyping = false
+        profile.keyBindings = [TerminalKeyBinding (key: "k", modifiers: [.command, .shift],
+                                                   action: .sendEscapeSequence, value: "[A")]
+        profile.termName = "xterm-ghostty"
+        profile.termProgram = "WezTerm"
+        profile.termVersion = "2"
+        profile.environmentVariables = [TerminalEnvironmentVariable (name: "FOO", value: "bar"),
+                                        TerminalEnvironmentVariable (name: "GONE", value: nil)]
+        profile.bellStyle = .visual
+
+        let standard = Mirror (reflecting: TerminalProfile (name: "Standard")).children
+        for (field, value) in zip (Mirror (reflecting: profile).children, standard) where field.label != "id" {
+            #expect (String (describing: field.value) != String (describing: value.value),
+                     "\(field.label ?? "?") is left at its default, so the round trip does not prove it")
+        }
+
+        let file = dir.appendingPathComponent ("everything.mooprofile")
+        try ProfileStore.encodedProfile (profile).write (to: file)
+        let imported = try store.importProfile (from: file)
+        #expect (imported == profile)
+    }
+
     @Test func exportCarriesThemeAndImportAdoptsIt () throws {
         let (store, dir) = try makeStore ()
         defer { try? FileManager.default.removeItem (at: dir) }
