@@ -161,32 +161,12 @@ final class AppTerminalView: LocalProcessTerminalView {
         super.mouseDown(with: event)
     }
 
-    /// SwiftTerm keeps the view's `Terminal` internal, and the OSC observer is
-    /// declared on `Terminal`. Reflection reaches it without forking SwiftTerm;
-    /// `TerminalNotificationObservationTests` fails if an update renames it.
-    var terminalEngine: Terminal? {
-        var mirror: Mirror? = Mirror(reflecting: self)
-        while let current = mirror {
-            for child in current.children where child.label == "terminal" {
-                if let engine = child.value as? Terminal {
-                    return engine
-                }
-            }
-            mirror = current.superclassMirror
-        }
-        return nil
-    }
-
     /// Watches for the escape sequences programs use to ask for the user.
     /// Observed rather than overridden, so SwiftTerm's own handling of those
     /// codes — the OSC 9;4 progress bar — is untouched.
     private func observeNotificationsIfNeeded() {
         guard oscObservation == nil, sessionController != nil else { return }
-        guard let engine = terminalEngine else {
-            Self.logger.error("SwiftTerm's Terminal is unreachable; terminal notifications are off")
-            return
-        }
-        oscObservation = engine.observeOscEvents { [eventDelivery] event in
+        oscObservation = observeOscEvents { [eventDelivery] event in
             eventDelivery.sendOsc(event)
         }
     }
