@@ -1,25 +1,24 @@
 #!/bin/bash
 
-# Regenerates the app icon and the README icon from assets/moo.png.
+# Regenerates the app icon and the README icon from assets/moo-cow.png.
 # Run this when the artwork changes; the outputs are committed so a build
 # needs nothing but Xcode.
 
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source_png="$repo/assets/moo.png"
+source_png="$repo/assets/moo-cow.png"
 iconset="$(mktemp -d)/Moo.iconset"
 trap 'rm -rf "$(dirname "$iconset")"' EXIT
 
 [[ -f "$source_png" ]] || { echo "missing $source_png" >&2; exit 66; }
 mkdir -p "$iconset"
 
-# Cut the opaque backdrop to transparency and square to 1024 in one step:
-# .icns wants exact power-of-two sizes, and scaling every size from the same
-# 1024 master keeps them consistent. macOS needs the transparent corners, or
-# the icon shows as a black box behind the artwork in the Dock.
+# Lay the cow on a green rounded tile at 1024, then scale every size from that
+# one master: .icns wants exact power-of-two sizes, and a single master keeps
+# them consistent.
 base="$iconset/../base-1024.png"
-"$repo/scripts/mask-icon.py" "$source_png" "$base"
+"$repo/scripts/compose-icon.py" "$source_png" "$base"
 
 for size in 16 32 128 256 512; do
     sips -s format png -z "$size" "$size" "$base" \
