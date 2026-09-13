@@ -547,9 +547,9 @@
 /* Begin XCRemoteSwiftPackageReference section */
 		490F2F093036637800A84BCF /* XCRemoteSwiftPackageReference "SwiftTerm" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/migueldeicaza/SwiftTerm";
+			repositoryURL = "https://github.com/ventz/SwiftTerm";
 			requirement = {
-				branch = main;
+				branch = "perf/moo";
 				kind = branch;
 			};
 		};

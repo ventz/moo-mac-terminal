@@ -40,10 +40,10 @@
     {
       "identity" : "swiftterm",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/migueldeicaza/SwiftTerm",
+      "location" : "https://github.com/ventz/SwiftTerm",
       "state" : {
-        "branch" : "main",
-        "revision" : "a7b8b943e854d1073b3b79ec5cd802e4873e3df0"
+        "branch" : "perf/moo",
+        "revision" : "8a45f0e491fea607a413e713ccde256006084f63"
       }
     }
   ],
