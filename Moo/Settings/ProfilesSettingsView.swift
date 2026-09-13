@@ -415,16 +415,16 @@ struct ProfileSettingsPage: View {
     @ViewBuilder
     private var windowSettings: some View {
         Form {
-            Section("Title") {
+            Section {
                 TextField("Custom title:", text: Binding(
                     get: { profile.titleOverride ?? "" },
                     set: { newValue in update { $0.titleOverride = newValue.isEmpty ? nil : newValue } }
                 ), prompt: Text("Default"))
                 HStack(alignment: .top, spacing: 40) {
                     VStack(alignment: .leading, spacing: 8) {
-                        titleComponentToggle(.activeTitle)
                         titleComponentToggle(.workingDirectory)
                         titleComponentToggle(.fullPath)
+                        titleComponentToggle(.activeTitle)
                         titleComponentToggle(.activeProcessName)
                         titleComponentToggle(.processArguments)
                     }
@@ -437,6 +437,10 @@ struct ProfileSettingsPage: View {
                     Spacer(minLength: 0)
                 }
                 .toggleStyle(.checkbox)
+            } header: {
+                Text("Title")
+            } footer: {
+                Text("Pieces appear in this order, left column first. Hover a checkbox for what it shows.\nExample: \(titlePreview)")
             }
             Section("Window Size") {
                 HStack(spacing: 32) {
@@ -500,8 +504,43 @@ struct ProfileSettingsPage: View {
                 }
             }
         ))
+        .help(titleComponentHelp(component))
         .disabled(!parentEnabled)
         .padding(.leading, component.parent == nil ? 0 : 20)
+    }
+
+    /// This profile's title for a claude session running python in ~/git/moo
+    private var titlePreview: String {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let inputs = TerminalTitleInputs(
+            customTitle: profile.titleOverride,
+            activeTitle: "✳ Task",
+            workingDirectory: home + "/git/moo",
+            homeDirectory: home,
+            foregroundCommand: ["claude", "--continue"],
+            foregroundDescendant: ["python"],
+            shellCommand: ["-zsh"],
+            profileName: profile.name,
+            ttyName: "ttys003",
+            columns: profile.columns,
+            rows: profile.rows
+        )
+        let title = TerminalTitleComposer.title(for: profile.titleComponents, inputs: inputs)
+        return title.isEmpty ? "the document name" : title
+    }
+
+    private func titleComponentHelp(_ component: TerminalTitleComponent) -> String {
+        switch component {
+        case .workingDirectory: return "The shell's current directory, such as \"moo\""
+        case .fullPath: return "The whole path, with ~ for your home folder, such as \"~/git/moo\""
+        case .activeTitle: return "The title a running program sets for itself, such as Claude Code's task. The shell's own title is not shown."
+        case .activeProcessName: return "What runs in the foreground: \"-zsh\" at a prompt, \"vim\", or \"python ◂ claude\" when claude runs python"
+        case .processArguments: return "The foreground command's arguments, such as \"claude --continue\""
+        case .shellCommandName: return "The shell the terminal started, such as \"zsh\". It stays the same while programs run."
+        case .profileName: return "This profile's name"
+        case .ttyName: return "The terminal device, such as \"ttys003\""
+        case .dimensions: return "The terminal size in columns × rows"
+        }
     }
 
     /// A compact number box, as in Terminal.app's "Columns: [100]  Rows: [51]"

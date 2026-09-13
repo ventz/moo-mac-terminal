@@ -43,9 +43,22 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     /// The title the shell posted, published so the in-app tab strip can label
     /// its tabs the way the native tab bar used to.
     private(set) var tabTitle: String = ""
+    /// The foreground process group when postedTitle arrived. A title a
+    /// program set goes stale once the shell has the terminal back.
+    @ObservationIgnored private var postedTitleGroup: pid_t?
     @ObservationIgnored private var titleUpdateTask: Task<Void, Never>?
-    /// Polls the foreground process while the title shows it
+    /// Polls the foreground process: the title can show it, and the tab
+    /// names it when the program sets no title of its own
     @ObservationIgnored private var processTitleTimer: Timer?
+    /// Polls left before the process poll goes quiet. Output and keystrokes
+    /// refill it: a foreground program cannot start or exit without one or
+    /// the other (the shell prints a prompt), so an idle pane skips the
+    /// system calls entirely.
+    @ObservationIgnored private var processPollsRemaining = TerminalSessionController.processPollsAfterActivity
+    static let processPollsAfterActivity = 4
+    @ObservationIgnored private var lastForegroundGroup: pid_t?
+    /// The foreground leader's name, read once per change of group
+    @ObservationIgnored private var foregroundLeaderName: String?
     /// The pty's device name, fixed once the process starts
     @ObservationIgnored private var cachedTTYName: String?
     @ObservationIgnored private var postedDirectory: String?
@@ -314,6 +327,9 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
 
     func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
         postedTitle = title
+        postedTitleGroup = source.process.flatMap {
+            TerminalProcessInspector.foregroundProcessGroup(ptyDescriptor: $0.childfd)
+        }
         scheduleTerminalTitleUpdate()
     }
 
@@ -382,6 +398,7 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     }
 
     func noteOutputActivity() {
+        processPollsRemaining = Self.processPollsAfterActivity
         scheduleBufferSnapshot()
         // Before the key-window guard: the sidebar has to refresh for the
         // focused terminal too, which is the case where a command finishing
@@ -390,6 +407,10 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         ProjectRuntime.shared.noteTerminalOutput()
         guard terminal?.window?.isKeyWindow == false else { return }
         setHasActivity(true)
+    }
+
+    func noteInputActivity() {
+        processPollsRemaining = Self.processPollsAfterActivity
     }
 
     /// A notification escape sequence from the program in this pane.
@@ -941,9 +962,43 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
             guard !Task.isCancelled, let self else { return }
             self.titleUpdateTask = nil
             self.displayedTerminalTitle = self.postedTitle
-            self.tabTitle = self.postedTitle
+            self.updateTabTitle()
             self.updateWindowTitle()
         }
+    }
+
+    /// The program's own title, or else the name of the program running in
+    /// the foreground. Empty at a prompt, where the tab shows the directory.
+    private func updateTabTitle() {
+        let title = displayedTerminalTitle.isEmpty ? (foregroundLeaderName ?? "") : displayedTerminalTitle
+        if tabTitle != title {
+            tabTitle = title
+        }
+    }
+
+    /// Tracks the foreground process group. When the shell gets the terminal
+    /// back, a title the finished program set is dropped, as Terminal.app
+    /// does; a title the shell set itself stays.
+    private func refreshForegroundProcess() {
+        guard let process = terminal?.process, process.running else { return }
+        let group = TerminalProcessInspector.foregroundProcessGroup(ptyDescriptor: process.childfd)
+        guard group != lastForegroundGroup else { return }
+        lastForegroundGroup = group
+        let shell = process.shellPid
+        if group == shell || group == nil {
+            foregroundLeaderName = nil
+            if !postedTitle.isEmpty, let postedTitleGroup, postedTitleGroup != shell {
+                titleUpdateTask?.cancel()
+                titleUpdateTask = nil
+                postedTitle = ""
+                self.postedTitleGroup = nil
+                displayedTerminalTitle = ""
+            }
+        } else if let group {
+            foregroundLeaderName = TerminalProcessInspector.commandLine(of: group)
+                .flatMap { TerminalTitleComposer.commandDescription($0, includingArguments: false) }
+        }
+        updateTabTitle()
     }
 
     private func updateWindowTitle() {
@@ -980,6 +1035,7 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
             customTitle: profile.titleOverride,
             activeTitle: displayedTerminalTitle,
             workingDirectory: currentWorkingDirectory,
+            homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path,
             profileName: profile.name,
             columns: dimensions.cols,
             rows: dimensions.rows
@@ -991,8 +1047,10 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         }
         if components.contains(.activeProcessName),
            let group = TerminalProcessInspector.foregroundProcessGroup(ptyDescriptor: process.childfd) {
-            inputs.foregroundIsShell = group == shell
             inputs.foregroundCommand = TerminalProcessInspector.commandLine(of: group)
+            if group != shell, let descendant = TerminalProcessInspector.deepestDescendant(inGroup: group) {
+                inputs.foregroundDescendant = TerminalProcessInspector.commandLine(of: descendant)
+            }
         }
         if components.contains(.ttyName) {
             if cachedTTYName == nil {
@@ -1003,10 +1061,10 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         return inputs
     }
 
-    /// Nothing reports that the foreground process changed, so a title that
-    /// shows it is polled, as Terminal.app does.
+    /// Nothing reports that the foreground process changed, so it is polled,
+    /// as Terminal.app does.
     private func updateProcessTitlePolling() {
-        let needsPolling = didStartProcess && profile.titleComponents.contains(.activeProcessName)
+        let needsPolling = didStartProcess
         guard needsPolling != (processTitleTimer != nil) else { return }
         if needsPolling {
             let timer = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
@@ -1028,6 +1086,9 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
             processTitleTimer = nil
             return
         }
+        guard processPollsRemaining > 0 else { return }
+        processPollsRemaining -= 1
+        refreshForegroundProcess()
         // Only the focused pane titles its window.
         guard terminal.window != nil else { return }
         if let focused = workspace?.focusedController, focused !== self { return }
