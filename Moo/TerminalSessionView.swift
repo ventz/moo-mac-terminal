@@ -426,12 +426,25 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
             return
         }
         // The shell is already gone. If this is the workspace's last tab the
-        // policy asks whether to retire the workspace with it.
-        if ProjectRuntime.shared.isSelected(controller: self) {
-            if ProjectCloseCoordinator.closeSelected(afterShellExit: true) == .handled {
+        // policy asks whether to retire the workspace with it. It must act on
+        // the window this terminal is in, which need not be the key window.
+        let runtime = ProjectRuntime.shared
+        if let scope = runtime.scope(showing: self) {
+            if ProjectCloseCoordinator.closeSelected(afterShellExit: true, in: scope) == .handled {
                 return
             }
-        } else if ProjectRuntime.shared.closeTab(containing: self) {
+        } else if runtime.closeTab(containing: self) {
+            return
+        }
+        // Closing the window ends everything it held. If that would also end
+        // other workspaces' shells — this is the last window — do not do it
+        // unasked: give this workspace a fresh terminal, and leave closing the
+        // window to the user, who then gets the confirmation.
+        if let window = terminal?.window,
+           runtime.sessionsEnded(byClosing: window).contains(where: { session in
+               !session.controllers.contains { $0 === self }
+           }) {
+            runtime.closeTab(containing: self)
             return
         }
         terminal?.window?.close()
@@ -585,12 +598,14 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         guard let workspace, workspace.paneCount > 1 else {
             // A single pane means the unit being closed is the workspace tab,
             // if this terminal belongs to one. Only a terminal outside every
-            // workspace closes its window.
-            if ProjectRuntime.shared.isSelected(controller: self) {
-                if ProjectCloseCoordinator.closeSelected() == .handled {
+            // workspace closes its window. The close acts on this terminal's
+            // own window, which need not be the key window.
+            let runtime = ProjectRuntime.shared
+            if let scope = runtime.scope(showing: self) {
+                if ProjectCloseCoordinator.closeSelected(in: scope) == .handled {
                     return
                 }
-            } else if ProjectRuntime.shared.closeTab(containing: self) {
+            } else if runtime.closeTab(containing: self) {
                 return
             }
             window.performClose(nil)

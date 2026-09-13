@@ -41,6 +41,24 @@ enum TerminalClosePolicy {
     }
 }
 
+/// What the window-close confirmation says will end.
+enum WindowClosePrompt {
+    static func message(endingTabs tabs: Int, projects: Int, processRunning: Bool) -> String {
+        var message: String
+        if projects > 1 {
+            message = "This is the last window, so the shells in all \(projects) projects will be ended."
+        } else if tabs > 1 {
+            message = "Its \(tabs) tabs will be closed and their shells ended."
+        } else {
+            message = "Its shell will be ended."
+        }
+        if processRunning {
+            message += " A process is still running."
+        }
+        return message
+    }
+}
+
 @MainActor
 final class WindowCloseInterceptor: NSObject, NSWindowDelegate {
     weak var window: NSWindow?
@@ -117,8 +135,11 @@ final class WindowCloseInterceptor: NSObject, NSWindowDelegate {
             return false
         }
 
+        // Closing the window ends every shell it holds — no session is kept
+        // alive without a window to reach it from — so always ask first.
+        let ended = ProjectRuntime.shared.sessionsEnded(byClosing: sender)
         let controllers = TerminalSessionRegistry.shared.controllers(for: sender)
-        guard controllers.contains(where: TerminalClosePolicy.requiresConfirmation) else {
+        guard !ended.isEmpty || !controllers.isEmpty else {
             return forwardedWindowShouldClose(sender)
         }
 
@@ -126,8 +147,13 @@ final class WindowCloseInterceptor: NSObject, NSWindowDelegate {
         isPresentingConfirmation = true
 
         let alert = NSAlert()
-        alert.messageText = "Close this terminal?"
-        alert.informativeText = "A process is still running."
+        alert.messageText = ended.count > 1 ? "Close the last window?" : "Close this window?"
+        alert.informativeText = WindowClosePrompt.message(
+            endingTabs: ended.reduce(0) { $0 + $1.tabs.count },
+            projects: ended.count,
+            processRunning: (ended.flatMap(\.controllers) + controllers)
+                .contains(where: TerminalClosePolicy.requiresConfirmation)
+        )
         alert.addButton(withTitle: "Close")
         alert.addButton(withTitle: "Cancel")
         alert.buttons.first?.hasDestructiveAction = true

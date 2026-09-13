@@ -12,15 +12,16 @@ import SwiftUI
 struct ProjectCommands: Commands {
     @ObservedObject var store: ProjectStore
 
-    @AppStorage(ProjectSidebarDefaults.isVisible) private var sidebarIsVisible = false
+    /// The window in front. Its sidebar is the one cmd+B acts on.
+    private var keyScope: WindowScope { ProjectRuntime.shared.keyScope }
 
     var body: some Commands {
         // The sidebar toggle belongs in the View menu, where macOS users look
         // for it. cmd+B matches cmux, VS Code and Cursor. It is technically
         // reserved for Bold in the HIG, which a terminal has no use for.
         CommandGroup(before: .sidebar) {
-            Button(sidebarIsVisible ? "Hide Projects" : "Show Projects") {
-                sidebarIsVisible.toggle()
+            Button(keyScope.isSidebarVisible ? "Hide Projects" : "Show Projects") {
+                ProjectRuntime.shared.toggleSidebar(in: keyScope)
             }
             .keyboardShortcut("b", modifiers: [.command])
             Divider()
@@ -47,7 +48,7 @@ struct ProjectCommands: Commands {
     }
 
     private func addProject() {
-        sidebarIsVisible = true
+        ProjectRuntime.shared.setSidebarVisible(true, in: keyScope)
         ProjectCommandActions.addNamedProject(store: store)
     }
 }
@@ -59,7 +60,7 @@ enum ProjectCommandActions {
     /// while the user is actually working in workspaces; with the sidebar
     /// closed it keeps its usual meaning of a new window.
     static var isWorkspaceUIOpen: Bool {
-        UserDefaults.standard.bool(forKey: ProjectSidebarDefaults.isVisible)
+        ProjectRuntime.shared.keyScope.isSidebarVisible
     }
 
     /// cmd+N. Creates a project without prompting: it takes its name from the
@@ -80,7 +81,8 @@ enum ProjectCommandActions {
                 + "Its path and branch follow the terminals as you move around."
         ) else { return }
         do {
-            UserDefaults.standard.set(true, forKey: ProjectSidebarDefaults.isVisible)
+            let runtime = ProjectRuntime.shared
+            runtime.setSidebarVisible(true, in: runtime.keyScope)
             ProjectSelection.select(try store.add(name: name))
         } catch {
             present(error)

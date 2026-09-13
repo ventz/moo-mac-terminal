@@ -114,6 +114,15 @@ final class ProjectRuntime {
                 MainActor.assumeIsolated { self?.invalidate() }
             })
         }
+        observers.append(center.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] note in
+            MainActor.assumeIsolated {
+                self?.windowWillClose(note.object as? NSWindow)
+            }
+        })
         startPollingStatus()
     }
 
@@ -204,6 +213,10 @@ final class ProjectRuntime {
     /// The scope menu commands act on: the key window's, falling back to the
     /// main window's, then to the only window, then to the detached scope.
     var keyScope: WindowScope {
+        // The key window is not observable, but becoming key invalidates the
+        // runtime. Reading the revision here is what lets menu titles and
+        // commands follow the window in front instead of going stale.
+        _ = revision
         if let key = NSApp.keyWindow,
            let scope = scopes.first(where: { $0.window === key }) {
             return scope
@@ -219,6 +232,70 @@ final class ProjectRuntime {
     /// The scope showing a workspace, if any window is.
     func scope(showing projectID: UUID) -> WindowScope? {
         scopes.first { $0.selectedProjectID == projectID }
+    }
+
+    /// The scope whose on-screen tab holds a controller: the window a terminal
+    /// is actually in, which is not necessarily the key window.
+    func scope(showing controller: TerminalSessionController) -> WindowScope? {
+        // Sessions are looked up here rather than through WindowScope.session,
+        // which always asks the shared runtime.
+        scopes.first { scope in
+            scope.selectedProjectID
+                .flatMap { sessions[$0] }?
+                .selectedTab?.controllers.contains { $0 === controller } ?? false
+        }
+    }
+
+    // MARK: Closing a window
+
+    /// The workspaces closing a window ends: the one it shows, or — when it is
+    /// the last window, leaving nothing to reach them from — every workspace.
+    private func projectIDsEnded(byClosing scope: WindowScope) -> [UUID] {
+        if scopes.allSatisfy({ $0 === scope }) {
+            return Array(sessions.keys)
+        }
+        return [scope.selectedProjectID].compactMap { $0 }
+    }
+
+    /// What closing a window would end, for the confirmation. Empty for a
+    /// window that shows no workspace, such as Settings.
+    func sessionsEnded(byClosing window: NSWindow) -> [WorkspaceSession] {
+        guard let scope = scopes.first(where: { $0.window === window }) else { return [] }
+        return projectIDsEnded(byClosing: scope)
+            .compactMap { sessions[$0] }
+            .filter { !$0.isEmpty }
+    }
+
+    /// A window is closing: end what it held. A session is never kept alive
+    /// without a window or tab to reach it from.
+    ///
+    /// The scope is marked closed and deselected *before* its sessions are
+    /// discarded. Its view can render once more, and a window still selecting
+    /// a workspace that is gone would build a fallback terminal and start a
+    /// shell in a window nobody can see.
+    func windowWillClose(_ window: NSWindow?) {
+        guard let window,
+              let scope = scopes.first(where: { $0.window === window }) else { return }
+        let ended = projectIDsEnded(byClosing: scope)
+        scope.isClosed = true
+        scope.selectedProjectID = nil
+        unregister(scope)
+        for projectID in ended {
+            discardSession(for: projectID)
+        }
+    }
+
+    /// cmd+B. Toggles the sidebar in one window only.
+    func toggleSidebar(in scope: WindowScope) {
+        setSidebarVisible(!scope.isSidebarVisible, in: scope)
+    }
+
+    /// Shows or hides one window's sidebar, and remembers the choice as what
+    /// the next new window starts with.
+    func setSidebarVisible(_ visible: Bool, in scope: WindowScope) {
+        scope.isSidebarVisible = visible
+        UserDefaults.standard.set(visible, forKey: ProjectSidebarDefaults.isVisible)
+        invalidate()
     }
 
     /// True when any window is showing this workspace.
@@ -327,13 +404,6 @@ final class ProjectRuntime {
         return nil
     }
 
-    /// True when a controller belongs to the workspace tab currently on screen.
-    func isSelected(controller: TerminalSessionController) -> Bool {
-        let visible = scopes.compactMap(\.session) + [detachedScope.session].compactMap { $0 }
-        return visible.contains { session in
-            session.selectedTab?.controllers.contains { $0 === controller } ?? false
-        }
-    }
 
     /// Closes the visible workspace's active tab. Returns false when there is
     /// nothing to close, or when the workspace holds only one tab — a lone tab

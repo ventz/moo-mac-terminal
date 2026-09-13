@@ -2,15 +2,16 @@
 //  ProjectSidebarSettings.swift
 //  Moo
 //
-//  App-wide sidebar preferences. Every native tab is its own window with its
-//  own ContentView, so sidebar visibility, width and row options have to be
-//  shared state rather than per-window state — otherwise switching tabs would
-//  flicker the sidebar in and out.
+//  App-wide sidebar preferences: width and row options. Visibility is the
+//  exception — each window shows or hides its own sidebar (WindowScope), and
+//  the stored value is only what a newly opened window starts with.
 //
 
 import SwiftUI
 
 enum ProjectSidebarDefaults {
+    /// Whether a *new* window opens with the sidebar. Each open window keeps
+    /// its own state in WindowScope.isSidebarVisible.
     static let isVisible = "projectsSidebarVisible"
     static let width = "projectsSidebarWidth"
     static let showsStatus = "projectsSidebarShowsStatus"

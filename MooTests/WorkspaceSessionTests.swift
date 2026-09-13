@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 @testable import Moo
@@ -427,5 +428,140 @@ final class WorkspaceTabClosePolicyTests {
 
         let added = session.addTab()
         #expect(added.panes?.focusedController?.pendingLaunchDirectory == "/Users/ventz/git")
+    }
+
+    // MARK: Sidebar visibility belongs to one window
+
+    /// cmd+B in one window must leave every other window as it was.
+    @Test func togglingTheSidebarOnlyAffectsThatWindow() {
+        let defaults = UserDefaults.standard
+        defaults.set(false, forKey: ProjectSidebarDefaults.isVisible)
+        defer { defaults.removeObject(forKey: ProjectSidebarDefaults.isVisible) }
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let first = WindowScope()
+        let second = WindowScope()
+        runtime.register(first)
+        runtime.register(second)
+
+        runtime.toggleSidebar(in: first)
+
+        #expect(first.isSidebarVisible)
+        #expect(!second.isSidebarVisible)
+    }
+
+    /// The last choice is still remembered, but only as a starting point.
+    @Test func aNewWindowStartsWithTheLastSidebarChoice() {
+        let defaults = UserDefaults.standard
+        defaults.set(false, forKey: ProjectSidebarDefaults.isVisible)
+        defer { defaults.removeObject(forKey: ProjectSidebarDefaults.isVisible) }
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let first = WindowScope()
+        runtime.register(first)
+
+        runtime.toggleSidebar(in: first)
+
+        #expect(WindowScope().isSidebarVisible)
+    }
+
+    // MARK: Closing a window ends what it held
+
+    private func makeWindow() -> NSWindow {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 200, height: 100),
+            styleMask: [.titled], backing: .buffered, defer: true
+        )
+        window.isReleasedWhenClosed = false
+        return window
+    }
+
+    /// A session is never kept alive without a window to reach it from. That
+    /// is also what keeps a new window from adopting a terminal whose shell
+    /// already exited: the session went with its window.
+    @Test func closingAWindowEndsOnlyTheWorkspaceItShows() {
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let closingWindow = makeWindow()
+        let otherWindow = makeWindow()
+        let closing = WindowScope()
+        closing.window = closingWindow
+        let other = WindowScope()
+        other.window = otherWindow
+        runtime.register(closing)
+        runtime.register(other)
+        let one = UUID()
+        let two = UUID()
+        runtime.select(projectID: one, in: closing)
+        runtime.select(projectID: two, in: other)
+
+        #expect(runtime.sessionsEnded(byClosing: closingWindow).map(\.projectID) == [one])
+        runtime.windowWillClose(closingWindow)
+
+        #expect(runtime.existingSession(for: one) == nil)
+        #expect(runtime.existingSession(for: two) != nil)
+        #expect(closing.isClosed)
+        #expect(closing.selectedProjectID == nil)
+        #expect(runtime.scopes.map(\.id) == [other.id])
+    }
+
+    /// With no window left, the workspaces switched away from in the sidebar
+    /// have nothing to reach them from either, so they end too.
+    @Test func closingTheLastWindowEndsEveryWorkspace() {
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let window = makeWindow()
+        let scope = WindowScope()
+        scope.window = window
+        runtime.register(scope)
+        let background = UUID()
+        let shown = UUID()
+        runtime.select(projectID: background, in: scope)
+        runtime.select(projectID: shown, in: scope)
+
+        #expect(Set(runtime.sessionsEnded(byClosing: window).map(\.projectID)) == [background, shown])
+        runtime.windowWillClose(window)
+
+        #expect(runtime.existingSession(for: background) == nil)
+        #expect(runtime.existingSession(for: shown) == nil)
+    }
+
+    /// Settings, sheets and panels close too. They hold no workspace.
+    @Test func closingAWindowWithoutAWorkspaceEndsNothing() {
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let terminalWindow = makeWindow()
+        let scope = WindowScope()
+        scope.window = terminalWindow
+        runtime.register(scope)
+        let id = UUID()
+        runtime.select(projectID: id, in: scope)
+        let settings = makeWindow()
+
+        #expect(runtime.sessionsEnded(byClosing: settings).isEmpty)
+        runtime.windowWillClose(settings)
+
+        #expect(runtime.existingSession(for: id) != nil)
+        #expect(!scope.isClosed)
+    }
+
+    @Test func closePromptSaysWhatWillEnd() {
+        #expect(WindowClosePrompt.message(endingTabs: 1, projects: 1, processRunning: false)
+                == "Its shell will be ended.")
+        #expect(WindowClosePrompt.message(endingTabs: 3, projects: 1, processRunning: true)
+                == "Its 3 tabs will be closed and their shells ended. A process is still running.")
+        #expect(WindowClosePrompt.message(endingTabs: 4, projects: 2, processRunning: false)
+                == "This is the last window, so the shells in all 2 projects will be ended.")
+    }
+
+    /// The exiting terminal's own window is found even when another is key.
+    @Test func aTerminalResolvesToTheWindowItIsIn() throws {
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let first = WindowScope()
+        let second = WindowScope()
+        runtime.register(first)
+        runtime.register(second)
+        let one = UUID()
+        let two = UUID()
+        runtime.select(projectID: one, in: first)
+        runtime.select(projectID: two, in: second)
+        let controller = try #require(runtime.session(for: one).selectedTab?.controllers.first)
+
+        #expect(runtime.scope(showing: controller) === first)
     }
 }
