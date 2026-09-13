@@ -55,17 +55,18 @@ public enum AskBeforeClosing: String, Codable, CaseIterable, Sendable, CustomStr
 /// without changing the profile document format; unknown values are dropped
 /// when a profile loads. Declared in the order they appear in the title.
 public enum TerminalTitleComponent: String, Codable, CaseIterable, Hashable, Sendable {
-    /// The title the running program set with OSC 0/2
-    case activeTitle
     /// The last component of the shell's OSC 7 directory
     case workingDirectory
-    /// The whole directory path instead of its last component
+    /// The whole directory path, with "~" for home, instead of its last component
     case fullPath
-    /// The foreground process of the terminal, such as "vim"
+    /// The title a running program set with OSC 0/2
+    case activeTitle
+    /// The foreground process of the terminal, such as "vim", or
+    /// "python ◂ claude" when the leader runs something in its group
     case activeProcessName
     /// The foreground process's arguments
     case processArguments
-    /// The shell's argv[0], such as "-zsh"
+    /// The shell's name, such as "zsh"
     case shellCommandName
     case profileName
     /// The pty device, such as "ttys003"
@@ -275,7 +276,7 @@ public struct TerminalProfile: Identifiable, Codable, Equatable, Sendable {
          useThemeColorsForWindowChrome: true,
          keepsSidebarOpaque: false, keepsTabStripOpaque: false,
          columns: 80, rows: 25, scrollbackLines: 10_000,
-         titleOverride: nil, titleComponents: [.activeTitle, .workingDirectory], shell: .loginShell,
+         titleOverride: nil, titleComponents: [.workingDirectory, .activeTitle, .activeProcessName], shell: .loginShell,
          whenShellExits: .closeIfExitedCleanly, askBeforeClosing: .onlyIfProcessesRunning,
          optionAsMetaKey: true, backspaceSendsControlH: false, hidePointerWhileTyping: true,
          termName: "xterm-256color",

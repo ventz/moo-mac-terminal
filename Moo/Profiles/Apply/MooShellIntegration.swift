@@ -11,7 +11,10 @@ public enum MooShellIntegration {
     public static let terminalProgram = "moo"
     /// Shell integration must not change the profile's cursor shape or blink
     /// state. Applications inside the terminal can still request a style.
-    public static let shellFeatures = "title"
+    /// Nor does it set the title: the profile's title components compose it,
+    /// as in Terminal.app, and a shell-set title would repeat the directory
+    /// and the command beside them.
+    public static let shellFeatures = ""
 
     /// The directory that contains Moo's installable shell integration.
     public static var resourcesDirectory: URL? {

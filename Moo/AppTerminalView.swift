@@ -107,6 +107,11 @@ final class AppTerminalView: LocalProcessTerminalView {
     private var oscObservation: TerminalOscObservation?
     var fileDropShellResolver = TerminalShellResolver()
 
+    override func send(source: TerminalView, data: ArraySlice<UInt8>) {
+        sessionController?.noteInputActivity()
+        super.send(source: source, data: data)
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         registerForDraggedTypes([.fileURL])

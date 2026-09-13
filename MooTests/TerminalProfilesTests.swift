@@ -653,7 +653,7 @@ final class ProfileStoreTests {
         let profile = try #require(store.profile(named: "Historical Profile"))
         #expect(profile.fontSize == TerminalProfile.standardValues.fontSize)
         #expect(profile.shell == .loginShell)
-        #expect(profile.titleComponents == [.activeTitle, .workingDirectory])
+        #expect(profile.titleComponents == [.workingDirectory, .activeTitle, .activeProcessName])
         #expect(profile.termProgram == "ghostty")
         #expect(profile.termVersion == "1.3.1")
         #expect(profile.useThemeColorsForWindowChrome)
@@ -1010,7 +1010,7 @@ final class LaunchParametersTests {
 
         let params = ProfileApplier.launchParameters(for: profile)
 
-        #expect(params.environment.contains("MOO_SHELL_FEATURES=title"))
+        #expect(params.environment.contains("MOO_SHELL_FEATURES="))
     }
 }
 
@@ -1074,7 +1074,7 @@ final class MooShellIntegrationTests {
         #expect(result.args == input.args)
         #expect(result.environment.contains("TERM_PROGRAM=moo"))
         #expect(result.environment.contains("TERM_PROGRAM_VERSION=1.2.3"))
-        #expect(result.environment.contains("MOO_SHELL_FEATURES=title"))
+        #expect(result.environment.contains("MOO_SHELL_FEATURES="))
         #expect(result.environment.contains("MOO_RESOURCES_DIR=/tmp/moo resources"))
         #expect(!result.environment.contains { $0.hasPrefix("ZDOTDIR=") })
     }
@@ -1091,7 +1091,7 @@ final class MooShellIntegrationTests {
             terminalProgramVersion: "1"
         )
 
-        #expect(result.environment.contains("MOO_SHELL_FEATURES=title"))
+        #expect(result.environment.contains("MOO_SHELL_FEATURES="))
     }
 
     @Test func injectsZshAndPreservesZDotDirectory () {
