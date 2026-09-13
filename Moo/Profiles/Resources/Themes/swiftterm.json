@@ -19,6 +19,8 @@
     "#e9ebeb"
   ],
   "foreground": "#ffffff",
-  "background": "#282c34",
-  "cursor": "#30d158"
+  "background": "#000000",
+  "cursor": "#30d158",
+  "selectionBackground": "#ffd60a",
+  "selectionText": "#000000"
 }

@@ -42,8 +42,13 @@ final class ThemeTests {
         )
         #expect (theme.ansi == TerminalTheme.fallback.ansi)
         #expect (theme.foreground.hexString == "#ffffff")
-        #expect (theme.background.hexString == "#282c34")
+        // Moo ships a black background by default.
+        #expect (theme.background.hexString == "#000000")
+        #expect (theme.background == TerminalTheme.fallback.background)
         #expect (theme.cursor?.hexString == "#30d158")
+        #expect (theme.selectionBackground?.hexString == "#ffd60a")
+        #expect (theme.selectionText?.hexString == "#000000")
+        #expect (theme.selectionBackground == TerminalTheme.fallback.selectionBackground)
     }
     @Test func bundledThemesAllValid () {
         let themes = ThemeStore.loadBundledThemes ()
