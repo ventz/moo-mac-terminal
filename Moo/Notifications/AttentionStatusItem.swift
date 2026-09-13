@@ -16,6 +16,10 @@ import Observation
 final class AttentionStatusItem: NSObject, NSMenuDelegate {
     static let shared = AttentionStatusItem()
 
+    /// Names the app in the menu bar. A bare bell sits among other apps'
+    /// icons, so the menu and tooltip say whose it is.
+    static let appName = "Moo Terminal"
+
     /// Entries beyond this stay in the history but not in the menu.
     private static let menuLimit = 20
     /// Without a cap, one long message widens the whole menu across the screen.
@@ -75,13 +79,17 @@ final class AttentionStatusItem: NSObject, NSMenuDelegate {
         let unread = AttentionCenter.shared.unreadCount
         let image = NSImage(
             systemSymbolName: unread > 0 ? "bell.badge.fill" : "bell",
-            accessibilityDescription: "Moo notifications"
+            accessibilityDescription: Self.toolTip(unread: unread)
         )
         image?.isTemplate = true
         button.image = image
         button.imagePosition = .imageLeading
         button.title = unread > 0 ? " \(unread)" : ""
-        button.toolTip = unread > 0 ? "\(unread) unread in Moo" : "Moo notifications"
+        button.toolTip = Self.toolTip(unread: unread)
+    }
+
+    static func toolTip(unread: Int) -> String {
+        unread > 0 ? "\(appName): \(unreadSummary(unread))" : "\(appName) Notifications"
     }
 
     // MARK: Menu
@@ -92,6 +100,7 @@ final class AttentionStatusItem: NSObject, NSMenuDelegate {
         menu.removeAllItems()
 
         let unread = center.unreadCount
+        menu.addItem(.sectionHeader(title: Self.appName))
         let header = NSMenuItem(title: Self.unreadSummary(unread), action: nil, keyEquivalent: "")
         header.isEnabled = false
         menu.addItem(header)

@@ -373,3 +373,24 @@ final class TerminalNotificationObservationTests {
             == TerminalNotification(title: "Claude Code", body: "Waiting"))
     }
 }
+
+/// The menu bar icon is a bare bell among other apps' icons, so its menu and
+/// tooltip have to say whose it is.
+@MainActor
+final class AttentionStatusItemTests {
+    @Test func menuOpensWithTheAppName() {
+        let menu = NSMenu()
+        AttentionStatusItem.shared.menuNeedsUpdate(menu)
+
+        let first = menu.items.first
+        #expect(first?.title == "Moo Terminal")
+        #expect(first?.isSectionHeader == true)
+        #expect(menu.items.dropFirst().first?.title.hasSuffix("Unread Notifications") == true)
+    }
+
+    @Test func toolTipNamesTheApp() {
+        #expect(AttentionStatusItem.toolTip(unread: 0) == "Moo Terminal Notifications")
+        #expect(AttentionStatusItem.toolTip(unread: 1) == "Moo Terminal: 1 Unread Notification")
+        #expect(AttentionStatusItem.toolTip(unread: 3) == "Moo Terminal: 3 Unread Notifications")
+    }
+}
