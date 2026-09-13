@@ -847,7 +847,9 @@ final class LaunchParametersTests {
         #expect(environment["TERM_FEATURES"] == TerminalFeatureReporting.featureString)
         #expect(environment["TERM_PROGRAM"] == nil)
         #expect(environment["VTE_VERSION"] == nil)
-        #expect(environment["PWD"] == nil)
+        // Moo's own stale PWD never reaches the shell; it names the launch
+        // directory instead, which is home when none is given.
+        #expect(environment["PWD"] == FileManager.default.homeDirectoryForCurrentUser.path)
         #expect(environment["SHLVL"] == nil)
         #expect(environment["DYLD_LIBRARY_PATH"] == nil)
     }
@@ -933,6 +935,8 @@ final class LaunchParametersTests {
         let profile = TerminalProfile (name: "Test")
         let params = ProfileApplier.launchParameters (for: profile, initialDirectory: "/tmp")
         #expect (params.currentDirectory == "/tmp")
+        // Without PWD the shell reports the resolved /private/tmp.
+        #expect (params.environment.filter { $0.hasPrefix ("PWD=") } == ["PWD=/tmp"])
     }
 
     @Test func terminalOptionsMapping () {

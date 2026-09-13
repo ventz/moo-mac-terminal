@@ -151,11 +151,18 @@ public enum ProfileApplier {
     public static func launchParameters (for profile: TerminalProfile,
                                          initialDirectory: String? = nil,
                                          processEnvironment: [String: String] = ProcessInfo.processInfo.environment) -> LaunchParameters {
-        let environment = TerminalEnvironment.base(
-            parentEnvironment: processEnvironment,
-            termName: profile.termName
-        )
         let directory = initialDirectory ?? FileManager.default.homeDirectoryForCurrentUser.path
+        // Name the directory in PWD as well as starting there. The kernel only
+        // keeps the resolved path, so a shell started in /tmp without it reports
+        // /private/tmp. zsh and bash take PWD when it names the directory they
+        // are in and ignore it otherwise, so a wrong value cannot misplace them.
+        let environment = TerminalEnvironment.applying(
+            [TerminalEnvironmentVariable(name: "PWD", value: directory)],
+            to: TerminalEnvironment.base(
+                parentEnvironment: processEnvironment,
+                termName: profile.termName
+            )
+        )
 
         let parameters: LaunchParameters
         switch profile.shell {
