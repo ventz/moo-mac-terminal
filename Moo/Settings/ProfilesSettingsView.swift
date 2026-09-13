@@ -60,10 +60,12 @@ struct ProfilesSettingsView: View {
                 let gotAccess = url.startAccessingSecurityScopedResource()
                 defer { if gotAccess { url.stopAccessingSecurityScopedResource() } }
                 do {
-                    activeProfileID = try profiles.importProfile(
+                    let imported = try profiles.importProfile(
                         from: url,
                         adoptTheme: { try themes.adoptEmbeddedTheme($0) }
-                    ).id
+                    )
+                    activeProfileID = imported.id
+                    offerAppSettings(from: url, importedProfileID: imported.id)
                 } catch {
                     report(error)
                 }
@@ -250,13 +252,38 @@ struct ProfilesSettingsView: View {
         }
     }
 
+    /// A file exported by Moo carries the app settings too. They change all of
+    /// Moo rather than one profile, so ask before applying them.
+    private func offerAppSettings(from url: URL, importedProfileID: TerminalProfile.ID) {
+        guard let data = try? Data(contentsOf: url),
+              let embedded = ProfileStore.embeddedSettings(in: data) else { return }
+        let alert = NSAlert()
+        alert.messageText = "Apply Moo settings from this file?"
+        alert.informativeText = """
+            The profile was imported. The file also carries Moo's app settings: \
+            General, Projects, Notifications and the theme browser. Applying replaces \
+            yours, and any setting the file does not list returns to its default. \
+            Some take effect in new windows.
+            """
+        alert.addButton(withTitle: "Apply Settings")
+        alert.addButton(withTitle: "Profile Only")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        var profileIDs: [String: String] = [:]
+        if let exportedID = embedded.profileID {
+            profileIDs[exportedID.uuidString] = importedProfileID.uuidString
+        }
+        AppSettings.apply(embedded.settings, profileIDs: profileIDs)
+        SecureKeyboardEntry.shared.isEnabled = UserDefaults.standard.bool(forKey: AppSettings.secureKeyboardEntry)
+    }
+
     private func exportSelectedProfile() {
         guard let profile = selectedProfile else { return }
         // Built-in themes ship with every copy of Moo; carry only a custom one
         let theme = themes.themes.first { $0.name == profile.themeName && !$0.isBuiltIn }
         do {
             // Encode on the main actor; fileWrapper(configuration:) runs off it
-            let data = try ProfileStore.encodedProfile(profile, theme: theme)
+            // The file carries every app setting too, so one import sets Moo up
+            let data = try ProfileStore.encodedProfile(profile, theme: theme, settings: AppSettings.snapshot())
             exportDocument = ProfileExportDocument(filename: profile.name, data: data)
             showExporter = true
         } catch {
