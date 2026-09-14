@@ -40,6 +40,12 @@ final class WorkspaceTab: Identifiable {
         title = content.displayTitle
     }
 
+    /// A terminal tab rebuilt from the last run.
+    init(startsProcesses: Bool = true, restoring saved: SavedPane) {
+        content = .terminal(TerminalPaneWorkspace(startsProcesses: startsProcesses, restoring: saved))
+        title = "Terminal"
+    }
+
     var kind: WorkspaceTabKind { content.kind }
 
     var isTerminal: Bool {
@@ -173,6 +179,16 @@ final class WorkspaceSession {
     @discardableResult
     func addTab(web content: any WebTabContent) -> WorkspaceTab {
         insert(WorkspaceTab(web: content))
+    }
+
+    /// Fills a new session with the tabs it had last run. Does nothing once
+    /// the session has tabs of its own.
+    func restore(_ saved: SavedWorkspace) {
+        guard tabs.isEmpty, !saved.tabs.isEmpty else { return }
+        tabs = saved.tabs.prefix(SavedWorkspace.maximumTabs).map {
+            WorkspaceTab(startsProcesses: startsProcesses, restoring: $0.root)
+        }
+        select(tabs[min(max(saved.selectedTabIndex, 0), tabs.count - 1)])
     }
 
     private func insert(_ tab: WorkspaceTab) -> WorkspaceTab {

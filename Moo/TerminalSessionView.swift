@@ -146,6 +146,24 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         launchDirectory = source.currentWorkingDirectory
     }
 
+    /// A pane from the last run. A directory that is gone, not the user's,
+    /// or on a network mount falls back to the plain launch (home).
+    @MainActor
+    func prepareForRestore(directory: String?, profileID: UUID?, themeOverride savedTheme: String?) {
+        guard !didResolveLaunch else { return }
+        didResolveLaunch = true
+        // The window opened for this pane left a launch spec; a restored pane
+        // has its own settings, so use it up rather than leave it for the
+        // next unrelated terminal.
+        _ = AppModel.shared.takePendingLaunch()
+        profile = profileID.flatMap { AppModel.shared.profiles.profile(withID: $0) }
+            ?? AppModel.shared.profiles.defaultProfile
+        themeOverride = savedTheme.flatMap { name in
+            AppModel.shared.themes.themes.contains { $0.name == name } ? name : nil
+        }
+        launchDirectory = directory.flatMap { RestoredDirectory.validated($0) }
+    }
+
     /// Seeds a workspace tab from the terminal it was opened beside, honoring
     /// the General settings. Native tabs get the same treatment through
     /// `WindowOpener.inheritedTabSpec()`; workspace tabs never go through a
@@ -177,6 +195,13 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         postedDirectory.flatMap {
             Self.localDirectory(fromOSC7: $0, localHostNames: Self.localHostNames)
         }
+    }
+
+    /// The shell's own directory, read from the kernel. What is saved across
+    /// launches uses this, never OSC 7: printed output can forge a report.
+    var shellWorkingDirectory: String? {
+        guard let process = terminal?.process, process.running else { return nil }
+        return TerminalProcessInspector.workingDirectory(of: process.shellPid)
     }
 
     /// The reported directory's path wherever it is, for display only: the

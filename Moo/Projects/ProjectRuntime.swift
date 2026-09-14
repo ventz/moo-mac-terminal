@@ -190,6 +190,20 @@ final class ProjectRuntime {
     /// screen: SwiftUI can discard the views, but never these.
     @ObservationIgnored private var sessions: [UUID: WorkspaceSession] = [:]
 
+    // MARK: Restore state
+
+    /// Workspaces from the last run not yet visited. Each is rebuilt the
+    /// first time its session is needed, so its shells start only then.
+    @ObservationIgnored private var restoredWorkspaces: [UUID: SavedWorkspace] = [:]
+    /// Windows from the last run, taken in order as windows open.
+    @ObservationIgnored private var restoredWindows: [SavedWindow] = []
+    @ObservationIgnored private var restoreStore: WorkspaceRestoreStore?
+    @ObservationIgnored private var restoreAutosave: Timer?
+    /// Set once quitting is certain. Quitting closes windows, and closing a
+    /// window discards its workspaces; a save after that would record an
+    /// empty app.
+    @ObservationIgnored private(set) var isTerminating = false
+
     // MARK: Per-window selection
 
     /// Every window's scope, newest last. A window registers on appear and
@@ -283,6 +297,12 @@ final class ProjectRuntime {
         for projectID in ended {
             discardSession(for: projectID)
         }
+        // Closing the last window ends everything on purpose, including
+        // workspaces from the last run nobody reopened.
+        if scopes.isEmpty, !isTerminating {
+            restoredWorkspaces.removeAll()
+            restoredWindows.removeAll()
+        }
     }
 
     /// cmd+B. Toggles the sidebar in one window only.
@@ -316,6 +336,9 @@ final class ProjectRuntime {
         if let existing = sessions[projectID] { return existing }
         let session = WorkspaceSession(projectID: projectID, startsProcesses: startsProcesses)
         sessions[projectID] = session
+        if let saved = restoredWorkspaces.removeValue(forKey: projectID) {
+            session.restore(saved)
+        }
         return session
     }
 
@@ -431,6 +454,103 @@ final class ProjectRuntime {
             detachedScope.selectedProjectID = nil
         }
         invalidate()
+    }
+
+    // MARK: Restore
+
+    static let restoreAutosaveInterval: TimeInterval = 30
+
+    /// At launch: remembers where to save, loads the last run when asked to,
+    /// and saves every half minute so a crash loses little.
+    func beginRestore(from store: WorkspaceRestoreStore, restoring: Bool) {
+        restoreStore = store
+        if restoring, let document = store.load() {
+            prepareRestore(document)
+        }
+        restoreAutosave?.invalidate()
+        let timer = Timer(timeInterval: Self.restoreAutosaveInterval, repeats: true) { _ in
+            MainActor.assumeIsolated { ProjectRuntime.shared.saveForRestore() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        restoreAutosave = timer
+    }
+
+    func prepareRestore(_ document: WorkspaceRestoreDocument) {
+        restoredWorkspaces = Dictionary(
+            document.workspaces.prefix(WorkspaceRestoreDocument.maximumWorkspaces).map { ($0.projectID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        // A window that showed no workspace has nothing to bring back.
+        restoredWindows = Array(
+            document.windows.filter { $0.projectID != nil }.prefix(WorkspaceRestoreDocument.maximumWindows)
+        )
+    }
+
+    var pendingRestoredWindowCount: Int { restoredWindows.count }
+
+    /// Saved windows that will get their workspace. Opening more than this
+    /// would leave windows that create new, empty projects.
+    func restorableWindowCount(existing projectIDs: Set<UUID>) -> Int {
+        restoredWindows.filter { window in
+            window.projectID.map { projectIDs.contains($0) && scope(showing: $0) == nil } ?? false
+        }.count
+    }
+
+    /// The next window from the last run, for a window that just opened.
+    /// Skips windows whose workspace was deleted or is already on screen.
+    func takeRestoredWindow(existing projectIDs: Set<UUID>) -> SavedWindow? {
+        while !restoredWindows.isEmpty {
+            let window = restoredWindows.removeFirst()
+            guard let projectID = window.projectID else { return window }
+            if projectIDs.contains(projectID), scope(showing: projectID) == nil {
+                return window
+            }
+        }
+        return nil
+    }
+
+    /// Every workspace's terminal tabs and splits, plus the open windows.
+    /// Workspaces from the last run not visited this time are kept as saved,
+    /// unless their project has since been deleted.
+    func restoreSnapshot(existingProjectIDs: Set<UUID>? = nil) -> WorkspaceRestoreDocument {
+        func exists(_ id: UUID) -> Bool { existingProjectIDs?.contains(id) ?? true }
+        let visited = sessions.keys.sorted { $0.uuidString < $1.uuidString }.compactMap { id -> SavedWorkspace? in
+            guard exists(id), let session = sessions[id] else { return nil }
+            let terminalTabs = session.tabs.filter(\.isTerminal)
+            let tabs = terminalTabs.compactMap { tab in
+                tab.panes.map { SavedTab(root: SavedPane(node: $0.root)) }
+            }
+            guard !tabs.isEmpty else { return nil }
+            let selected = terminalTabs.firstIndex { $0.id == session.selectedTab?.id } ?? 0
+            return SavedWorkspace(projectID: id, selectedTabIndex: selected, tabs: tabs)
+        }
+        let unvisited = restoredWorkspaces.values
+            .filter { sessions[$0.projectID] == nil && exists($0.projectID) }
+            .sorted { $0.projectID.uuidString < $1.projectID.uuidString }
+        let windows = scopes
+            .filter { !$0.isClosed && $0.window != nil }
+            .map { SavedWindow(projectID: $0.selectedProjectID, showsSidebar: $0.isSidebarVisible) }
+        return WorkspaceRestoreDocument(windows: windows, workspaces: visited + unvisited)
+    }
+
+    func saveForRestore() {
+        guard !isTerminating, let restoreStore else { return }
+        // Off means off: no file of directories left behind to come back
+        // stale when it is turned on again.
+        guard WorkspaceRestoreDefaults.isEnabled else {
+            restoreStore.remove()
+            return
+        }
+        let projectIDs = Set(AppModel.shared.projects.projects.map(\.id))
+        restoreStore.save(restoreSnapshot(existingProjectIDs: projectIDs))
+    }
+
+    /// Once quitting is certain, before AppKit closes a window.
+    func saveForQuit() {
+        saveForRestore()
+        isTerminating = true
+        restoreAutosave?.invalidate()
+        restoreAutosave = nil
     }
 
     /// True once a workspace has been visited and has tabs.

@@ -192,6 +192,19 @@ enum TerminalProcessInspector {
         localFlags & tcflag_t(ECHO) == 0 && localFlags & tcflag_t(ICANON) != 0
     }
 
+    /// A process's current directory, from the kernel. Output cannot forge
+    /// it the way it can forge an OSC 7 report.
+    static func workingDirectory(of pid: pid_t) -> String? {
+        guard pid > 0 else { return nil }
+        var info = proc_vnodepathinfo()
+        let size = Int32(MemoryLayout<proc_vnodepathinfo>.stride)
+        guard proc_pidinfo(pid, PROC_PIDVNODEPATHINFO, 0, &info, size) == size else { return nil }
+        let path = withUnsafeBytes(of: &info.pvi_cdir.vip_path) { raw in
+            String(decoding: raw.prefix { $0 != 0 }, as: UTF8.self)
+        }
+        return path.isEmpty ? nil : path
+    }
+
     /// "ttys003", the device name of the pty's terminal side
     static func ttyName(ptyDescriptor: Int32) -> String? {
         guard ptyDescriptor >= 0, let path = ptsname(ptyDescriptor) else { return nil }

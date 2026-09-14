@@ -78,6 +78,7 @@ enum AppSettings {
         AppSetting(key: "useMetalRenderer", kind: .bool),
         AppSetting(key: secureKeyboardEntry, kind: .bool),
         AppSetting(key: secureKeyboardEntryAtPasswordPrompts, kind: .bool),
+        AppSetting(key: WorkspaceRestoreDefaults.restoresOnLaunch, kind: .bool),
         AppSetting(key: "LogHostOutput", kind: .bool),
         AppSetting(key: "webInspectorEnabled", kind: .bool),
         AppSetting(key: LinkRoutingDefaults.opensLinksInApp, kind: .bool),

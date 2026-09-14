@@ -14,6 +14,20 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var didEnsureStartupWindow = false
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else {
+            return
+        }
+        // Before any window appears: each takes its workspace from the last
+        // run as it opens. A chosen window group wins over restore.
+        let defaults = UserDefaults.standard
+        ProjectRuntime.shared.beginRestore(
+            from: AppModel.shared.workspaceRestore,
+            restoring: WorkspaceRestoreDefaults.isEnabled
+                && defaults.string(forKey: "startupMode") != "windowGroup"
+        )
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSWindow.allowsAutomaticWindowTabbing = true
         _ = SecureKeyboardEntry.shared
@@ -64,7 +78,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 .contains(where: TerminalClosePolicy.requiresConfirmation)
         } || ProjectRuntime.shared.allControllers
             .contains(where: TerminalClosePolicy.requiresConfirmation)
-        guard hasLiveProcess else { return .terminateNow }
+        guard hasLiveProcess else {
+            ProjectRuntime.shared.saveForQuit()
+            return .terminateNow
+        }
 
         let alert = NSAlert()
         alert.messageText = "Quit and terminate running processes?"
@@ -72,7 +89,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: "Quit")
         alert.addButton(withTitle: "Cancel")
         alert.buttons.first?.hasDestructiveAction = true
-        return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
+        guard alert.runModal() == .alertFirstButtonReturn else { return .terminateCancel }
+        ProjectRuntime.shared.saveForQuit()
+        return .terminateNow
     }
 
     func applicationDidResignActive(_ notification: Notification) {
@@ -101,7 +120,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
            let rawID = defaults.string(forKey: "startupProfileID") {
             spec.profileID = UUID(uuidString: rawID)
         }
+        // Read before opening: each window takes a saved one as it appears.
+        let restoredWindows = ProjectRuntime.shared.restorableWindowCount(
+            existing: Set(AppModel.shared.projects.projects.map(\.id))
+        )
         WindowOpener.openWindow(spec: spec, initialFrame: .saved)
+        for _ in 1..<max(restoredWindows, 1) {
+            WindowOpener.openWindow(spec: LaunchSpec())
+        }
     }
 }
 

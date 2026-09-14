@@ -383,6 +383,15 @@ struct ContentView: View {
         guard scope.selectedProjectID == nil, !scope.isClosed else { return }
         defer { didAttemptInitialProject = true }
 
+        // Relaunching: this window takes the next one from the last run.
+        if let restored = runtime.takeRestoredWindow(existing: Set(projects.projects.map(\.id))) {
+            scope.isSidebarVisible = restored.showsSidebar
+            if let projectID = restored.projectID {
+                runtime.select(projectID: projectID, in: scope)
+                return
+            }
+        }
+
         let remembered = UserDefaults.standard
             .string(forKey: ProjectSidebarDefaults.selectedProjectID)
             .flatMap(UUID.init(uuidString:))
