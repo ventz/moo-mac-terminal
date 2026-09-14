@@ -21,6 +21,8 @@ struct ProjectsSettingsView: View {
     @AppStorage(ProjectSidebarDefaults.showsBranch) private var showsBranch = true
     @AppStorage(ProjectSidebarDefaults.showsPath) private var showsPath = true
     @AppStorage(ProjectSidebarDefaults.showsAccent) private var showsAccent = true
+    @AppStorage(WorkspaceRestoreDefaults.restoresOnLaunch) private var restoresOnLaunch =
+        WorkspaceRestoreDefaults.defaultRestoresOnLaunch
 
     @State private var selection: Project.ID?
     @State private var errorMessage: String?
@@ -38,6 +40,8 @@ struct ProjectsSettingsView: View {
             }
 
             Section("Projects") {
+                Toggle("Reopen workspaces, tabs, and splits on launch", isOn: $restoresOnLaunch)
+                    .help("Shells start fresh in each pane's last directory. Scrollback is not kept.")
                 projectTable
                 HStack {
                     Button("Remove", action: removeSelected)

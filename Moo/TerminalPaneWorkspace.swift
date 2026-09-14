@@ -65,6 +65,38 @@ final class TerminalPaneWorkspace {
         controller.workspace = self
     }
 
+    /// Rebuilds a saved split tree. Each pane starts a fresh shell in its
+    /// saved directory, under its saved profile.
+    init(startsProcesses: Bool = true, restoring saved: SavedPane) {
+        self.startsProcesses = startsProcesses
+        var built: [TerminalSessionController] = []
+        root = Self.makeNode(saved, depth: 0, startsProcesses: startsProcesses, controllers: &built)
+        focusedControllerID = built[0].id
+        for controller in built {
+            controller.workspace = self
+        }
+    }
+
+    private static func makeNode(
+        _ saved: SavedPane,
+        depth: Int,
+        startsProcesses: Bool,
+        controllers: inout [TerminalSessionController]
+    ) -> TerminalPaneNode {
+        if case .split(let orientation, let first, let second) = saved,
+           depth < SavedPane.maximumDepth, controllers.count < SavedPane.maximumPanes {
+            let firstNode = makeNode(first, depth: depth + 1, startsProcesses: startsProcesses, controllers: &controllers)
+            let secondNode = makeNode(second, depth: depth + 1, startsProcesses: startsProcesses, controllers: &controllers)
+            return TerminalPaneNode(content: .split(orientation, firstNode, secondNode))
+        }
+        let controller = TerminalSessionController(startsProcess: startsProcesses)
+        if case .terminal(let directory, let profileID, let themeOverride) = saved {
+            controller.prepareForRestore(directory: directory, profileID: profileID, themeOverride: themeOverride)
+        }
+        controllers.append(controller)
+        return TerminalPaneNode(content: .terminal(controller))
+    }
+
     var controllers: [TerminalSessionController] {
         collectControllers(in: root)
     }
