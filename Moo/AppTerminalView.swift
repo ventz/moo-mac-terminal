@@ -41,8 +41,19 @@ private final class TerminalSessionEventDelivery: Sendable {
         case osc(TerminalOscEvent)
     }
 
+    private struct PendingMarks: Sendable {
+        var events: [TerminalOscEvent] = []
+        var hopScheduled = false
+    }
+
+    /// Command marks waiting for the main thread. Output can print them by
+    /// the thousand (`cat` a file of `\e]133;C\a`), so at most one hop is
+    /// queued and only the newest few survive it.
+    static let markBurstLimit = 64
+
     private let handler = LockedMainActorCallback<Event>()
     private let lastOutputNotification = OSAllocatedUnfairLock(initialState: Date.distantPast)
+    private let pendingMarks = OSAllocatedUnfairLock(initialState: PendingMarks())
 
     @MainActor
     func setController(_ controller: TerminalSessionController?) {
@@ -62,11 +73,43 @@ private final class TerminalSessionEventDelivery: Sendable {
     /// Task, carries them across: kitty splits one notification over several
     /// sequences, and only a serial queue keeps those in order.
     nonisolated func sendOsc(_ event: TerminalOscEvent) {
+        if event.code == CommandTracker.oscCode {
+            sendCommandMark(event)
+            return
+        }
         guard TerminalNotificationParser.observedCodes.contains(event.code),
               let handler = handler.current else { return }
         DispatchQueue.main.async {
             MainActor.assumeIsolated {
                 handler(.osc(event))
+            }
+        }
+    }
+
+    nonisolated private func sendCommandMark(_ event: TerminalOscEvent) {
+        guard event.payload.count <= CommandTracker.payloadLimit,
+              let handler = handler.current else { return }
+        let schedulesHop = pendingMarks.withLock { state -> Bool in
+            if state.events.count >= Self.markBurstLimit {
+                state.events.removeFirst()
+            }
+            state.events.append(event)
+            guard !state.hopScheduled else { return false }
+            state.hopScheduled = true
+            return true
+        }
+        guard schedulesHop else { return }
+        DispatchQueue.main.async { [pendingMarks] in
+            let events = pendingMarks.withLock { state -> [TerminalOscEvent] in
+                let events = state.events
+                state.events.removeAll(keepingCapacity: true)
+                state.hopScheduled = false
+                return events
+            }
+            MainActor.assumeIsolated {
+                for event in events {
+                    handler(.osc(event))
+                }
             }
         }
     }

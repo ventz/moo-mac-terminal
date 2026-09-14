@@ -21,6 +21,12 @@ struct NotificationsSettingsView: View {
     @AppStorage(AttentionDefaults.soundVolume) private var volume = 1.0
     @AppStorage(AttentionDefaults.audioTiming) private var audioTiming: AttentionAudioTiming = .always
     @AppStorage(AttentionDefaults.speaksMessage) private var speaksMessage = false
+    @AppStorage(AttentionDefaults.notifiesLongCommands) private var notifiesLongCommands =
+        AttentionDefaults.defaultNotifiesLongCommands
+    @AppStorage(AttentionDefaults.longCommandSeconds) private var longCommandSeconds =
+        AttentionDefaults.defaultLongCommandSeconds
+    @AppStorage(AttentionDefaults.marksFailedCommands) private var marksFailedCommands =
+        AttentionDefaults.defaultMarksFailedCommands
 
     @State private var bannersDenied = false
     private let installedSounds = AttentionAlertSettings.availableSounds()
@@ -54,6 +60,23 @@ struct NotificationsSettingsView: View {
                     }
                 }
                 Toggle("Mark waiting tabs and projects", isOn: $marksWaiting)
+            }
+
+            Section {
+                Toggle("Notify when a long command finishes out of sight", isOn: $notifiesLongCommands)
+                Stepper(value: $longCommandSeconds, in: 5...3600, step: 5) {
+                    Text("Long means at least \(Int(longCommandSeconds)) seconds")
+                }
+                .disabled(!notifiesLongCommands)
+                Toggle("Mark tabs whose last command failed", isOn: $marksFailedCommands)
+            } header: {
+                Text("Commands")
+            } footer: {
+                Text("Needs Moo's shell integration for zsh, bash, fish or elvish, which reports "
+                     + "each command's start and exit status. A long command also counts as "
+                     + "waiting for you, so the alerts above apply.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Audio") {

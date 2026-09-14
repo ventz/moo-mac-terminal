@@ -28,8 +28,25 @@ enum AttentionDefaults {
     static let soundVolume = "attentionSoundVolume"
     static let audioTiming = "attentionAudioTiming"
     static let speaksMessage = "attentionSpeaksMessage"
+    static let notifiesLongCommands = "attentionNotifiesLongCommands"
+    static let longCommandSeconds = "attentionLongCommandSeconds"
+    static let marksFailedCommands = "attentionMarksFailedCommands"
+
+    // The one definition of these defaults; the settings view and the tab
+    // strip read them through @AppStorage with these same constants.
+    static let defaultNotifiesLongCommands = true
+    static let defaultLongCommandSeconds = 10.0
+    static let defaultMarksFailedCommands = true
 
     static var bannersEnabled: Bool { bool(showsBanners, default: true) }
+    static var longCommandsEnabled: Bool { bool(notifiesLongCommands, default: defaultNotifiesLongCommands) }
+    static var failedCommandMarksEnabled: Bool { bool(marksFailedCommands, default: defaultMarksFailedCommands) }
+    static var longCommandThreshold: TimeInterval { longCommandThreshold(in: .standard) }
+
+    static func longCommandThreshold(in defaults: UserDefaults) -> TimeInterval {
+        let value = defaults.object(forKey: longCommandSeconds) as? Double
+        return max(1, value ?? defaultLongCommandSeconds)
+    }
     static var statusItemEnabled: Bool { bool(showsStatusItem, default: true) }
     static var dockBadgeEnabled: Bool { bool(showsDockBadge, default: true) }
     static var marksWaitingEnabled: Bool { bool(marksWaiting, default: true) }

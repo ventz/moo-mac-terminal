@@ -30,6 +30,8 @@ struct WorkspaceTabBar: View {
 
     @State private var hoveredTabID: WorkspaceTab.ID?
     @AppStorage(AttentionDefaults.marksWaiting) private var marksWaiting = true
+    @AppStorage(AttentionDefaults.marksFailedCommands) private var marksFailedCommands =
+        AttentionDefaults.defaultMarksFailedCommands
 
     var body: some View {
         HStack(spacing: 5) {
@@ -66,6 +68,14 @@ struct WorkspaceTabBar: View {
                         .fill(Color.attentionWaiting)
                         .frame(width: 6, height: 6)
                         .help("Waiting for you")
+                }
+                // The last command in one of this tab's panes failed.
+                if marksFailedCommands,
+                   let failed = tab.controllers.compactMap(\.lastCommand).first(where: \.failed) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.red)
+                        .help("Last command exited \(failed.exitCode.map(String.init) ?? "?")")
                 }
                 // Terminals are the default and carry no icon; a web tab is
                 // marked so the strip shows at a glance which tabs are shells.

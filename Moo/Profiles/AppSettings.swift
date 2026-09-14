@@ -98,6 +98,9 @@ enum AppSettings {
         AppSetting(key: AttentionDefaults.soundVolume, kind: .double),
         AppSetting(key: AttentionDefaults.audioTiming, kind: .string),
         AppSetting(key: AttentionDefaults.speaksMessage, kind: .bool),
+        AppSetting(key: AttentionDefaults.notifiesLongCommands, kind: .bool),
+        AppSetting(key: AttentionDefaults.longCommandSeconds, kind: .double),
+        AppSetting(key: AttentionDefaults.marksFailedCommands, kind: .bool),
         // Theme browser
         AppSetting(key: "themeBrowserDisplayMode", kind: .string),
         AppSetting(key: "themeBrowserPlotMode", kind: .string),
