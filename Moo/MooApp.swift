@@ -588,6 +588,13 @@ struct TerminalCommands: Commands {
 
     var body: some Commands {
         CommandMenu("Terminal") {
+            Button(CommandPaletteModel.menuTitle) {
+                runtime.keyScope.isPaletteVisible.toggle()
+            }
+            .keyboardShortcut("k", modifiers: [.command])
+
+            Divider()
+
             Button("Split Pane") {
                 if let controller {
                     controller.workspace?.split(controller, orientation: .vertical)
@@ -644,7 +651,8 @@ struct TerminalCommands: Commands {
             Button("Clear Scrollback") {
                 controller?.terminal?.clearScrollback()
             }
-            .keyboardShortcut("k", modifiers: [.command])
+            // Option-command-K, as in Terminal.app: command-K opens the palette.
+            .keyboardShortcut("k", modifiers: [.command, .option])
             .disabled(!isEnabled)
 
             Divider()

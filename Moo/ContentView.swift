@@ -306,7 +306,19 @@ struct ContentView: View {
             .overlay(alignment: .bottomTrailing) {
                 SecureInputBadge()
             }
+            .overlay {
+                if scope.isPaletteVisible {
+                    CommandPaletteView(
+                        scope: scope,
+                        controller: showsTerminal ? workspace.focusedController : nil,
+                        projects: projects.projects
+                    )
+                }
+            }
             .onChange(of: onScreenTabKey) {
+                // The palette read the pane that was on screen; it would act
+                // on the wrong one now.
+                scope.isPaletteVisible = false
                 focusOnScreenTab()
             }
             .background(WindowTabbingConfigurator(
