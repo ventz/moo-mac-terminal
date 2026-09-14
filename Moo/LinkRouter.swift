@@ -15,7 +15,6 @@
 
 import AppKit
 import Foundation
-import SwiftTerm
 
 enum LinkRoutingDefaults {
     /// Whether links open inside Moo when a tab kind can show them.
@@ -150,9 +149,9 @@ enum LinkRouter {
         return cells
     }
 
-    /// Turns detected text into an existing file path, or nil. Mirrors what
-    /// SwiftTerm's default handler accepts — tilde expansion and a trailing
-    /// `:line[:column]` — plus resolution against the terminal's directory.
+    /// Turns detected text into an existing regular file path, or nil:
+    /// tilde expansion, a trailing `:line[:column]`, and resolution against
+    /// the terminal's directory.
     nonisolated static func resolvePath(
         _ link: String,
         workingDirectory: String?,
@@ -180,15 +179,76 @@ enum LinkRouter {
         return nil
     }
 
-    /// The pre-existing behavior, with one improvement: a relative path is
-    /// resolved against the terminal's directory before SwiftTerm tries the
-    /// app's, which is what made `README.md` printed by `ls` open at all.
-    private static func openExternally(_ link: String, workingDirectory: String?) {
-        if let path = resolvePath(link, workingDirectory: workingDirectory) {
-            openFile(URL(fileURLWithPath: path))
-            return
+    /// What handing a link to the system means. Terminal output is untrusted
+    /// — a `cat`ed file or a remote host can print any URL — so only the web
+    /// and mail open directly; other schemes launch arbitrary registered apps
+    /// (`smb://` mounts a share, `x-man-page://` runs man) and need a yes.
+    enum ExternalAction: Equatable {
+        case openURL(URL)
+        /// A local file or directory, through `openFile`'s executable check.
+        case openFile(URL)
+        case confirm(URL)
+        case ignore
+    }
+
+    nonisolated static let directlyOpenedSchemes: Set<String> = ["http", "https", "mailto"]
+    nonisolated static let refusedSchemes: Set<String> = ["javascript", "data", "vbscript"]
+
+    /// - Parameter hasHandler: whether some app opens the URL. Without one,
+    ///   `Makefile:12` (scheme "makefile") would ask to open with "No app".
+    nonisolated static func externalAction(
+        for link: String,
+        workingDirectory: String?,
+        fileManager: FileManager = .default,
+        hasHandler: (URL) -> Bool = { NSWorkspace.shared.urlForApplication(toOpen: $0) != nil }
+    ) -> ExternalAction {
+        if let path = resolvePath(link, workingDirectory: workingDirectory, fileManager: fileManager) {
+            return .openFile(URL(fileURLWithPath: path))
         }
-        TerminalView.openDefaultLink(link)
+        // A scheme with a dot is almost always a file with a line number
+        // ("README.md:12"), not a URL.
+        if let url = URL(string: link), let scheme = url.scheme?.lowercased(), !scheme.contains(".") {
+            if directlyOpenedSchemes.contains(scheme) { return .openURL(url) }
+            if refusedSchemes.contains(scheme) { return .ignore }
+            if scheme == "file" {
+                return fileManager.fileExists(atPath: url.path) ? .openFile(url) : .ignore
+            }
+            return hasHandler(url) ? .confirm(url) : .ignore
+        }
+        // Directories and bundles: resolvePath takes regular files only.
+        let expanded = NSString(string: link).expandingTildeInPath
+        let absolute = expanded.hasPrefix("/")
+            ? expanded
+            : workingDirectory.map { ($0 as NSString).appendingPathComponent(expanded) }
+        if let absolute, fileManager.fileExists(atPath: absolute) {
+            return .openFile(URL(fileURLWithPath: (absolute as NSString).standardizingPath))
+        }
+        return .ignore
+    }
+
+    private static func openExternally(_ link: String, workingDirectory: String?) {
+        switch externalAction(for: link, workingDirectory: workingDirectory) {
+        case .openURL(let url):
+            NSWorkspace.shared.open(url)
+        case .openFile(let url):
+            openFile(url)
+        case .confirm(let url):
+            if confirmOpening(url) { NSWorkspace.shared.open(url) }
+        case .ignore:
+            break
+        }
+    }
+
+    private static func confirmOpening(_ url: URL) -> Bool {
+        let alert = NSAlert()
+        alert.messageText = "Open this link?"
+        let handler = NSWorkspace.shared.urlForApplication(toOpen: url)
+            .map { FileManager.default.displayName(atPath: $0.path) } ?? "No app"
+        // The URL came from terminal output: show it whole, as data.
+        alert.informativeText = "\(url.absoluteString)\n\nOpens with: \(handler)"
+        alert.addButton(withTitle: "Open")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     /// Files that LaunchServices would *run* rather than show. A repository
@@ -199,7 +259,7 @@ enum LinkRouter {
     static let executableExtensions: Set<String> = [
         "app", "command", "tool", "sh", "bash", "zsh", "fish", "scpt", "scptd",
         "applescript", "workflow", "action", "terminal", "webloc", "inetloc",
-        "shortcut", "pkg", "mpkg", "dmg", "iso", "jar", "py", "rb", "pl"
+        "shortcut", "pkg", "mpkg", "dmg", "iso", "jar", "py", "rb", "pl", "fileloc"
     ]
 
     nonisolated static func isExecutable(_ url: URL) -> Bool {
@@ -217,7 +277,10 @@ enum LinkRouter {
 
     /// Opens a local file from untrusted text (terminal output, a link in
     /// a preview): anything that would execute is only revealed.
-    static func openFile(_ url: URL) {
+    static func openFile(_ link: URL) {
+        // Judge what actually opens: a `README` symlink to an extensionless
+        // executable would otherwise pass as a plain file.
+        let url = link.resolvingSymlinksInPath()
         if isExecutable(url) {
             NSWorkspace.shared.activateFileViewerSelecting([url])
         } else {

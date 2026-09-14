@@ -91,8 +91,8 @@ final class WorkspaceTab: Identifiable {
         case .web(let web):
             return web.currentDirectory
         case .terminal(let panes):
-            return panes.focusedController?.currentWorkingDirectory
-                ?? panes.controllers.compactMap(\.currentWorkingDirectory).first
+            return panes.focusedController?.displayedWorkingDirectory
+                ?? panes.controllers.compactMap(\.displayedWorkingDirectory).first
         }
     }
 

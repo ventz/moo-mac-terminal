@@ -316,6 +316,62 @@ final class LinkRouterTests {
         #expect(LinkRouter.word(inCells: wide, at: 8) == "x")
     }
 
+    @Test func onlyWebAndMailOpenWithoutAsking() {
+        func action(_ link: String, handled: Bool = true) -> LinkRouter.ExternalAction {
+            LinkRouter.externalAction(for: link, workingDirectory: directory, hasHandler: { _ in handled })
+        }
+        #expect(action("https://example.com") == .openURL(URL(string: "https://example.com")!))
+        #expect(action("HTTPS://example.com") == .openURL(URL(string: "HTTPS://example.com")!))
+        #expect(action("mailto:a@b.c") == .openURL(URL(string: "mailto:a@b.c")!))
+        #expect(action("smb://host/share") == .confirm(URL(string: "smb://host/share")!))
+        #expect(action("x-man-page://ls") == .confirm(URL(string: "x-man-page://ls")!))
+        #expect(action("javascript:alert(1)") == .ignore)
+        #expect(action("data:text/html,hi") == .ignore)
+        #expect(action("missing.txt:12") == .ignore)
+        #expect(action("file:///no/such/file") == .ignore)
+        // A word that only looks like a scheme, with no app for it.
+        #expect(action("Makefile:12", handled: false) == .ignore)
+    }
+
+    @Test func filesAndBundlesGoThroughTheExecutableCheck() {
+        let bundle = directory + "/Thing.app"
+        try? FileManager.default.createDirectory(atPath: bundle, withIntermediateDirectories: true)
+        #expect(LinkRouter.externalAction(for: bundle, workingDirectory: nil)
+            == .openFile(URL(fileURLWithPath: bundle)))
+        #expect(LinkRouter.externalAction(for: "Thing.app", workingDirectory: directory)
+            == .openFile(URL(fileURLWithPath: bundle)))
+        #expect(LinkRouter.externalAction(for: "file://" + bundle, workingDirectory: nil)
+            == .openFile(URL(string: "file://" + bundle)!))
+        #expect(LinkRouter.externalAction(for: "main.swift:3", workingDirectory: directory)
+            == .openFile(URL(fileURLWithPath: directory + "/main.swift")))
+    }
+
+    @Test func remoteShellDirectoriesAreNotLocal() {
+        let names: Set<String> = ["localhost", "moo-mac.local", "moo-mac"]
+        #expect(TerminalSessionController.localDirectory(
+            fromOSC7: "kitty-shell-cwd://moo-mac/Users/me", localHostNames: names) == "/Users/me")
+        #expect(TerminalSessionController.localDirectory(
+            fromOSC7: "file://Moo-Mac.local/tmp", localHostNames: names) == "/tmp")
+        #expect(TerminalSessionController.localDirectory(
+            fromOSC7: "file:///tmp", localHostNames: names) == "/tmp")
+        #expect(TerminalSessionController.localDirectory(
+            fromOSC7: "file://moo-mac.local./tmp", localHostNames: names) == "/tmp")
+        #expect(TerminalSessionController.localDirectory(
+            fromOSC7: "file://prod-db-1/var/lib", localHostNames: names) == nil)
+        #expect(TerminalSessionController.localDirectory(
+            fromOSC7: "file://moo-mac.example.com/tmp", localHostNames: names) == nil)
+    }
+
+    @Test func symlinksAreJudgedByTheirTarget() throws {
+        let target = directory + "/run"
+        FileManager.default.createFile(atPath: target, contents: Data(), attributes: [.posixPermissions: 0o755])
+        let link = directory + "/README"
+        try? FileManager.default.removeItem(atPath: link)
+        try FileManager.default.createSymbolicLink(atPath: link, withDestinationPath: target)
+        #expect(!LinkRouter.isExecutable(URL(fileURLWithPath: link)))
+        #expect(LinkRouter.isExecutable(URL(fileURLWithPath: link).resolvingSymlinksInPath()))
+    }
+
     @Test func nonMarkdownAndDirectoriesStayExternal() {
         #expect(LinkRouter.classify("main.swift", workingDirectory: directory) == .external)
         #expect(LinkRouter.classify("docs.md", workingDirectory: directory) == .external)
