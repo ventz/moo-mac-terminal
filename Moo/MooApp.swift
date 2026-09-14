@@ -427,6 +427,12 @@ struct TerminalCommands: Commands {
             .keyboardShortcut("d", modifiers: [.command, .shift])
             .disabled(!isEnabled)
 
+            Button(controller?.workspace?.isZoomed == true ? "Unzoom Pane" : "Zoom Pane") {
+                controller?.workspace?.toggleZoom()
+            }
+            .keyboardShortcut(.return, modifiers: [.command, .shift])
+            .disabled(!isEnabled || (controller?.workspace?.paneCount ?? 0) < 2)
+
             // cmd+W closes the split you are in when there is more than one,
             // otherwise the workspace tab. Closing a workspace's last tab
             // leaves a fresh one behind rather than an empty workspace.

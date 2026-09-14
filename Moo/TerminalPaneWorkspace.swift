@@ -47,6 +47,9 @@ final class TerminalPaneWorkspace {
     private(set) var root: TerminalPaneNode
     private(set) var revision = 0
     private(set) var focusedControllerID: UUID
+    /// The pane filling the tab while zoomed. The others keep running,
+    /// detached from the window like a workspace that is switched away from.
+    private(set) var zoomedControllerID: UUID?
     @ObservationIgnored private let startsProcesses: Bool
     @ObservationIgnored weak var hostView: TerminalPaneHostView?
 
@@ -78,11 +81,39 @@ final class TerminalPaneWorkspace {
         guard contains(controller) else { return }
         if focusedControllerID != controller.id {
             focusedControllerID = controller.id
+            unzoom()
         }
+    }
+
+    var isZoomed: Bool { zoomedControllerID != nil }
+
+    /// The subtree on screen: the zoomed pane, or the whole tree.
+    var displayedRoot: TerminalPaneNode {
+        guard let zoomed = controllers.first(where: { $0.id == zoomedControllerID }),
+              let node = findNode(for: zoomed, in: root) else {
+            return root
+        }
+        return node
+    }
+
+    func toggleZoom() {
+        if isZoomed {
+            unzoom()
+        } else if paneCount > 1, let focused = focusedController {
+            zoomedControllerID = focused.id
+            revision += 1
+        }
+    }
+
+    private func unzoom() {
+        guard isZoomed else { return }
+        zoomedControllerID = nil
+        revision += 1
     }
 
     func split(_ controller: TerminalSessionController, orientation: TerminalPaneSplit) {
         guard let node = findNode(for: controller, in: root) else { return }
+        zoomedControllerID = nil
 
         let newController = TerminalSessionController(startsProcess: startsProcesses)
         newController.prepareForSplit(from: controller)
@@ -104,14 +135,21 @@ final class TerminalPaneWorkspace {
     }
 
     func selectSplit(in direction: TerminalPaneDirection) {
+        // Hidden panes have no frames to navigate by: show them first.
+        if isZoomed {
+            unzoom()
+            hostView?.showCurrentRevision()
+        }
         hostView?.selectSplit(in: direction)
     }
 
     func equalizeSplits() {
+        guard !isZoomed else { return }
         hostView?.equalizeSplits()
     }
 
     func moveDivider(in direction: TerminalPaneDirection) {
+        guard !isZoomed else { return }
         hostView?.moveDivider(in: direction)
     }
 
@@ -119,6 +157,7 @@ final class TerminalPaneWorkspace {
     @discardableResult
     func close(_ controller: TerminalSessionController) -> Bool {
         guard paneCount > 1, remove(controller, from: root) else { return false }
+        zoomedControllerID = nil
         controller.terminate()
         if focusedControllerID == controller.id, let fallback = controllers.first {
             focusedControllerID = fallback.id
@@ -155,6 +194,7 @@ final class TerminalPaneWorkspace {
         let nextIndex = (currentIndex + offset + controllers.count) % controllers.count
         let next = controllers[nextIndex]
         focusedControllerID = next.id
+        unzoom()
         next.requestFocus()
     }
 
@@ -245,11 +285,21 @@ struct TerminalPaneContainer: NSViewRepresentable {
     .frame(width: 720, height: 420)
 }
 
+/// The zoom badge sits over terminal text; clicks go through to the terminal.
+private final class PassThroughEffectView: NSVisualEffectView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
 final class TerminalPaneHostView: NSView {
     private(set) var workspace: TerminalPaneWorkspace
     private var document: TerminalDocument
     private var displayedRevision = -1
     private var paneViews: [UUID: NSView] = [:]
+    /// Split views by pane-tree node, and where their dividers were. A
+    /// rebuild makes new split views, so without this every zoom, split or
+    /// close would reset dividers the user dragged.
+    private var splitViews: [UUID: NSSplitView] = [:]
+    private var dividerFractions: [UUID: CGFloat] = [:]
 
     init(workspace: TerminalPaneWorkspace, document: TerminalDocument) {
         self.workspace = workspace
@@ -287,14 +337,25 @@ final class TerminalPaneHostView: NSView {
         rebuild()
     }
 
+    /// Rebuilds now rather than on SwiftUI's next update, for callers that
+    /// need the new pane frames immediately.
+    func showCurrentRevision() {
+        guard displayedRevision != workspace.revision else { return }
+        displayedRevision = workspace.revision
+        rebuild()
+        layoutSubtreeIfNeeded()
+    }
+
     /// Detaches the currently shown terminals without ending them.
     func detachForReuse() {
         if let terminal = window?.firstResponder as? AppTerminalView,
            terminal.isDescendant(of: self) {
             window?.makeFirstResponder(nil)
         }
+        rememberDividerPositions()
         subviews.forEach { $0.removeFromSuperview() }
         paneViews.removeAll()
+        splitViews.removeAll()
         displayedRevision = -1
         if workspace.hostView === self {
             workspace.hostView = nil
@@ -313,12 +374,18 @@ final class TerminalPaneHostView: NSView {
            terminal.isDescendant(of: self) {
             window?.makeFirstResponder(nil)
         }
+        rememberDividerPositions()
         subviews.forEach { $0.removeFromSuperview() }
         paneViews.removeAll()
-        let rootView = makeView(for: workspace.root)
+        splitViews.removeAll()
+        let rootView = makeView(for: workspace.displayedRoot)
         rootView.frame = bounds
         rootView.autoresizingMask = [.width, .height]
         addSubview(rootView)
+        if workspace.isZoomed {
+            addSubview(makeZoomBadge())
+        }
+        restoreDividerPositions(from: workspace.displayedRoot)
 
         // Reattaching a terminal view clears AppKit's first responder. Ask
         // for focus after the new split hierarchy is in the window.
@@ -403,8 +470,67 @@ final class TerminalPaneHostView: NSView {
             splitView.dividerStyle = .thin
             splitView.addArrangedSubview(makeView(for: first))
             splitView.addArrangedSubview(makeView(for: second))
+            splitViews[node.id] = splitView
             return splitView
         }
+    }
+
+    /// Records each on-screen divider as a fraction, merging into what is
+    /// already known so dividers hidden by a zoom keep their last position.
+    private func rememberDividerPositions() {
+        for (id, splitView) in splitViews where splitView.arrangedSubviews.count == 2 {
+            let length = splitView.isVertical ? splitView.bounds.width : splitView.bounds.height
+            let available = length - splitView.dividerThickness
+            guard available > 0 else { continue }
+            let first = splitView.arrangedSubviews[0].frame
+            dividerFractions[id] = (splitView.isVertical ? first.width : first.height) / available
+        }
+    }
+
+    /// Parents first: a child split is sized by its parent's divider.
+    private func restoreDividerPositions(from node: TerminalPaneNode) {
+        guard !dividerFractions.isEmpty, bounds.width > 0, bounds.height > 0 else { return }
+        layoutSubtreeIfNeeded()
+        applyDividerPosition(for: node)
+    }
+
+    private func applyDividerPosition(for node: TerminalPaneNode) {
+        guard case .split(_, let first, let second) = node.content else { return }
+        if let splitView = splitViews[node.id], let fraction = dividerFractions[node.id] {
+            let length = splitView.isVertical ? splitView.bounds.width : splitView.bounds.height
+            splitView.setPosition(fraction * (length - splitView.dividerThickness), ofDividerAt: 0)
+            splitView.adjustSubviews()
+            splitView.layoutSubtreeIfNeeded()
+        }
+        applyDividerPosition(for: first)
+        applyDividerPosition(for: second)
+    }
+
+    /// A small reminder that other panes are hidden, pinned top-right.
+    private func makeZoomBadge() -> NSView {
+        let hidden = workspace.paneCount - 1
+        let label = NSTextField(labelWithString: "Zoomed · \(hidden) hidden · ⇧⌘↩")
+        label.font = .systemFont(ofSize: NSFont.smallSystemFontSize, weight: .medium)
+        label.textColor = .secondaryLabelColor
+        label.toolTip = "Zoom Pane shows the other panes again"
+        let badge = PassThroughEffectView()
+        badge.material = .hudWindow
+        badge.state = .active
+        badge.wantsLayer = true
+        badge.layer?.cornerRadius = 6
+        label.translatesAutoresizingMaskIntoConstraints = false
+        badge.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: badge.leadingAnchor, constant: 8),
+            label.trailingAnchor.constraint(equalTo: badge.trailingAnchor, constant: -8),
+            label.topAnchor.constraint(equalTo: badge.topAnchor, constant: 3),
+            label.bottomAnchor.constraint(equalTo: badge.bottomAnchor, constant: -3)
+        ])
+        let size = badge.fittingSize
+        badge.frame = CGRect(x: bounds.maxX - size.width - 10, y: bounds.maxY - size.height - 6,
+                             width: size.width, height: size.height)
+        badge.autoresizingMask = [.minXMargin, .minYMargin]
+        return badge
     }
 
     private func isInDirection(
