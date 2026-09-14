@@ -30,6 +30,9 @@ final class WindowScope: Identifiable {
     /// choice made in any window.
     var isSidebarVisible = UserDefaults.standard.bool(forKey: ProjectSidebarDefaults.isVisible)
 
+    /// The ⌘K palette is open over this window.
+    var isPaletteVisible = false
+
     /// Set once the window starts closing. Its view renders no terminal from
     /// then on, so tearing the workspace down cannot start a shell in it.
     var isClosed = false
