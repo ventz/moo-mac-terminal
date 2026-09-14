@@ -5,8 +5,9 @@
 <h1 align="center">Moo Terminal</h1>
 
 <p align="center">
-  A native macOS terminal that keeps your work grouped — terminals, Markdown
-  previews and web pages side by side in one window, organized into projects.
+  A native macOS terminal with Ghostty-class speed — faster on throughput and
+  keystroke latency in <a href="docs/PERFORMANCE.md">measured runs</a> — and the
+  workspace features that make cmux good for running agents.
 </p>
 
 <p align="center">
@@ -18,8 +19,11 @@
 
 - [Overview](#overview)
 - [Quick Install](#quick-install)
+- [Speed](#speed)
 - [Features](#features)
 - [Usage](#usage)
+- [Keyboard Shortcuts](#keyboard-shortcuts)
+- [How Moo Came Out of Tecolot](#how-moo-came-out-of-tecolot)
 - [Building from Source](#building-from-source)
 - [Documentation](#documentation)
 - [Acknowledgements](#acknowledgements)
@@ -28,14 +32,19 @@
 
 ## Overview
 
-A terminal window is rarely just terminals. You are reading a README, watching
-a dev server's page, and running a build — and those normally live in three
-different applications with three different window stacks.
+Moo is my personal terminal setup: the one I use all day, tuned to how I work.
+I share it in case it is useful to someone else, but its defaults, shortcuts
+and features follow my workflow, and there is no promise of support.
 
-Moo groups terminals into **projects** in a sidebar, and lets a project's tabs
-hold Markdown previews and web pages alongside shells. Switching projects
-switches the whole working set at once; the shells you left behind keep
-running.
+It aims for two things at once:
+
+- **The speed of Ghostty.** Moo runs on [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm)
+  with engine work of its own, and in side-by-side runs it pushes output
+  through a pty faster than Ghostty and gets a keystroke on screen sooner.
+- **The workflow of cmux.** Terminals are grouped into workspaces in a sidebar
+  that says which ones are busy, finished or waiting for you. Tabs hold Markdown
+  previews and web pages beside shells, panes split and zoom, and ⌘K reaches
+  every command and anything worth grabbing on screen.
 
 ## Quick Install
 
@@ -46,56 +55,117 @@ xcodebuild -downloadComponent MetalToolchain   # one time, ~688 MB
 open Moo.xcodeproj                             # ⌘R to build and run
 ```
 
-Requires macOS 15+ and Xcode 26. The Metal Toolchain is not optional — the
-terminal renderer compiles a Metal shader, and a stock Xcode fails ~90% of the
-way through the build without it.
+Requires macOS 15+ and Xcode 26. The Metal Toolchain is not optional: the
+renderer compiles a Metal shader, and a stock Xcode fails about 90% of the way
+through the build without it.
+
+## Speed
+
+Measured on 2026-09-13, M3 MacBook Pro at 120 Hz, against Ghostty 1.3.1:
+
+| | Moo | Ghostty | |
+|---|---|---|---|
+| 100 MB plain text through a pty | 0.33 s | 1.12 s | 3.4× faster |
+| 60 MB 256-color text | 0.31 s | 0.79 s | 2.5× faster |
+| 5,000 full-screen redraws | 0.15 s | 0.74 s | 5.0× faster |
+| Keystroke to screen, p50 / p99 | 21 / 27 ms | 28.6 / 39 ms | 7.5 / 12 ms sooner |
+| Idle CPU, one window, per minute | 0.01–0.02 s | < 0.01 s | Ghostty lower |
+
+Plain text is already at the limit of a macOS pty, so the gains that matter are
+colored output, redraws and latency. How each number was taken, what was tried
+and rejected, and the traps in measuring terminals are in
+[docs/PERFORMANCE.md](docs/PERFORMANCE.md).
 
 ## Features
 
-- **Projects.** A sidebar groups terminals into named projects, each with its
-  own tabs. Selecting a project swaps the window's contents; nothing is torn
-  down, so background projects keep running.
-- **Live project status.** Each row reports whether it is idle, running a
-  command, or has unread output, read from the shell's actual child processes
-  rather than guessed from screen activity.
-- **Waiting-for-you notifications.** When an agent such as Claude Code asks for
-  input, the project row, its tab and a menu bar list say so. Click an entry to
-  jump straight to that window, project, tab and split.
-- **Markdown preview tabs.** Open a `.md` file as a rendered, GitHub-styled tab
-  next to the shell that produced it.
-- **Browser tabs.** Open a URL as a real web tab in the same window — a dev
-  server, a doc page, an API console — instead of switching to a browser.
-- **Ads blocked, pages sandboxed.** Local files and remote pages are treated as
-  untrusted: no arbitrary file access, no automatic launching of what a page
-  points at, and ad blocking on by default.
-- Plus splits, profiles, themes, AppleScript and App Intents automation, and
-  session persistence.
+- **Workspaces.** A sidebar groups terminals into projects, each with its own
+  tabs. Switching swaps the whole working set; the shells left behind keep
+  running. Each row shows whether it is idle, running, has new output, or is
+  waiting for you. Workspaces, tabs and splits reopen after a relaunch.
+- **Waiting-for-you notifications.** When an agent such as Claude Code asks
+  for input, its tab, its workspace, the menu bar bell and the Dock say so.
+  Click an entry to land in that window, workspace, tab and split.
+- **Command status.** A tab whose last command failed gets a red mark, and a
+  long command finishing in a pane you are not looking at notifies you.
+- **Command palette.** ⌘K lists every menu command plus the links, paths,
+  commit hashes and IP addresses on screen. Return runs or copies; ⌘Return
+  opens.
+- **Tabs beyond shells.** Markdown files open as rendered, GitHub-style tabs;
+  web pages open as browser tabs with ad blocking, next to the terminal that
+  printed them.
+- **Splits and zoom.** Split with ⌘D and ⇧⌘D; ⇧⌘↩ zooms one pane to fill the
+  tab and back, keeping the dividers where you left them.
+- **Safe by default.** Secure Keyboard Entry turns on by itself at password
+  prompts. Links in terminal output open only the web and mail without asking,
+  and files that would run are revealed in Finder instead.
 
 ## Usage
 
-Create a project from the sidebar, or `⌘T` for a new tab inside the current
-one. The status dot on each project row is live: **Idle** at a prompt,
-**Running** with a command in flight, **Activity** when a background project
-produced output, **Waiting** when a program sent a notification you have not
-looked at.
+Create a workspace from the sidebar (⌘B shows it), or press ⌘T for a new tab
+in the current one. The status on each row is live: **Idle** at a prompt,
+**Running** with a command in flight, **Activity** when a background workspace
+printed something, **Waiting** when a program asked for you.
 
-**Notifications** come from the escape sequences iTerm2, Ghostty and kitty
-display (OSC 9, OSC 777, OSC 99). They collect in the menu bar bell and in
-Window → Notifications; `⇧⌘U` jumps to the newest unread one. An entry is read
-once you focus its pane. Settings → Notifications chooses the rest: banners,
-menu bar icon, Dock badge and bounce, tab marks, a sound, and reading the
-message aloud. Claude Code only sends them to terminals it
-recognizes, so point it at Ghostty's format once: inside Claude Code, run
-`/config` and set **Notifications** to `ghostty`.
+**Notifications** come from the escape sequences iTerm2, Ghostty and kitty use
+(OSC 9, 777 and 99) and collect in the menu bar bell and Window → Notifications.
+Settings → Notifications picks banners, Dock badge, sounds and the long-command
+threshold. Claude Code only notifies terminals it recognizes: inside Claude
+Code, run `/config` and set **Notifications** to `ghostty`.
 
-**Preview a Markdown file** with `⇧⌘M` (File → Open Markdown Preview…), or
-command-click any `.md` path printed in the terminal — `ls`, `git status` and
-build output all become clickable. The preview live-reloads as the file
-changes; `⌘R` reloads by hand. `.md`, `.markdown`, `.mdown`, `.mkd` and `.mdx`
-are recognized.
+**Command status** needs Moo's shell integration for zsh, bash, fish or elvish,
+which reports when each command starts and how it exited.
 
-Open a URL as a browser tab the same way: command-click a link in terminal
-output, or use the File menu.
+**Markdown and web tabs**: command-click a `.md` path or a link in terminal
+output, or use ⇧⌘M and the File menu. Previews reload as the file changes.
+
+**Restore** is on by default (Settings → Projects). Shells start fresh in each
+pane's last directory; scrollback, commands and environment are never saved.
+
+## Keyboard Shortcuts
+
+| Keys | Action |
+|---|---|
+| ⌘K | Command palette |
+| ⌥⌘K | Clear scrollback |
+| ⌘T / ⌘W | New tab / close pane or tab |
+| ⌘D / ⇧⌘D | Split side by side / stacked |
+| ⇧⌘↩ | Zoom pane |
+| ⌥⌘ arrows | Move between splits |
+| ⌘↑ / ⌘↓ | Jump to the previous / next prompt |
+| ⌘B | Show or hide the sidebar |
+| ⇧⌘U | Newest unread notification |
+| ⇧⌘M | Open a Markdown preview |
+
+## How Moo Came Out of Tecolot
+
+Moo started on 2026-09-10 as a personal customization of Miguel de Icaza's
+[Tecolot](https://github.com/migueldeicaza/Tecolot), forked at `v0.0.22`. What
+began as three additions (projects, Markdown tabs, browser tabs) grew into a
+hard fork: it now goes its own way, takes upstream fixes by hand, and sends
+fixes that belong upstream back as pull requests to Tecolot and SwiftTerm.
+
+What Moo adds on top of Tecolot:
+
+- **Workspaces**: projects in a sidebar with live status, their own tabs, and
+  selection kept per window, restored with their tabs and splits on relaunch.
+- **Markdown preview tabs**, hardened against hostile files.
+- **Browser tabs** with ad blocking, sandboxed against hostile pages.
+- **Waiting-for-you notifications** from OSC 9, 777 and 99, with a menu bar
+  bell, Dock badge, sounds and tab marks.
+- **Failed-command marks and long-command notifications** from OSC 133.
+- **A ⌘K command palette** over every menu command and what is on screen.
+- **Pane zoom**, horizontal splits on ⇧⌘D, and new tabs that open where the
+  last one was.
+- **Engine speed**: SwiftTerm built from a branch carrying an attribute intern
+  cache (+26.5% on colored output) and idle process polling cut back.
+- **Security**: automatic Secure Keyboard Entry at password prompts; links from
+  output limited to web and mail unless confirmed; files that would run revealed,
+  never launched; remote shells' directories never treated as local; clipboard
+  requests naming the pane and defaulting to Deny.
+- **Everyday details**: drop files onto the terminal to insert their paths,
+  command-click a bare filename, Terminal.app-style window titles, tabs named
+  after the running program, and profile files that carry their theme and app
+  settings.
 
 ## Building from Source
 
@@ -109,60 +179,34 @@ xcodebuild build -project Moo.xcodeproj -scheme Moo \
 open build/DerivedData/Build/Products/Debug/Moo.app
 ```
 
-`-skipPackagePluginValidation` is required — SwiftTerm ships a build-tool
-plugin.
-
-Release build and a distributable DMG:
-
-```bash
-xcodebuild build -project Moo.xcodeproj -scheme Moo \
-  -configuration Release -destination "generic/platform=macOS" \
-  -skipPackagePluginValidation \
-  -derivedDataPath build/DerivedDataRelease
-scripts/create-dmg.sh build/DerivedDataRelease/Build/Products/Release/Moo.app \
-  ~/Desktop/Moo.dmg "Moo"
-```
-
-Release builds are universal (`x86_64 arm64`); local Debug builds are
-arm64-only.
-
-A DMG signed with a self-signed or ad-hoc identity reports *"Moo.app is
-damaged"* on another Mac. That message means unsigned, not corrupt. Clear it
-with `xattr -dr com.apple.quarantine /Applications/Moo.app`, or sign with a
-Developer ID certificate and notarize.
+`-skipPackagePluginValidation` is required: SwiftTerm ships a build-tool
+plugin. Release builds are universal (`x86_64 arm64`); local Debug builds are
+arm64-only. Release packaging, signing and notarization are in
+[docs/DEVELOPING.md](docs/DEVELOPING.md).
 
 ## Documentation
 
-**[docs/DEVELOPING.md](docs/DEVELOPING.md)** — the full developer guide:
+**[docs/DEVELOPING.md](docs/DEVELOPING.md)**: the developer guide, covering
 build prerequisites, code signing and why the certificate type matters,
-obtaining a Developer ID certificate, notarization setup, cutting a release,
-tracking upstream, and a troubleshooting table for the errors macOS gives you
-that blame the wrong thing.
+notarization, cutting a release, tracking upstream, and troubleshooting.
 
-**[docs/PERFORMANCE.md](docs/PERFORMANCE.md)** — how Moo compares with
-Ghostty on throughput, keystroke latency and idle CPU, where the latency goes,
-the SwiftTerm engine changes that paid off and the ones that did not, and how
-each number was measured.
+**[docs/PERFORMANCE.md](docs/PERFORMANCE.md)**: how Moo compares with Ghostty
+on throughput, keystroke latency and idle CPU, where the latency goes, the
+engine changes that paid off and the ones that did not, and how each number
+was measured.
 
 ## Acknowledgements
 
 **Moo Terminal exists because of [Miguel de Icaza](https://github.com/migueldeicaza).**
 
-This project started as a personal customization of his macOS terminal,
-[Tecolot](https://github.com/migueldeicaza/Tecolot), built on his terminal
-engine, [SwiftTerm](https://github.com/migueldeicaza/SwiftTerm). Tecolot is the
-application underneath — the windows and panes, the profiles and themes, the
-automation, the persistence — and SwiftTerm is the emulation itself: parsing,
-buffers, rendering, the pty. Nearly every line of this program is his work.
-
-What began as three customizations became this fork:
-
-* **Projects + panes** — a way to manage windows and tabs as one working set
-* **Markdown preview** — Markdown as tabs and windows
-* **Web browser** — browser tabs and windows, with ad blocking
+Tecolot is the application underneath: the windows and panes, the profiles and
+themes, the automation, the persistence. SwiftTerm, also his, is the emulation
+itself: parsing, buffers, rendering, the pty. Nearly every line of this program
+is his work.
 
 Both Tecolot and SwiftTerm are MIT licensed, © 2026 Miguel de Icaza. Moo is not
-affiliated with or endorsed by him.
+affiliated with or endorsed by him, nor by the Ghostty or cmux projects it is
+compared with here.
 
 **Please report bugs to the right place.** If a problem reproduces in Tecolot
 itself, it belongs [upstream](https://github.com/migueldeicaza/Tecolot/issues),
