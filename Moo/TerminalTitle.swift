@@ -178,6 +178,20 @@ enum TerminalProcessInspector {
         return best?.pid
     }
 
+    /// Whether the pty is reading a password: echo off with line editing on,
+    /// the mode sudo, ssh, passwd and `read -s` set. Raw-mode prompts
+    /// (pinentry-curses) and prompts on a remote host inside ssh read as no.
+    static func isPasswordPrompt(ptyDescriptor: Int32) -> Bool {
+        guard ptyDescriptor >= 0 else { return false }
+        var attributes = termios()
+        guard tcgetattr(ptyDescriptor, &attributes) == 0 else { return false }
+        return isPasswordMode(localFlags: attributes.c_lflag)
+    }
+
+    static func isPasswordMode(localFlags: tcflag_t) -> Bool {
+        localFlags & tcflag_t(ECHO) == 0 && localFlags & tcflag_t(ICANON) != 0
+    }
+
     /// "ttys003", the device name of the pty's terminal side
     static func ttyName(ptyDescriptor: Int32) -> String? {
         guard ptyDescriptor >= 0, let path = ptsname(ptyDescriptor) else { return nil }

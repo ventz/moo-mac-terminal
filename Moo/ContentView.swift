@@ -303,6 +303,9 @@ struct ContentView: View {
                 .allowsHitTesting(!showsTerminal)
                 .accessibilityHidden(showsTerminal)
         }
+            .overlay(alignment: .bottomTrailing) {
+                SecureInputBadge()
+            }
             .onChange(of: onScreenTabKey) {
                 focusOnScreenTab()
             }

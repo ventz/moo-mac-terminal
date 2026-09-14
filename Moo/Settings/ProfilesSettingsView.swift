@@ -273,7 +273,7 @@ struct ProfilesSettingsView: View {
             profileIDs[exportedID.uuidString] = importedProfileID.uuidString
         }
         AppSettings.apply(embedded.settings, profileIDs: profileIDs)
-        SecureKeyboardEntry.shared.isEnabled = UserDefaults.standard.bool(forKey: AppSettings.secureKeyboardEntry)
+        SecureKeyboardEntry.shared.reloadFromDefaults()
     }
 
     private func exportSelectedProfile() {
