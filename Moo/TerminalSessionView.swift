@@ -62,6 +62,10 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     /// The pty's device name, fixed once the process starts
     @ObservationIgnored private var cachedTTYName: String?
     @ObservationIgnored private var postedDirectory: String?
+    /// How the last command ended; nil while one runs or before the first.
+    private(set) var lastCommand: CommandCompletion?
+    @ObservationIgnored private var commandTracker = CommandTracker()
+    @ObservationIgnored private var longCommandNotifier = LongCommandNotifier()
     @ObservationIgnored private var zoomGesture: NSMagnificationGestureRecognizer?
     @ObservationIgnored private var keyEventMonitor: Any?
     @ObservationIgnored private var snapshotWorkItem: DispatchWorkItem?
@@ -407,15 +411,25 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     ) -> KittyClipboardPermissionResult {
         let verb = request.direction == .read ? "read" : "write"
         let who = request.name.isEmpty ? "An unnamed program" : request.name
+        // Name the pane: the one asking may be hidden by a zoom, or be a
+        // split other than the one being typed in. Focus is not moved to it.
+        var pane = AttentionCenter.location(of: self)
+        if let workspace, workspace.isZoomed, workspace.zoomedControllerID != id {
+            pane += " (hidden while zoomed)"
+        }
         let alert = NSAlert()
         alert.messageText = "Allow the program to \(verb) the clipboard?"
         // The name and the MIME list come from the program in the terminal.
         // Show them as data, never as instructions.
         alert.informativeText =
-            "\(who) asks to \(verb) these clipboard types:\n\n"
+            "\(who) in \(pane) asks to \(verb) these clipboard types:\n\n"
             + request.mimeTypes.joined(separator: ", ")
-        alert.addButton(withTitle: "Allow")
-        alert.addButton(withTitle: "Deny")
+        let allow = alert.addButton(withTitle: "Allow")
+        let deny = alert.addButton(withTitle: "Deny")
+        // Return denies: a prompt that appears mid-typing must not be
+        // approved by the next keystroke.
+        allow.keyEquivalent = ""
+        deny.keyEquivalent = "\r"
         if request.canRememberPassword {
             alert.showsSuppressionButton = true
             alert.suppressionButton?.title = "Remember for this session"
@@ -452,10 +466,33 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
 
     /// A notification escape sequence from the program in this pane.
     func noteOscEvent(_ event: TerminalOscEvent) {
+        if event.code == CommandTracker.oscCode {
+            if event.payload.count <= CommandTracker.payloadLimit {
+                noteCommandMark(String(decoding: event.payload, as: UTF8.self))
+            }
+            return
+        }
         let notification = event.code == 99
             ? kittyNotifications.consume(event.payload)
             : TerminalNotificationParser.parse(code: event.code, payload: event.payload)
         guard let notification else { return }
+        AttentionCenter.shared.post(notification, from: self)
+    }
+
+    private func noteCommandMark(_ payload: String) {
+        // The same field test as CommandTracker, and writes only on change:
+        // lastCommand is observed by the tab strip.
+        if payload.split(separator: ";", maxSplits: 1).first == "C", lastCommand != nil {
+            lastCommand = nil
+        }
+        guard let completion = commandTracker.consume(payload) else { return }
+        if lastCommand != completion {
+            lastCommand = completion
+        }
+        guard AttentionDefaults.longCommandsEnabled,
+              let notification = longCommandNotifier.notification(
+                for: completion, threshold: AttentionDefaults.longCommandThreshold
+              ) else { return }
         AttentionCenter.shared.post(notification, from: self)
     }
 
