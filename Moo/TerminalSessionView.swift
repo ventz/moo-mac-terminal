@@ -166,12 +166,49 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     /// (which lands in the home directory).
     var pendingLaunchDirectory: String? { launchDirectory }
 
-    /// The directory the shell reported via OSC 7, as a filesystem path
+    /// The directory the shell reported via OSC 7, as a local filesystem
+    /// path — nil when the shell is on another machine. Use this for anything
+    /// that touches files: new tabs, link resolution, restore.
     var currentWorkingDirectory: String? {
-        guard let posted = postedDirectory, let url = URL(string: posted) else {
-            return nil
+        postedDirectory.flatMap {
+            Self.localDirectory(fromOSC7: $0, localHostNames: Self.localHostNames)
         }
-        return url.path
+    }
+
+    /// The reported directory's path wherever it is, for display only: the
+    /// title and sidebar still show where an `ssh` session is.
+    var displayedWorkingDirectory: String? {
+        postedDirectory.flatMap { URL(string: $0)?.path }.flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    /// The path from an OSC 7 report, or nil when it names another machine.
+    /// A shell inside `ssh` reports the remote host's directory; treating
+    /// that as local would start new tabs there and resolve printed paths
+    /// against it.
+    nonisolated static func localDirectory(fromOSC7 posted: String, localHostNames: Set<String>) -> String? {
+        guard let url = URL(string: posted) else { return nil }
+        if let host = url.host, !host.isEmpty {
+            // Exact names only: shortening the incoming host would let
+            // `my-mac.example.com` pass for `my-mac`.
+            var lowered = host.lowercased()
+            if lowered.hasSuffix(".") { lowered.removeLast() }
+            guard localHostNames.contains(lowered) else { return nil }
+        }
+        return url.path.isEmpty ? nil : url.path
+    }
+
+    /// This Mac's names as a shell reports them in `$HOST`. Read with
+    /// gethostname, which never waits on DNS the way ProcessInfo.hostName can,
+    /// and read each time so a rename in Sharing settings takes effect.
+    nonisolated static var localHostNames: Set<String> {
+        var buffer = [CChar](repeating: 0, count: 256)
+        var names: Set<String> = ["localhost"]
+        if gethostname(&buffer, buffer.count) == 0 {
+            let full = String(cString: buffer).lowercased()
+            names.insert(full)
+            if let short = full.split(separator: ".").first { names.insert(String(short)) }
+        }
+        return names
     }
 
     /// The theme currently in effect for this session
@@ -1034,7 +1071,7 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         var inputs = TerminalTitleInputs(
             customTitle: profile.titleOverride,
             activeTitle: displayedTerminalTitle,
-            workingDirectory: currentWorkingDirectory,
+            workingDirectory: displayedWorkingDirectory,
             homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path,
             profileName: profile.name,
             columns: dimensions.cols,

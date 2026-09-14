@@ -381,7 +381,7 @@ final class WorkspaceTabClosePolicyTests {
         let session = makeSession()
         let first = session.ensureTab()
         first.panes?.focusedController?
-            .updateCurrentDirectory("kitty-shell-cwd://host/Users/ventz/git/moo-mac-terminal")
+            .updateCurrentDirectory("kitty-shell-cwd://localhost/Users/ventz/git/moo-mac-terminal")
 
         let added = session.addTab()
         #expect(added.panes?.focusedController?.pendingLaunchDirectory
@@ -402,7 +402,7 @@ final class WorkspaceTabClosePolicyTests {
         let session = makeSession()
         let first = session.ensureTab()
         first.panes?.focusedController?
-            .updateCurrentDirectory("kitty-shell-cwd://host/Users/ventz/git")
+            .updateCurrentDirectory("kitty-shell-cwd://localhost/Users/ventz/git")
 
         let added = session.addTab()
         #expect(added.panes?.focusedController?.pendingLaunchDirectory == nil)
@@ -423,7 +423,7 @@ final class WorkspaceTabClosePolicyTests {
         let session = makeSession()
         let terminal = session.ensureTab()
         terminal.panes?.focusedController?
-            .updateCurrentDirectory("kitty-shell-cwd://host/Users/ventz/git")
+            .updateCurrentDirectory("kitty-shell-cwd://localhost/Users/ventz/git")
         session.addTab(web: StubWebContent())
 
         let added = session.addTab()
