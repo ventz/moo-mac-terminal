@@ -47,6 +47,7 @@ final class PreferenceMigrator {
         "startupProfileID",
         "startupWindowGroupID",
         "SecureKeyboardEntry",
+        "SecureKeyboardEntryAtPasswordPrompts",
         "LogHostOutput",
         "useMetalRenderer"
     ] + ProjectSidebarDefaults.managedKeys + [LinkRoutingDefaults.opensLinksInApp, ContentBlockingDefaults.enabledKey]
@@ -56,8 +57,9 @@ final class PreferenceMigrator {
         applicationSupportDirectory: URL,
         backupDirectory: URL,
         issueCenter: PersistenceIssueCenter,
-        applySecureKeyboardEntry: @escaping @MainActor (Bool) -> Void = {
-            SecureKeyboardEntry.shared.isEnabled = $0
+        applySecureKeyboardEntry: @escaping @MainActor (Bool) -> Void = { _ in
+            // Restore has written both secure-input keys by now.
+            SecureKeyboardEntry.shared.reloadFromDefaults()
         }
     ) {
         self.defaults = defaults

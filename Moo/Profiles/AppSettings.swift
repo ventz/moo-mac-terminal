@@ -64,6 +64,7 @@ struct AppSetting {
 enum AppSettings {
     static let startupProfileID = "startupProfileID"
     static let secureKeyboardEntry = "SecureKeyboardEntry"
+    static let secureKeyboardEntryAtPasswordPrompts = "SecureKeyboardEntryAtPasswordPrompts"
 
     static let all: [AppSetting] = [
         // General
@@ -76,6 +77,7 @@ enum AppSettings {
         AppSetting(key: "restoredRowsLimit", kind: .int),
         AppSetting(key: "useMetalRenderer", kind: .bool),
         AppSetting(key: secureKeyboardEntry, kind: .bool),
+        AppSetting(key: secureKeyboardEntryAtPasswordPrompts, kind: .bool),
         AppSetting(key: "LogHostOutput", kind: .bool),
         AppSetting(key: "webInspectorEnabled", kind: .bool),
         AppSetting(key: LinkRoutingDefaults.opensLinksInApp, kind: .bool),

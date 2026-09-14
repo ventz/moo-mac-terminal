@@ -105,41 +105,192 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// macOS Secure Keyboard Entry, which keeps other processes from reading
+/// keystrokes. On when the user turns it on, and — like Ghostty — by itself
+/// while the focused pane reads a password.
+///
+/// This is the only place that calls Enable/DisableSecureEventInput. The OS
+/// counts enables per process, so a second Enable, or a missed Disable,
+/// would leave every app's typing protected until Moo quits.
 @Observable
 @MainActor
 final class SecureKeyboardEntry {
     static let shared = SecureKeyboardEntry()
 
-    @ObservationIgnored private var enabledByThisApp = false
+    /// How often the key pane's pty is checked for a password prompt: one
+    /// tcgetattr, only while Moo is active and the setting is on. Never on
+    /// SwiftTerm's parse thread.
+    static let promptCheckInterval: TimeInterval = 0.25
+
+    /// The user's own switch.
     var isEnabled = false {
         didSet {
+            defaults.set(isEnabled, forKey: AppSettings.secureKeyboardEntry)
             applyState()
         }
     }
 
-    private init() {
-        isEnabled = UserDefaults.standard.bool(forKey: "SecureKeyboardEntry")
+    /// Turn it on automatically while the focused pane reads a password.
+    var protectsPasswordPrompts = true {
+        didSet {
+            defaults.set(protectsPasswordPrompts, forKey: AppSettings.secureKeyboardEntryAtPasswordPrompts)
+            refreshPromptWatching()
+        }
+    }
+
+    /// A password prompt is holding it on right now.
+    private(set) var isProtectingPrompt = false
+    /// Secure input is on because of Moo, for either reason.
+    private(set) var isActive = false
+
+    @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private let enableInput: () -> Bool
+    @ObservationIgnored private let disableInput: () -> Void
+    @ObservationIgnored private let focusedPaneIsAtPasswordPrompt: () -> Bool
+    @ObservationIgnored private let isAppActive: () -> Bool
+    @ObservationIgnored private let watchesWithTimer: Bool
+    @ObservationIgnored private var promptTimer: Timer?
+    @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    /// The key pane reads a password, whether or not enabling worked.
+    @ObservationIgnored private var promptDetected = false
+    @ObservationIgnored private var isTerminated = false
+
+    private convenience init() {
+        self.init(
+            defaults: .standard,
+            enableInput: { EnableSecureEventInput() == noErr },
+            disableInput: { DisableSecureEventInput() },
+            focusedPaneIsAtPasswordPrompt: SecureKeyboardEntry.keyPaneIsAtPasswordPrompt,
+            isAppActive: { NSApp?.isActive ?? false },
+            watchesWithTimer: true
+        )
+        let center = NotificationCenter.default
+        for name in [NSApplication.didBecomeActiveNotification, NSApplication.didResignActiveNotification] {
+            observers.append(center.addObserver(forName: name, object: nil, queue: .main) { _ in
+                MainActor.assumeIsolated { SecureKeyboardEntry.shared.refreshPromptWatching() }
+            })
+        }
+    }
+
+    init(
+        defaults: UserDefaults,
+        enableInput: @escaping () -> Bool,
+        disableInput: @escaping () -> Void,
+        focusedPaneIsAtPasswordPrompt: @escaping () -> Bool,
+        isAppActive: @escaping () -> Bool,
+        watchesWithTimer: Bool = false
+    ) {
+        self.defaults = defaults
+        self.enableInput = enableInput
+        self.disableInput = disableInput
+        self.focusedPaneIsAtPasswordPrompt = focusedPaneIsAtPasswordPrompt
+        self.isAppActive = isAppActive
+        self.watchesWithTimer = watchesWithTimer
+        isEnabled = defaults.bool(forKey: AppSettings.secureKeyboardEntry)
+        protectsPasswordPrompts = defaults.object(forKey: AppSettings.secureKeyboardEntryAtPasswordPrompts) as? Bool ?? true
         applyState()
+        refreshPromptWatching()
+    }
+
+    /// Picks up both settings after an import or a restore wrote them.
+    func reloadFromDefaults() {
+        isEnabled = defaults.bool(forKey: AppSettings.secureKeyboardEntry)
+        protectsPasswordPrompts = defaults.object(forKey: AppSettings.secureKeyboardEntryAtPasswordPrompts) as? Bool ?? true
     }
 
     func disableForTermination() {
-        guard enabledByThisApp else { return }
-        DisableSecureEventInput()
-        enabledByThisApp = false
+        isTerminated = true
+        promptTimer?.invalidate()
+        promptTimer = nil
+        guard isActive else { return }
+        disableInput()
+        isActive = false
+        isProtectingPrompt = false
     }
 
-    private func applyState() {
-        UserDefaults.standard.set(isEnabled, forKey: "SecureKeyboardEntry")
-        if isEnabled {
-            guard !enabledByThisApp else { return }
-            guard EnableSecureEventInput() == noErr else {
-                isEnabled = false
-                return
+    /// Starts or stops the prompt check as the app activates, deactivates or
+    /// the setting changes, then checks once.
+    func refreshPromptWatching() {
+        guard !isTerminated else { return }
+        let watches = protectsPasswordPrompts && isAppActive()
+        if watches, watchesWithTimer, promptTimer == nil {
+            let timer = Timer(timeInterval: Self.promptCheckInterval, repeats: true) { _ in
+                MainActor.assumeIsolated { SecureKeyboardEntry.shared.checkPasswordPrompt() }
             }
-            enabledByThisApp = true
-        } else if enabledByThisApp {
-            DisableSecureEventInput()
-            enabledByThisApp = false
+            // Common modes: keep checking while a menu is open or a window resizes.
+            RunLoop.main.add(timer, forMode: .common)
+            promptTimer = timer
+        } else if !watches {
+            promptTimer?.invalidate()
+            promptTimer = nil
+        }
+        checkPasswordPrompt()
+    }
+
+    /// Cheap enough to call from output arriving: one tcgetattr.
+    func checkPasswordPrompt() {
+        guard !isTerminated else { return }
+        promptDetected = protectsPasswordPrompts && isAppActive() && focusedPaneIsAtPasswordPrompt()
+        applyState()
+    }
+
+    /// Idempotent: Enable only while off, Disable only while on, so the OS
+    /// count never passes one. A failed Enable is retried on the next check.
+    private func applyState() {
+        guard !isTerminated else { return }
+        // The manual switch applies only while Moo is frontmost, as Apple
+        // recommends: held in the background it blocks other apps' hotkeys.
+        let desired = (isEnabled && isAppActive()) || promptDetected
+        if desired, !isActive {
+            if enableInput() {
+                isActive = true
+            } else if isEnabled, !promptDetected {
+                isEnabled = false
+            }
+        } else if !desired, isActive {
+            disableInput()
+            isActive = false
+        }
+        // The badge claims protection only when it really is on.
+        let protecting = promptDetected && isActive
+        if isProtectingPrompt != protecting {
+            isProtectingPrompt = protecting
+        }
+    }
+
+    /// The first responder of the key window, if it is a terminal whose pty
+    /// has echo off with line editing on.
+    static func keyPaneIsAtPasswordPrompt() -> Bool {
+        guard let window = NSApp.keyWindow,
+              let controller = TerminalSessionRegistry.shared.controller(for: window),
+              let terminal = controller.terminal,
+              window.firstResponder === terminal,
+              let process = terminal.process, process.running else {
+            return false
+        }
+        return TerminalProcessInspector.isPasswordPrompt(ptyDescriptor: process.childfd)
+    }
+}
+
+/// Shown while a password prompt holds Secure Keyboard Entry on, so it is
+/// clear when typing is protected and when it is not. The manual switch
+/// has its checkmark in the Terminal menu and no badge.
+struct SecureInputBadge: View {
+    @State private var secureKeyboardEntry = SecureKeyboardEntry.shared
+    /// Only the key window holds the prompt being protected.
+    @Environment(\.controlActiveState) private var controlActiveState
+
+    var body: some View {
+        if secureKeyboardEntry.isProtectingPrompt, controlActiveState == .key {
+            Label("Secure Input", systemImage: "lock.fill")
+                .font(.system(size: 11, weight: .medium))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(.regularMaterial, in: Capsule())
+                .padding(10)
+                .allowsHitTesting(false)
+                .help("Other apps cannot read your keystrokes while this password prompt is open")
+                .accessibilityLabel("Secure keyboard entry is on for this password prompt")
         }
     }
 }
@@ -506,6 +657,8 @@ struct TerminalCommands: Commands {
             Toggle("Log host output to ~/Downloads/Logs", isOn: binding(\.logHostOutput))
                 .disabled(!isEnabled)
             Toggle("Secure Keyboard Entry", isOn: Bindable(secureKeyboardEntry).isEnabled)
+            Toggle("Secure Keyboard Entry at Password Prompts",
+                   isOn: Bindable(secureKeyboardEntry).protectsPasswordPrompts)
 
             Divider()
 

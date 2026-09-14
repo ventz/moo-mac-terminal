@@ -456,6 +456,11 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         // would otherwise leave the row reading "Running" until something
         // unrelated forced a recompute.
         ProjectRuntime.shared.noteTerminalOutput()
+        // sudo and ssh turn echo off, then print "Password:". Checking as that
+        // output lands closes most of the gap before the next timed check.
+        if terminal?.window?.isKeyWindow == true {
+            SecureKeyboardEntry.shared.checkPasswordPrompt()
+        }
         guard terminal?.window?.isKeyWindow == false else { return }
         setHasActivity(true)
     }
