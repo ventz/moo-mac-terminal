@@ -4,8 +4,10 @@ How fast Moo is, how that was measured, and what has already been tried.
 Measured on 2026-09-13 on an M3 MacBook Pro (built-in 120 Hz display) against
 Ghostty 1.3.1. Moo builds SwiftTerm from the `perf/moo` branch of
 [ventz/SwiftTerm](https://github.com/ventz/SwiftTerm), which carries the
-attribute intern cache also proposed upstream as
+attribute intern cache merged upstream as
 [migueldeicaza/SwiftTerm#694](https://github.com/migueldeicaza/SwiftTerm/pull/694).
+The fork stays in use because it keeps pointer storage for that cache — see
+[SwiftTerm engine work](#swiftterm-engine-work).
 
 ## Contents
 
@@ -129,6 +131,23 @@ front of it:
 
 The table is append-only — nothing removes an entry — so a cache hit can never
 be stale.
+
+**Upstream merged it, reworked (2026-09-14/15).** Miguel took the cache but
+replaced `UnsafeMutablePointer` storage with an `@exclusivity(unchecked)` Array
+(`b844c8a`, to avoid unsafe code), which cost ~2% on `unicode`; `233c6ba` won
+that back by moving the cache fields after the grapheme fields and returning
+early for the all-zero default-attribute key. `perf/moo` (`1fd6fa4`) merges his
+work but keeps **our pointer storage** — re-measured over 6 workloads x 9 rounds
+at 400 iterations with rotating build order, medians in MiB/s:
+
+| Comparison | Result |
+|---|---|
+| pointer vs Array on `dense_cells` | **+3.0%**, faster in 9/9 rounds |
+| every other workload | within noise |
+| upstream `main` vs `perf/moo` | tied except `dense_cells` (−2.1%) |
+
+That storage line in `Sources/SwiftTerm/CellStorage.swift` is now the fork's
+only delta from upstream. Keep it across merges; re-A/B before dropping it.
 
 **Which workloads the engine limits.** `light_cells` (≈3,400 MiB/s) and
 `scrolling_fullscreen` (≈780 MiB/s) are limited by the pty in a real terminal.
