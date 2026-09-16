@@ -175,6 +175,14 @@ if [[ $dry_run -eq 1 ]]; then
     exit 0
 fi
 
+# The disk image needs its own signature, separate from the app inside it.
+# Notarization and stapling both succeed on an unsigned image, and only the
+# final spctl assessment catches it -- as "rejected / no usable signature",
+# which reads like a signing failure in the app rather than a missing one on
+# the container.
+say "Signing the disk image"
+codesign --force --sign "$IDENTITY" --timestamp "$dmg"
+
 say "Notarizing (a few minutes at Apple)"
 "$notarytool" submit "$dmg" --keychain-profile "$NOTARY_PROFILE" --wait
 "$stapler" staple "$dmg"
