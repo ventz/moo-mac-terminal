@@ -67,9 +67,26 @@ size_kb=$(du -sk "$payload" | awk '{print $1}')
 hdiutil create -srcfolder "$payload" -volname "$volume_name" \
     -fs HFS+ -format UDRW -size $((size_kb + 65536))k -quiet "$temp_dmg"
 
-device=$(hdiutil attach "$temp_dmg" -readwrite -noverify -noautoopen \
-    | awk '/^\/dev\/disk/ {print $1; exit}')
+# The attach output is captured whole and parsed afterwards. Piping it into
+# an awk that exits on the first match kills hdiutil with SIGPIPE while it is
+# still writing, and under `set -o pipefail` that failure propagates out of
+# the command substitution and ends the script with no message at all. It is a
+# race, so it looked like the DMG step failing at random.
+attach_output=$(hdiutil attach "$temp_dmg" -readwrite -noverify -noautoopen)
+device=$(printf '%s\n' "$attach_output" | awk '/^\/dev\/disk/ {print $1}' | head -1)
+[[ -n "$device" ]] || {
+    echo "hdiutil attach returned no device:" >&2
+    printf '%s\n' "$attach_output" >&2
+    exit 70
+}
 mount_point="/Volumes/$volume_name"
+
+# Attach returns before the volume is necessarily in /Volumes.
+for _ in $(seq 1 50); do
+    [[ -d "$mount_point" ]] && break
+    sleep 0.2
+done
+[[ -d "$mount_point" ]] || { echo "volume never appeared at $mount_point" >&2; exit 70; }
 
 # The Applications alias is made inside the mounted volume rather than in the
 # source folder. Both produce a working drag-to-install link, but creating it

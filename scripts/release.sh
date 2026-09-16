@@ -50,7 +50,8 @@ say() { printf '\n==> %s\n' "$*"; }
 
 say "Checking prerequisites"
 
-security find-identity -v -p codesigning | grep -qF "$IDENTITY" \
+identities=$(security find-identity -v -p codesigning)
+[[ "$identities" == *"$IDENTITY"* ]] \
     || { echo "missing signing identity: $IDENTITY" >&2; exit 1; }
 
 # Both tools are called by their real paths rather than through xcrun. xcrun
@@ -106,11 +107,22 @@ say "Version $version (build $build_number), architectures: $(lipo -archs "$app/
 
 say "Signing"
 
+# Every check below reads a command's output from a variable rather than
+# piping it into `grep -q`. Under `set -o pipefail`, grep exits the moment it
+# matches, the writer dies on SIGPIPE, and the pipeline reports failure --
+# intermittently, depending on how much the writer had left to say. That
+# turned a passing signature audit into a random one.
+is_mach_o() {
+    local description
+    description=$(file "$1")
+    [[ "$description" == *Mach-O* ]]
+}
+
 # Standalone Mach-O executables, not just bundles. Sparkle ships
 # Versions/B/Autoupdate, a bare executable that --deep --strict happily
 # ignores and notarization rejects.
 find "$app/Contents/Frameworks" -type f -perm +111 | while read -r f; do
-    file "$f" | grep -q "Mach-O" || continue
+    is_mach_o "$f" || continue
     codesign --force --sign "$IDENTITY" -o runtime --timestamp "$f"
 done
 
@@ -125,8 +137,9 @@ done
 codesign --force --sign "$IDENTITY" -o runtime --timestamp "$app"
 
 unsigned=$(find "$app/Contents/Frameworks" -type f -perm +111 | while read -r f; do
-    file "$f" | grep -q Mach-O || continue
-    codesign -dvv "$f" 2>&1 | grep -q "Authority=Developer ID Application" || echo "$f"
+    is_mach_o "$f" || continue
+    signature=$(codesign -dvv "$f" 2>&1 || true)
+    [[ "$signature" == *"Authority=Developer ID Application"* ]] || echo "$f"
 done)
 [[ -z "$unsigned" ]] || { echo "ad-hoc signed binaries remain:" >&2; echo "$unsigned" >&2; exit 1; }
 
@@ -134,7 +147,8 @@ codesign --verify --deep --strict "$app"
 
 # get-task-allow is a debugging entitlement and notarization rejects any
 # submission carrying it. A Developer ID build ships with no entitlements.
-if codesign -d --entitlements - --xml "$app" 2>/dev/null | grep -q "get-task-allow"; then
+entitlements=$(codesign -d --entitlements - --xml "$app" 2>/dev/null || true)
+if [[ "$entitlements" == *get-task-allow* ]]; then
     echo "app carries get-task-allow -- notarization would reject it" >&2
     exit 1
 fi
