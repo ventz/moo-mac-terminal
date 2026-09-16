@@ -5,7 +5,7 @@
 <h1 align="center">Moo Terminal</h1>
 
 <p align="center">
-  A native macOS terminal with Ghostty-class speed — faster on throughput and
+  A native, open-source macOS terminal with Ghostty-class speed — faster on throughput and
   keystroke latency in <a href="docs/PERFORMANCE.md">measured runs</a> — and the
   workspace features that make cmux good for running agents.
 </p>
@@ -18,6 +18,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [Screenshots](#screenshots)
 - [Quick Install](#quick-install)
 - [Speed](#speed)
 - [Features](#features)
@@ -45,6 +46,43 @@ It aims for two things at once:
   that says which ones are busy, finished or waiting for you. Tabs hold Markdown
   previews and web pages beside shells, panes split and zoom, and ⌘K reaches
   every command and anything worth grabbing on screen.
+
+## Screenshots
+
+<p align="center"><b>Terminal</b></p>
+<p align="center">
+  <a href="https://moo.vpetkov.net/screenshots/moo-terminal.png"><img src="https://moo.vpetkov.net/screenshots/moo-terminal.webp" alt="A Moo terminal window" width="720"></a>
+</p>
+<p align="center"><i>Fast, native, and out of the way: one window, tabs across the top.</i></p>
+
+<table>
+  <tr>
+    <td width="50%" align="center"><b>Markdown preview</b></td>
+    <td width="50%" align="center"><b>Browser tabs</b></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-markdown.png?v=2"><img src="https://moo.vpetkov.net/screenshots/moo-markdown.webp?v=2" alt="A rendered Markdown tab"></a></td>
+    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-browser.png"><img src="https://moo.vpetkov.net/screenshots/moo-browser.webp" alt="A web page open in a browser tab"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><i>Markdown files open rendered, in a tab beside the shell</i></td>
+    <td align="center"><i>Web pages open as browser tabs, with ad blocking</i></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><b>Workspaces</b></td>
+    <td width="50%" align="center"><b>Themes</b></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-projects-terminal.png"><img src="https://moo.vpetkov.net/screenshots/moo-projects-terminal.webp" alt="Terminal with the projects sidebar"></a></td>
+    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-settings-themes.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-themes.webp" alt="The theme picker"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><i>Workspaces in the sidebar, each with its own tabs and status</i></td>
+    <td align="center"><i>Over 140 bundled themes, browsable as a list or in 2D and 3D</i></td>
+  </tr>
+</table>
+
+More at [moo.vpetkov.net](https://moo.vpetkov.net).
 
 ## Quick Install
 

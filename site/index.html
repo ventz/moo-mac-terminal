@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Moo Terminal</title>
-<meta name="description" content="A native macOS terminal with Ghostty-class speed and the workspace features that make cmux good for running agents.">
+<meta name="description" content="A native, open-source macOS terminal with Ghostty-class speed and the workspace features that make cmux good for running agents.">
 <link rel="icon" href="/icon.png" type="image/png">
 <meta property="og:title" content="Moo Terminal">
-<meta property="og:description" content="A native macOS terminal with Ghostty-class speed and the workspace features that make cmux good for running agents.">
+<meta property="og:description" content="A native, open-source macOS terminal with Ghostty-class speed and the workspace features that make cmux good for running agents.">
 <meta property="og:image" content="https://moo.vpetkov.net/icon.png">
 <meta property="og:type" content="website">
 <style>
@@ -224,6 +224,43 @@
     color: var(--muted);
   }
 
+  .shot { margin: 0; }
+  .shot img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .shot a { display: block; border-radius: 12px; }
+  .shot a:focus-visible { outline: 2px solid var(--green-lift); outline-offset: 4px; }
+
+  .hero { margin: 44px auto 0; max-width: 700px; }
+
+  /* The gallery runs wider than the text column; two screenshots side by side
+     are unreadable at 370px each. */
+  .gallery {
+    width: min(1080px, calc(100vw - 40px));
+    margin-left: 50%;
+    transform: translateX(-50%);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 34px 26px;
+  }
+
+  .shot-label {
+    margin: 0 0 10px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .shot figcaption {
+    margin-top: 6px;
+    text-align: center;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+
   footer {
     margin-top: 62px;
     text-align: center;
@@ -242,7 +279,7 @@
     <img class="icon" src="/icon.png" alt="" width="132" height="132">
     <h1>Moo Terminal</h1>
     <p class="tagline">
-      A native macOS terminal with <strong>Ghostty-class speed</strong> and the
+      A native, open-source macOS terminal with <strong>Ghostty-class speed</strong> and the
       workspace features that make <strong>cmux</strong> good for running agents.
     </p>
 
@@ -257,10 +294,18 @@
       </a>
     </div>
 
-    <p class="meta">
-      Version 0.1.0 &middot; universal (Apple silicon &amp; Intel) &middot; macOS 15+ &middot; signed and notarized
+    <p class="meta" id="release">
+      Universal (Apple silicon &amp; Intel) &middot; signed and notarized
     </p>
   </header>
+
+  <figure class="hero shot">
+    <p class="shot-label">Terminal</p>
+    <a href="/screenshots/moo-terminal.png">
+      <img src="/screenshots/moo-terminal.webp" alt="A Moo terminal window" width="1484" height="1600">
+    </a>
+    <figcaption>Fast, native, and out of the way: one window, tabs across the top.</figcaption>
+  </figure>
 
   <hr class="rule">
 
@@ -300,11 +345,66 @@
   </div>
   <p class="note">Measured against Ghostty 1.3.1 on an M3 at 120 Hz.</p>
 
+  <hr class="rule">
+
+  <h2>A look around</h2>
+  <div class="gallery">
+    <figure class="shot">
+      <p class="shot-label">Markdown preview</p>
+      <a href="/screenshots/moo-markdown.png?v=2"><img src="/screenshots/moo-markdown.webp?v=2" alt="A rendered Markdown tab" loading="lazy" width="1484" height="1600"></a>
+      <figcaption>Markdown files open rendered, in a tab beside the shell.</figcaption>
+    </figure>
+    <figure class="shot">
+      <p class="shot-label">Browser tabs</p>
+      <a href="/screenshots/moo-browser.png"><img src="/screenshots/moo-browser.webp" alt="A web page open in a browser tab" loading="lazy" width="1484" height="1600"></a>
+      <figcaption>Web pages open as browser tabs, with ad blocking.</figcaption>
+    </figure>
+    <figure class="shot">
+      <p class="shot-label">Workspaces</p>
+      <a href="/screenshots/moo-projects-terminal.png"><img src="/screenshots/moo-projects-terminal.webp" alt="Terminal with the projects sidebar" loading="lazy" width="1484" height="1600"></a>
+      <figcaption>Workspaces in the sidebar, each with its own tabs and status.</figcaption>
+    </figure>
+    <figure class="shot">
+      <p class="shot-label">Themes</p>
+      <a href="/screenshots/moo-settings-themes.png"><img src="/screenshots/moo-settings-themes.webp" alt="The theme picker" loading="lazy" width="1600" height="1403"></a>
+      <figcaption>Over 140 bundled themes, browsable as a list or in 2D and 3D.</figcaption>
+    </figure>
+    <figure class="shot">
+      <p class="shot-label">Appearance</p>
+      <a href="/screenshots/moo-settings-appearance.png"><img src="/screenshots/moo-settings-appearance.webp" alt="Appearance settings" loading="lazy" width="1600" height="1403"></a>
+      <figcaption>Fonts, cursor, opacity and colors, set per profile.</figcaption>
+    </figure>
+    <figure class="shot">
+      <p class="shot-label">Project settings</p>
+      <a href="/screenshots/moo-settings.png"><img src="/screenshots/moo-settings.webp" alt="Projects settings" loading="lazy" width="1600" height="1243"></a>
+      <figcaption>Choose what each project row shows, and reopen everything on launch.</figcaption>
+    </figure>
+  </div>
+
   <footer>
     Built on <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a>,
     forked from <a href="https://github.com/migueldeicaza/Tecolot">Tecolot</a> by Miguel de Icaza.<br>
     MIT licensed &middot; &copy; Ventz Petkov
   </footer>
 </main>
+<script>
+  // The version comes from the live Sparkle feed, so the page never needs
+  // editing for a release. Without it, the line simply omits the version.
+  fetch("/appcast.xml", { cache: "no-cache" })
+    .then(r => r.ok ? r.text() : Promise.reject(r.status))
+    .then(xml => {
+      const doc = new DOMParser().parseFromString(xml, "application/xml");
+      const item = doc.getElementsByTagName("item")[0];
+      const field = name => item?.getElementsByTagName("sparkle:" + name)[0]?.textContent?.trim();
+      const version = field("shortVersionString");
+      if (!version) return;
+      const minimum = field("minimumSystemVersion");
+      const parts = ["Version " + version, "universal (Apple silicon &amp; Intel)"];
+      if (minimum) parts.push("macOS " + minimum.replace(/\.0$/, "") + "+");
+      parts.push("signed and notarized");
+      document.getElementById("release").innerHTML = parts.join(" &middot; ");
+    })
+    .catch(() => {});
+</script>
 </body>
 </html>
