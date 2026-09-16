@@ -431,7 +431,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "0.1.0-moo";
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = net.vpetkov.Moo.debug;
 				PRODUCT_NAME = Moo;
 				REGISTER_APP_GROUPS = YES;
@@ -464,7 +464,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = "0.1.0-moo";
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = net.vpetkov.Moo;
 				PRODUCT_NAME = Moo;
 				REGISTER_APP_GROUPS = YES;
