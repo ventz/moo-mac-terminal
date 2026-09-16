@@ -307,6 +307,9 @@ Three details that are not optional:
 ```bash
 scripts/create-dmg.sh "$APP" ~/Desktop/Moo.dmg "Moo"
 
+# The image needs its own signature -- see the warning below.
+codesign --force --sign "$IDENTITY" --timestamp ~/Desktop/Moo.dmg
+
 xcrun notarytool submit ~/Desktop/Moo.dmg --keychain-profile "moo-notary" --wait
 xcrun stapler staple ~/Desktop/Moo.dmg
 
@@ -316,6 +319,14 @@ spctl --assess --type open --context context:primary-signature -vv ~/Desktop/Moo
 
 **`accepted` is the finish line.** Anything else means recipients see a
 warning.
+
+> **Sign the disk image itself, not just the app inside it.** The two are
+> separate signatures, and nothing before the final assessment notices the
+> image is missing one: `notarytool` accepts an unsigned image and `stapler`
+> staples it happily. Only `spctl` objects, with
+> *"rejected / source=no usable signature"* -- wording that points at the
+> app's signature rather than the container's, which is the wrong place to
+> start looking. `scripts/release.sh` does this step automatically.
 
 Stapling attaches the notarization ticket to the DMG so it validates offline.
 Skipping it means a first launch without network access fails.
