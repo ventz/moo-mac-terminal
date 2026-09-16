@@ -412,7 +412,7 @@ notarize, staple, generate the appcast and publish it to R2 — and refuses to
 start if any credential is missing:
 
 ```bash
-# 1. Bump MARKETING_VERSION and CURRENT_PROJECT_VERSION in the project, commit
+# 1. Bump MARKETING_VERSION and CURRENT_PROJECT_VERSION in the project, commit, push
 # 2. Cut it
 scripts/release.sh --notes notes.md
 
@@ -432,12 +432,13 @@ before it is downloadable:
 Installed copies pick the update up on their next check; `Moo → Check for
 Updates…` forces one.
 
-Tag the release afterwards:
-
-```bash
-git tag -a v<VERSION> -m "Moo Terminal v<VERSION>"
-git push origin v<VERSION>
-```
+Last, it creates the GitHub release: tag `v<VERSION>` at the commit that was
+built, the same notarized DMG attached, and install and verification notes
+(with its SHA-256) after any `--notes`, marked latest. Because the tag has to
+match the build, a real release refuses to start with uncommitted changes or
+with a HEAD that is not on origin, and refuses a version already tagged there
+— that check runs before notarizing, not after publishing. It needs a
+logged-in `gh`.
 
 Everything the script does by hand is documented above, step by step — read
 [Signing a Build](#signing-a-build) and [Notarizing and
