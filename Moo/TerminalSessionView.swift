@@ -309,8 +309,9 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         }
     }
 
+    /// Reduce transparency wins over the profile and the Settings preview.
     var effectiveBackgroundOpacity: Double {
-        previewBackgroundOpacity ?? profile.backgroundOpacity
+        SystemTransparency.shared.backgroundOpacity(previewBackgroundOpacity ?? profile.backgroundOpacity)
     }
 
     /// A translucent terminal background only composites when the hosting
@@ -1587,6 +1588,14 @@ final class TerminalSessionRegistry {
         for window in NSApp.windows {
             for controller in controllers(for: window) {
                 controller.setUseMetalRenderer(enabled)
+            }
+        }
+    }
+
+    func applyAppearanceToAll() {
+        for window in NSApp.windows {
+            for controller in controllers(for: window) {
+                controller.applyAppearance()
             }
         }
     }

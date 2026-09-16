@@ -42,6 +42,7 @@ struct ContentView: View {
     @AppStorage(ProjectSidebarDefaults.showsBranch) private var showsBranch = true
     @AppStorage(ProjectSidebarDefaults.showsPath) private var showsPath = true
     @AppStorage(ProjectSidebarDefaults.showsAccent) private var showsAccent = true
+    @AppStorage(WindowChromeDefaults.keepsTabStripOpaque) private var keepsTabStripOpaque = false
 
     /// The pane tree the terminal host shows: the selected workspace's active
     /// terminal tab — or, while a web tab is selected, the terminal tab that
@@ -109,10 +110,15 @@ struct ContentView: View {
     }
 
     /// The tab strip and the sidebar each follow the terminal's opacity unless
-    /// the profile pins them opaque, which keeps their text legible over a
-    /// busy desktop while the terminal stays translucent.
+    /// pinned opaque, which keeps their text legible over a busy desktop while
+    /// the terminal stays translucent. The tab strip can also be pinned for
+    /// every profile at once in Settings → General.
     private var tabStripBackgroundOpacity: Double {
-        chromeController?.profile.keepsTabStripOpaque == true ? 1 : chromeBackgroundOpacity
+        WindowChromeOpacity.tabStrip(
+            terminalOpacity: chromeBackgroundOpacity,
+            profilePinsOpaque: chromeController?.profile.keepsTabStripOpaque == true,
+            appPinsOpaque: keepsTabStripOpaque
+        )
     }
 
     private var sidebarBackgroundOpacity: Double {

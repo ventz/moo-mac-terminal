@@ -36,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         AttentionCenter.shared.installBannerHandling()
         AttentionStatusItem.shared.install()
+        SystemTransparency.shared.startObserving()
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
