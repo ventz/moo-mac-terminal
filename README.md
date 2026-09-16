@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <a href="#quick-install"><img src="https://img.shields.io/badge/platform-macOS%2015%2B-lightgrey.svg" alt="Platform: macOS"></a>
+  <a href="#quick-install"><img src="https://img.shields.io/badge/platform-macOS%2015.5%2B-lightgrey.svg" alt="Platform: macOS"></a>
 </p>
 
 ## Table of Contents
@@ -48,16 +48,19 @@ It aims for two things at once:
 
 ## Quick Install
 
+Download **[Moo.dmg](https://github.com/ventz/moo-mac-terminal/releases/latest)**,
+open it, and drag Moo to Applications. Or from a terminal:
+
 ```bash
-git clone https://github.com/ventz/moo-mac-terminal
-cd moo-mac-terminal
-xcodebuild -downloadComponent MetalToolchain   # one time, ~688 MB
-open Moo.xcodeproj                             # ⌘R to build and run
+curl -fLO https://moo.vpetkov.net/Moo.dmg
+hdiutil attach Moo.dmg && cp -R /Volumes/Moo/Moo.app /Applications/
+hdiutil detach /Volumes/Moo && open /Applications/Moo.app
 ```
 
-Requires macOS 15+ and Xcode 26. The Metal Toolchain is not optional: the
-renderer compiles a Metal shader, and a stock Xcode fails about 90% of the way
-through the build without it.
+Requires macOS 15.5+ on Apple silicon or Intel. The app is signed with a
+Developer ID and notarized by Apple, and it updates itself: new releases are
+checked for automatically and can be installed from **Moo → Check for
+Updates…**. To build it yourself, see [Building from Source](#building-from-source).
 
 ## Speed
 
@@ -176,7 +179,18 @@ What Moo adds on top of Tecolot:
 
 ## Building from Source
 
-Debug build and run:
+```bash
+git clone https://github.com/ventz/moo-mac-terminal
+cd moo-mac-terminal
+xcodebuild -downloadComponent MetalToolchain   # one time, ~688 MB
+open Moo.xcodeproj                             # ⌘R to build and run
+```
+
+Requires Xcode 26 or later. The Metal Toolchain is not optional: the renderer
+compiles a Metal shader, and a stock Xcode fails about 90% of the way through
+the build without it.
+
+Debug build and run from the command line:
 
 ```bash
 xcodebuild build -project Moo.xcodeproj -scheme Moo \
