@@ -10,6 +10,7 @@ someone with no prior context — or you, a year from now — can repeat it.
 - [One-Time Setup: Notarization Credentials](#one-time-setup-notarization-credentials)
 - [Signing a Build](#signing-a-build)
 - [Notarizing and Stapling](#notarizing-and-stapling)
+- [In-App Updates](#in-app-updates)
 - [Cutting a Release](#cutting-a-release)
 - [Tracking Upstream](#tracking-upstream)
 - [Troubleshooting](#troubleshooting)
@@ -325,18 +326,110 @@ If notarization is rejected, the log says exactly why:
 xcrun notarytool log <submission-id> --keychain-profile "moo-notary"
 ```
 
+## In-App Updates
+
+Apple ships no update mechanism for apps distributed outside the Mac App
+Store. Notarization is a *trust* check, not a delivery channel. Moo therefore
+updates itself through **Sparkle**, which has been linked and wired since the
+fork began (`Moo/UpdateCommands.swift`); what turned it on was publishing a
+feed.
+
+### How the switch works
+
+`UpdatePolicy.permitsUpdates` refuses to start the updater unless `SUFeedURL`
+is present in `Info.plist`, and refuses again for a `.debug` bundle
+identifier or a bundle named "Moo Debug". A Debug build never checks for
+updates, whatever the feed says.
+
+The feed absence was the original off switch, chosen so the fork could never
+inherit upstream's appcast and install Tecolot over Moo. Now that Moo has its
+own feed, that reasoning still holds: **the feed URL must stay ours.**
+
+### The pieces
+
+| Piece | Where it lives | Public? |
+|---|---|---|
+| `SUFeedURL` | `Moo/Info.plist` → `https://moo.vpetkov.net/appcast.xml` | yes, it ships in the app |
+| `SUPublicEDKey` | `Moo/Info.plist` | yes — it is the *public* half |
+| Sparkle EdDSA **private** key | login keychain, item "Private key for signing Sparkle updates" | **no, never** |
+| `appcast.xml` + DMGs | Cloudflare R2 bucket `moo-mac-terminal-autoupdate`, served at `moo.vpetkov.net` | yes |
+| Past release archives | `~/moo-releases` (override with `MOO_RELEASE_DIR`) | local |
+
+Two independent signatures protect an update, and both are required:
+
+- The **Developer ID signature plus notarization** is what lets the downloaded
+  app launch at all.
+- The **EdDSA signature** in the appcast is what proves Sparkle downloaded the
+  archive you actually published, and not something substituted in transit.
+
+### Back up the Sparkle private key
+
+Sparkle validates every update against `SUPublicEDKey`, which is baked into
+every copy already installed. Lose the private key and no future build can
+satisfy those copies — you cannot issue a new key pair without shipping a new
+`SUPublicEDKey`, which only reaches users through an update you can no longer
+sign. Every installed Moo would be stranded on its current version.
+
+Export it once, into a password manager, alongside the Developer ID `.p12`:
+
+```bash
+# Sparkle's own tool, from the resolved package checkout
+"$(find build -name generate_keys -path '*Sparkle/bin*' | head -1)" -x sparkle-private-key.txt
+```
+
+Store the file and delete the local copy. It is a secret in the same class as
+the Developer ID private key — **never** in the repo, never in a release.
+
+### The build number is what Sparkle compares
+
+Sparkle orders releases by `CFBundleVersion` (`CURRENT_PROJECT_VERSION`), not
+by the marketing version. It must increase on every published release or
+installed copies will never see the new build. `MARKETING_VERSION` is only
+what the updater displays.
+
+### One-time setup on a new machine
+
+```bash
+npx wrangler@latest login                    # publishes to R2
+security import sparkle-private-key.txt ...  # or re-import via generate_keys -f
+```
+
 ## Cutting a Release
 
-1. Update `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION`, commit
-2. Build Release, sign, notarize, staple, confirm `spctl` says `accepted`
-3. Tag and publish:
+`scripts/release.sh` runs the whole chain — build, sign inside-out, package,
+notarize, staple, generate the appcast and publish it to R2 — and refuses to
+start if any credential is missing:
+
+```bash
+# 1. Bump MARKETING_VERSION and CURRENT_PROJECT_VERSION in the project, commit
+# 2. Cut it
+scripts/release.sh --notes notes.md
+
+# Build and package only, publishing nothing
+scripts/release.sh --dry-run
+```
+
+It publishes two objects: `Moo-<VERSION>.dmg` and `appcast.xml`, the feed
+last, so nothing is ever advertised before it is downloadable. Installed
+copies pick the update up on their next check; `Moo → Check for Updates…`
+forces one.
+
+Tag the release afterwards:
 
 ```bash
 git tag -a v<VERSION> -m "Moo Terminal v<VERSION>"
 git push origin v<VERSION>
-gh release create v<VERSION> ~/Desktop/Moo.dmg \
-  --title "Moo Terminal v<VERSION>" --notes-file notes.md
 ```
+
+Everything the script does by hand is documented above, step by step — read
+[Signing a Build](#signing-a-build) and [Notarizing and
+Stapling](#notarizing-and-stapling) before changing it.
+
+**Both Apple tools are invoked by their real paths**
+(`$(xcode-select -p)/usr/bin/…`) rather than through `xcrun`, which refuses to
+launch anything until `sudo xcodebuild -license accept` has been run. Through
+`xcrun`, a machine that has never accepted the license notarizes fine and then
+fails at stapling, at the very end of a long release.
 
 If a release is ever published **without** notarization, say so plainly in the
 notes and give recipients the workaround, because the error message blames the

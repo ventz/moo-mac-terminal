@@ -5,6 +5,10 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2026 Ventz Petkov.
 Based on Tecolot, copyright © 2026 Miguel de Icaza. MIT licensed.</string>
+	<key>SUFeedURL</key>
+	<string>https://moo.vpetkov.net/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>/TBnRuJXtpadzuo0AbwbkF7fEYIfuQNAbA/CnL2fGTk=</string>
 	<key>CFBundleIconFile</key>
 	<string>Moo</string>
 	<key>NSAppTransportSecurity</key>
