@@ -14,3 +14,11 @@ struct WindowChromeOpacityTests {
         #expect(SystemTransparency(reducesTransparency: true).backgroundOpacity(0.6) == 1)
     }
 }
+
+@MainActor
+struct WindowChromeDefaultsTests {
+    @Test func tabStripIsOpaqueByDefault() {
+        #expect(WindowChromeDefaults.keepsTabStripOpaqueByDefault)
+        #expect(WindowChromeDefaults.registrationValues[WindowChromeDefaults.keepsTabStripOpaque] as? Bool == true)
+    }
+}

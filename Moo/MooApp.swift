@@ -880,6 +880,7 @@ struct MooApp: App {
         registered.merge(ProjectSidebarDefaults.registrationValues) { current, _ in current }
         registered.merge(LinkRoutingDefaults.registrationValues) { current, _ in current }
         registered.merge(ContentBlockingDefaults.registrationValues) { current, _ in current }
+        registered.merge(WindowChromeDefaults.registrationValues) { current, _ in current }
         UserDefaults.standard.register(defaults: registered)
         MarkdownPreviewOpener.install()
         BrowserOpener.install()
