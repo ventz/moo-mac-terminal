@@ -2,12 +2,11 @@
 //  SettingsView.swift
 //  Moo
 //
-//  Settings window: General and Data are app-wide. The remaining pages edit
+//  Settings window: General, Updates and Data are app-wide. The remaining pages edit
 //  the profile selected in the Settings toolbar.
 //
 import Combine
 import AppKit
-import Sparkle
 import SwiftUI
 
 struct SettingsView: View {
@@ -86,6 +85,8 @@ struct SettingsView: View {
             ProjectsSettingsView()
         case .notifications:
             NotificationsSettingsView()
+        case .updates:
+            UpdatesSettingsView()
         case .data:
             DataRecoveryView(issueCenter: issueCenter, recovery: recovery)
         }
@@ -269,6 +270,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
     case profiles
     case projects
     case notifications
+    case updates
     case data
 
     var id: Self { self }
@@ -279,6 +281,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
         case .profiles: return "Profiles"
         case .projects: return "Projects"
         case .notifications: return "Notifications"
+        case .updates: return "Updates"
         case .text: return "Appearance"
         case .window: return "Window"
         case .shell: return "Shell"
@@ -294,6 +297,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
         case .profiles: return "person.2.badge.gearshape"
         case .projects: return "sidebar.left"
         case .notifications: return "bell.badge"
+        case .updates: return "arrow.triangle.2.circlepath"
         case .text: return "textformat"
         case .window: return "macwindow"
         case .shell: return "terminal"
@@ -307,7 +311,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
         switch self {
         case .text, .window, .shell, .keyboard, .advanced:
             return true
-        case .general, .profiles, .projects, .notifications, .data:
+        case .general, .profiles, .projects, .notifications, .updates, .data:
             return false
         }
     }
@@ -327,7 +331,7 @@ struct GeneralSettingsView: View {
     @AppStorage("useMetalRenderer") private var useMetalRenderer = true
     @AppStorage(LinkRoutingDefaults.opensLinksInApp) private var opensLinksInApp = true
     @AppStorage(MarkdownPreviewDefaults.followsTerminalTheme) private var markdownFollowsTheme = false
-    @AppStorage(WindowChromeDefaults.keepsTabStripOpaque) private var keepsTabStripOpaque = false
+    @AppStorage(WindowChromeDefaults.keepsTabStripOpaque) private var keepsTabStripOpaque = WindowChromeDefaults.keepsTabStripOpaqueByDefault
     @AppStorage(ContentBlockingDefaults.enabledKey) private var blocksAds = true
     @State private var errorMessage: String?
 
@@ -412,13 +416,6 @@ struct GeneralSettingsView: View {
             Section("Rendering") {
                 Toggle("Use Metal", isOn: metalRendererBinding)
             }
-            if UpdaterModel.shared.updatesEnabled {
-                Section("Updates") {
-                    Toggle("Check for updates automatically", isOn: automaticUpdateChecksBinding)
-                    Toggle("Download updates automatically", isOn: automaticUpdateDownloadsBinding)
-                        .disabled(!updater.automaticallyChecksForUpdates)
-                }
-            }
             Section("Resume") {
                 Stepper(
                     "Restore up to \(restoredRowsLimit) rows when a saved session opens",
@@ -452,24 +449,6 @@ struct GeneralSettingsView: View {
                     errorMessage = error.localizedDescription
                 }
             }
-        )
-    }
-
-    // Sparkle keeps these in UserDefaults itself, so they are read straight from
-    // the updater rather than mirrored through @AppStorage.
-    private var updater: SPUUpdater { UpdaterModel.shared.updater }
-
-    private var automaticUpdateChecksBinding: Binding<Bool> {
-        Binding(
-            get: { updater.automaticallyChecksForUpdates },
-            set: { updater.automaticallyChecksForUpdates = $0 }
-        )
-    }
-
-    private var automaticUpdateDownloadsBinding: Binding<Bool> {
-        Binding(
-            get: { updater.automaticallyDownloadsUpdates },
-            set: { updater.automaticallyDownloadsUpdates = $0 }
         )
     }
 
