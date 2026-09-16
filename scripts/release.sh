@@ -281,7 +281,7 @@ say "Creating GitHub release $tag ($github_repo)"
 checksum=$(shasum -a 256 "$dmg")
 checksum=${checksum%% *}
 # Outside release_dir: generate_appcast treats notes files there as its own.
-github_notes=$(mktemp -t Moo-github-notes)
+github_notes=$(mktemp "${TMPDIR:-/tmp}/moo-github-notes.XXXXXX")
 {
     if [[ -n "$notes_file" ]]; then
         cat "$notes_file"
