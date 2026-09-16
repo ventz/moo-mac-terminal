@@ -9,7 +9,7 @@ stays crisp on Retina -- Finder does not scale a DMG background, it draws it
 from PIL import Image, ImageDraw, ImageFont
 import subprocess, pathlib
 
-W, H = 600, 400
+W, H = 660, 420
 HERE = pathlib.Path(__file__).parent
 
 def draw(scale: int) -> Image.Image:
@@ -17,9 +17,9 @@ def draw(scale: int) -> Image.Image:
     img = Image.new("RGB", (w, h), "#f6f6f8")
     d = ImageDraw.Draw(img)
 
-    # Arrow between the two icon slots (icons sit at x=150 and x=450, y=190).
+    # Arrow between the two icon slots (160 pt icons at x=170 and x=490, y=190).
     y = 190 * scale
-    x0, x1 = 255 * scale, 345 * scale
+    x0, x1 = 275 * scale, 385 * scale
     color = "#b8b8bf"
     d.line([(x0, y), (x1 - 10 * scale, y)], fill=color, width=3 * scale)
     head = 11 * scale
@@ -36,7 +36,7 @@ def draw(scale: int) -> Image.Image:
         font = ImageFont.load_default()
     box = d.textbbox((0, 0), text, font=font)
     d.text(
-        ((w - (box[2] - box[0])) / 2, 300 * scale),
+        ((w - (box[2] - box[0])) / 2, 340 * scale),
         text, fill="#86868b", font=font,
     )
     return img
