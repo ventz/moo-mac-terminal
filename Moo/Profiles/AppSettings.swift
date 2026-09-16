@@ -83,6 +83,7 @@ enum AppSettings {
         AppSetting(key: "webInspectorEnabled", kind: .bool),
         AppSetting(key: LinkRoutingDefaults.opensLinksInApp, kind: .bool),
         AppSetting(key: MarkdownPreviewDefaults.followsTerminalTheme, kind: .bool),
+        AppSetting(key: WindowChromeDefaults.keepsTabStripOpaque, kind: .bool),
         AppSetting(key: ContentBlockingDefaults.enabledKey, kind: .bool),
         // Projects
         AppSetting(key: ProjectSidebarDefaults.isVisible, kind: .bool),

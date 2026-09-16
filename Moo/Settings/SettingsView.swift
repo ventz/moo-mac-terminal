@@ -327,6 +327,7 @@ struct GeneralSettingsView: View {
     @AppStorage("useMetalRenderer") private var useMetalRenderer = true
     @AppStorage(LinkRoutingDefaults.opensLinksInApp) private var opensLinksInApp = true
     @AppStorage(MarkdownPreviewDefaults.followsTerminalTheme) private var markdownFollowsTheme = false
+    @AppStorage(WindowChromeDefaults.keepsTabStripOpaque) private var keepsTabStripOpaque = false
     @AppStorage(ContentBlockingDefaults.enabledKey) private var blocksAds = true
     @State private var errorMessage: String?
 
@@ -382,6 +383,10 @@ struct GeneralSettingsView: View {
             }
             Section("Tabs") {
                 Toggle("Use Command-1 through Command-9 to select tabs", isOn: $useCommandDigitsForTabs)
+                Toggle("Keep the tab strip opaque in every profile", isOn: $keepsTabStripOpaque)
+                Text("Off: each profile decides, and the strip otherwise takes the terminal's background opacity. Reduce transparency in System Settings makes all of Moo opaque.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section("Links") {
                 Toggle("Open links and Markdown files in Moo tabs", isOn: $opensLinksInApp)
