@@ -221,6 +221,99 @@ final class AppTerminalView: LocalProcessTerminalView {
 
     private var didOpenLinkDuringClick = false
 
+    // MARK: Command-hover underline for bare file names
+
+    /// SwiftTerm underlines what it detects while Command is held, but a bare
+    /// `README.md` is only found by `mouseUp` after the click. This draws the
+    /// same cue for it. SwiftTerm's `mouseMoved`/`flagsChanged` are public,
+    /// not open, so a local monitor watches instead.
+    private let fileLinkUnderline = FileLinkUnderlineView()
+    private var hoverMonitor: Any?
+    private var hoverCache: (key: String, isFile: Bool)?
+
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        super.viewWillMove(toWindow: newWindow)
+        if newWindow == nil {
+            if let hoverMonitor { NSEvent.removeMonitor(hoverMonitor) }
+            hoverMonitor = nil
+            hideFileLinkUnderline()
+            return
+        }
+        guard hoverMonitor == nil else { return }
+        hoverMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.flagsChanged, .mouseMoved, .leftMouseDown, .scrollWheel, .keyDown]
+        ) { [weak self] event in
+            MainActor.assumeIsolated {
+                self?.updateFileLinkUnderline(for: event)
+            }
+            return event
+        }
+    }
+
+    private func updateFileLinkUnderline(for event: NSEvent) {
+        guard event.type == .flagsChanged || event.type == .mouseMoved,
+              let window, event.window === window,
+              window.isKeyWindow,
+              event.modifierFlags.contains(.command),
+              let span = fileSpanUnderPointer()
+        else {
+            hideFileLinkUnderline()
+            return
+        }
+        if fileLinkUnderline.superview !== self {
+            addSubview(fileLinkUnderline)
+        }
+        fileLinkUnderline.color = nativeForegroundColor
+        let lineHeight = max(1, span.cell.height * 0.08)
+        fileLinkUnderline.frame = CGRect(
+            x: CGFloat(span.columns.lowerBound) * span.cell.width,
+            y: frame.height - CGFloat(span.row + 1) * span.cell.height + span.cell.height * 0.12,
+            width: CGFloat(span.columns.count) * span.cell.width,
+            height: lineHeight
+        )
+    }
+
+    private func hideFileLinkUnderline() {
+        if fileLinkUnderline.superview != nil {
+            fileLinkUnderline.removeFromSuperview()
+        }
+    }
+
+    /// The existing file under the pointer, as the click would open it.
+    /// Paths with a slash are skipped: SwiftTerm already underlines those.
+    private func fileSpanUnderPointer() -> (row: Int, columns: Range<Int>, cell: CGSize)? {
+        guard let window else { return nil }
+        let point = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        guard bounds.contains(point) else { return nil }
+        let snapshot = terminalStateSnapshot()
+        let dimensions = snapshot.dimensions
+        guard dimensions.cols > 0, dimensions.rows > 0 else { return nil }
+        var cell = caretFrame.size
+        if cell.width <= 0 || cell.height <= 0 {
+            cell = CGSize(
+                width: bounds.width / CGFloat(dimensions.cols),
+                height: bounds.height / CGFloat(dimensions.rows)
+            )
+        }
+        let column = Int(point.x / cell.width)
+        let row = Int((frame.height - point.y) / cell.height)
+        guard let line = snapshot.visibleRows.first(where: { $0.row == row }) else { return nil }
+        let cells = LinkRouter.cells(fromRowText: line.text, cellWidths: line.cellWidths)
+        guard let span = LinkRouter.wordSpan(inCells: cells, at: column),
+              !span.word.contains("/")
+        else { return nil }
+        let directory = sessionController?.currentWorkingDirectory
+        let key = "\(directory ?? "")\u{0}\(span.word)"
+        let isFile: Bool
+        if let hoverCache, hoverCache.key == key {
+            isFile = hoverCache.isFile
+        } else {
+            isFile = LinkRouter.resolvePath(span.word, workingDirectory: directory) != nil
+            hoverCache = (key, isFile)
+        }
+        return isFile ? (row, span.columns, cell) : nil
+    }
+
     /// A click on a link or a detected path. Routed through LinkRouter so a
     /// markdown file or a web address can open as a tab in this workspace;
     /// anything else, or an option-click, opens with the system as before.
@@ -286,5 +379,19 @@ final class AppTerminalView: LocalProcessTerminalView {
     nonisolated override func terminalControlBytesForPaste(source: Terminal) -> Set<UInt8> {
         process?.terminalControlBytesForPaste()
             ?? TerminalPasteControls.approximateTerminalControlBytes
+    }
+}
+
+/// A thin line under a bare file name while Command is held.
+private final class FileLinkUnderlineView: NSView {
+    var color: NSColor = .labelColor {
+        didSet { needsDisplay = true }
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func draw(_ dirtyRect: NSRect) {
+        color.setFill()
+        bounds.fill()
     }
 }

@@ -110,6 +110,12 @@ enum LinkRouter {
     /// by `ls` is never offered as a link; the terminal view falls back to
     /// this word and opens it only if it names an existing file.
     nonisolated static func word(inCells cells: [String], at column: Int) -> String? {
+        wordSpan(inCells: cells, at: column)?.word
+    }
+
+    /// `word(inCells:at:)` with the cells it covers, so the view can
+    /// underline it while Command is held.
+    nonisolated static func wordSpan(inCells cells: [String], at column: Int) -> (word: String, columns: Range<Int>)? {
         func breaks(_ cell: String) -> Bool {
             // An empty cell is the second half of a wide character, not a gap.
             // An unwritten one reads as NUL — `ls` skips across gaps with tabs.
@@ -122,9 +128,11 @@ enum LinkRouter {
         while start > cells.startIndex, !breaks(cells[start - 1]) { start -= 1 }
         var end = column
         while end + 1 < cells.endIndex, !breaks(cells[end + 1]) { end += 1 }
-        let word = cells[start...end].joined()
-            .trimmingCharacters(in: CharacterSet(charactersIn: ".,;:"))
-        return word.isEmpty ? nil : word
+        let trimmed: Set<String> = [".", ",", ";", ":"]
+        while start <= end, trimmed.contains(cells[start]) { start += 1 }
+        while end >= start, trimmed.contains(cells[end]) { end -= 1 }
+        guard start <= end else { return nil }
+        return (cells[start...end].joined(), start..<(end + 1))
     }
 
     private nonisolated static let wordDelimiters = CharacterSet(charactersIn: "\"'`()[]{}<>|")

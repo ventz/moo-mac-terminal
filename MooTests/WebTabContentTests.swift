@@ -303,6 +303,9 @@ final class LinkRouterTests {
         #expect(LinkRouter.word(inCells: row, at: 99) == nil)
         #expect(LinkRouter.word(inCells: Array("README.md:12:3").map(String.init), at: 2) == "README.md:12:3")
         #expect(LinkRouter.word(inCells: Array("a ...").map(String.init), at: 3) == nil)
+        // The underlined span leaves out the brackets and trailing comma.
+        #expect(LinkRouter.wordSpan(inCells: row, at: 23)?.columns == 22..<30)
+        #expect(LinkRouter.wordSpan(inCells: row, at: 0)?.columns == 0..<9)
     }
 
     @Test func copiedRowsSplitBackIntoCells() {
