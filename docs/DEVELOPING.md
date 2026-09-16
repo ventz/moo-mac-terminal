@@ -409,10 +409,17 @@ scripts/release.sh --notes notes.md
 scripts/release.sh --dry-run
 ```
 
-It publishes two objects: `Moo-<VERSION>.dmg` and `appcast.xml`, the feed
-last, so nothing is ever advertised before it is downloadable. Installed
-copies pick the update up on their next check; `Moo → Check for Updates…`
-forces one.
+It publishes three objects, the feed last so nothing is ever advertised
+before it is downloadable:
+
+| Object | Purpose |
+|---|---|
+| `Moo-<VERSION>.dmg` | what the appcast points at — **never overwrite one**, Sparkle re-downloads by that URL and checks the signature recorded for that exact file |
+| `Moo.dmg` | a copy of the newest release, so a link you hand someone does not go stale. Nothing in the update path reads it |
+| `appcast.xml` | the feed |
+
+Installed copies pick the update up on their next check; `Moo → Check for
+Updates…` forces one.
 
 Tag the release afterwards:
 
