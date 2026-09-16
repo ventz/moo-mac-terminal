@@ -188,14 +188,27 @@ fi
 # --- Publish -----------------------------------------------------------------
 
 say "Publishing to R2 ($BUCKET)"
+
+# The versioned name is what the appcast points at, and it must never be
+# overwritten: Sparkle re-downloads by that URL and checks the signature it
+# recorded for that exact file.
 wrangler r2 object put "$BUCKET/$(basename "$dmg")" \
     --file "$dmg" --content-type application/x-apple-diskimage --remote
+
+# Moo.dmg is a plain copy of the newest release, for handing someone a link
+# that does not go stale. Nothing in the update path reads it, so it is short
+# lived in cache and safe to replace on every release.
+wrangler r2 object put "$BUCKET/Moo.dmg" \
+    --file "$dmg" --content-type application/x-apple-diskimage \
+    --cache-control "max-age=300" --remote
+
 # The feed goes last: nothing should advertise a build that is not downloadable.
 wrangler r2 object put "$BUCKET/appcast.xml" \
     --file "$release_dir/appcast.xml" --content-type application/xml \
     --cache-control "max-age=300" --remote
 
 say "Published"
+echo "  share:    $FEED_HOST/Moo.dmg        (always the newest release)"
 echo "  download: $FEED_HOST/$(basename "$dmg")"
 echo "  appcast:  $FEED_HOST/appcast.xml"
 echo "  local:    $dmg"
