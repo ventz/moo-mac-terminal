@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Moo Terminal</title>
+<meta name="description" content="A native macOS terminal with Ghostty-class speed and the workspace features that make cmux good for running agents.">
+<link rel="icon" href="/icon.png" type="image/png">
+<meta property="og:title" content="Moo Terminal">
+<meta property="og:description" content="A native macOS terminal with Ghostty-class speed and the workspace features that make cmux good for running agents.">
+<meta property="og:image" content="https://moo.vpetkov.net/icon.png">
+<meta property="og:type" content="website">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0c1210;
+    --panel: #131c18;
+    --line: #23342b;
+    --ink: #e9f1ec;
+    --muted: #93a89c;
+    --green: #3FA34D;
+    --green-deep: #1E7A2F;
+    --green-lift: #56c266;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    padding: 0 20px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  /* A soft pool of green behind the icon, so the tile reads as lit rather
+     than pasted onto the page. */
+  body::before {
+    content: "";
+    position: fixed;
+    top: -280px;
+    left: 50%;
+    width: 900px;
+    height: 900px;
+    margin-left: -450px;
+    background: radial-gradient(circle, rgba(63,163,77,.20) 0%, rgba(63,163,77,.06) 42%, transparent 68%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  main {
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding-block: clamp(56px, 12vw, 104px) 64px;
+  }
+
+  header { text-align: center; }
+
+  .icon {
+    width: 132px;
+    height: 132px;
+    display: block;
+    margin: 0 auto 26px;
+    border-radius: 27%;
+    filter: drop-shadow(0 18px 38px rgba(0,0,0,.55));
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(38px, 8vw, 54px);
+    line-height: 1.08;
+    letter-spacing: -.022em;
+    font-weight: 700;
+  }
+
+  .tagline {
+    margin: 18px auto 0;
+    max-width: 30em;
+    font-size: clamp(16px, 2.4vw, 18.5px);
+    color: var(--muted);
+  }
+
+  .tagline strong { color: var(--ink); font-weight: 600; }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 34px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 13px 24px;
+    border-radius: 11px;
+    border: 1px solid transparent;
+    font-size: 15.5px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform .12s ease, background-color .12s ease, border-color .12s ease;
+  }
+
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+
+  .btn-primary {
+    background: linear-gradient(180deg, var(--green-lift), var(--green-deep));
+    color: #fff;
+    box-shadow: 0 8px 22px rgba(30,122,47,.38);
+  }
+
+  .btn-primary:hover { background: linear-gradient(180deg, #62d073, #228c36); }
+
+  .btn-ghost {
+    background: var(--panel);
+    border-color: var(--line);
+    color: var(--ink);
+  }
+
+  .btn-ghost:hover { border-color: #3a5748; background: #18231e; }
+
+  .btn svg { width: 17px; height: 17px; flex: none; }
+
+  .meta {
+    margin-top: 18px;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+
+  .meta code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+    font-size: .95em;
+    color: #b9cfc2;
+  }
+
+  .rule {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--line) 22%, var(--line) 78%, transparent);
+    margin: 60px 0 46px;
+    border: 0;
+  }
+
+  h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .14em;
+    color: var(--muted);
+    font-weight: 600;
+    margin: 0 0 22px;
+    text-align: center;
+  }
+
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 14px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .features li {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    padding: 18px 19px;
+  }
+
+  .features b {
+    display: block;
+    font-size: 15px;
+    margin-bottom: 5px;
+  }
+
+  .features span {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+
+  .speed {
+    margin: 46px 0 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
+    text-align: center;
+  }
+
+  .speed div {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 13px;
+    padding: 20px 14px;
+  }
+
+  .speed .n {
+    display: block;
+    font-size: 27px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+    color: var(--green-lift);
+  }
+
+  .speed .l {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .note {
+    margin-top: 16px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  footer {
+    margin-top: 62px;
+    text-align: center;
+    font-size: 13.5px;
+    color: var(--muted);
+  }
+
+  a { color: var(--green-lift); }
+  footer a { color: var(--muted); text-decoration-color: #3a5748; }
+  footer a:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <img class="icon" src="/icon.png" alt="" width="132" height="132">
+    <h1>Moo Terminal</h1>
+    <p class="tagline">
+      A native macOS terminal with <strong>Ghostty-class speed</strong> and the
+      workspace features that make <strong>cmux</strong> good for running agents.
+    </p>
+
+    <div class="actions">
+      <a class="btn btn-primary" href="/Moo.dmg">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a.75.75 0 0 1 .75.75v7.19l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 0 1 1.06-1.06l2.22 2.22V1.75A.75.75 0 0 1 8 1ZM2.75 12a.75.75 0 0 1 .75.75v.75h9v-.75a.75.75 0 0 1 1.5 0v1.5a.75.75 0 0 1-.75.75h-10.5a.75.75 0 0 1-.75-.75v-1.5a.75.75 0 0 1 .75-.75Z"/></svg>
+        Download for macOS
+      </a>
+      <a class="btn btn-ghost" href="https://github.com/ventz/moo-mac-terminal">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.81.06 1.24.83 1.24.83.72 1.23 1.88.87 2.34.67.07-.52.28-.88.51-1.08-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        View on GitHub
+      </a>
+    </div>
+
+    <p class="meta">
+      Version 0.1.0 &middot; universal (Apple silicon &amp; Intel) &middot; macOS 15+ &middot; signed and notarized
+    </p>
+  </header>
+
+  <hr class="rule">
+
+  <h2>What it does</h2>
+  <ul class="features">
+    <li>
+      <b>Workspaces</b>
+      <span>A sidebar groups terminals into projects, each with its own tabs. Switching swaps the whole working set; the shells left behind keep running.</span>
+    </li>
+    <li>
+      <b>Waiting for you</b>
+      <span>When an agent asks for input, its tab, its workspace, the menu bar bell and the Dock say so. Click to land in that exact split.</span>
+    </li>
+    <li>
+      <b>Command status</b>
+      <span>A tab whose last command failed gets a red mark, and a long command finishing out of sight tells you it is done.</span>
+    </li>
+    <li>
+      <b>Command palette</b>
+      <span>&#8984;K lists every menu command plus the links, paths, commit hashes and IP addresses on screen.</span>
+    </li>
+    <li>
+      <b>More than shells</b>
+      <span>Markdown files open as rendered tabs and web pages as browser tabs with ad blocking, next to the terminal that printed them.</span>
+    </li>
+    <li>
+      <b>Safe by default</b>
+      <span>Secure Keyboard Entry turns on by itself at password prompts, and links that would run something are revealed in Finder instead.</span>
+    </li>
+  </ul>
+
+  <div class="speed">
+    <div><span class="n">3.4&times;</span><span class="l">plain text throughput</span></div>
+    <div><span class="n">2.5&times;</span><span class="l">256-color output</span></div>
+    <div><span class="n">5&times;</span><span class="l">full-screen redraw</span></div>
+    <div><span class="n">21 ms</span><span class="l">keystroke to screen (p50)</span></div>
+  </div>
+  <p class="note">Measured against Ghostty 1.3.1 on an M3 at 120 Hz.</p>
+
+  <footer>
+    Built on <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a>,
+    forked from <a href="https://github.com/migueldeicaza/Tecolot">Tecolot</a> by Miguel de Icaza.<br>
+    MIT licensed &middot; &copy; Ventz Petkov
+  </footer>
+</main>
+</body>
+</html>
