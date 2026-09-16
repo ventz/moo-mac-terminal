@@ -44,6 +44,7 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
     /// from a crash: without it the preview stayed blank until the next save.
     @ObservationIgnored private var lastMarkdown: String?
     @ObservationIgnored private var pageIsReady = false
+    @ObservationIgnored private var appearanceObserver: NSObjectProtocol?
 
     init(fileURL: URL) {
         self.fileURL = fileURL.standardizedFileURL
@@ -78,6 +79,10 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
     }
 
     func terminate() {
+        if let appearanceObserver {
+            NotificationCenter.default.removeObserver(appearanceObserver)
+        }
+        appearanceObserver = nil
         watcher?.stop()
         watcher = nil
         bridge?.session = nil
@@ -129,7 +134,26 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
         if #available(macOS 13.3, *) {
             webView.isInspectable = UserDefaults.standard.bool(forKey: "webInspectorEnabled")
         }
+        Self.applyAppearance(to: webView)
+        appearanceObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification, object: nil, queue: .main
+        ) { [weak webView] _ in
+            MainActor.assumeIsolated {
+                if let webView { Self.applyAppearance(to: webView) }
+            }
+        }
         return webView
+    }
+
+    /// The page's CSS and diagrams follow the web view's appearance. Pinned to
+    /// light unless the user chose to follow the terminal theme, in which case
+    /// it inherits the window's, which the theme sets.
+    private static func applyAppearance(to webView: WKWebView) {
+        let follows = UserDefaults.standard.bool(forKey: MarkdownPreviewDefaults.followsTerminalTheme)
+        let appearance = follows ? nil : NSAppearance(named: .aqua)
+        if webView.appearance?.name != appearance?.name {
+            webView.appearance = appearance
+        }
     }
 
     private func startWatching() {
@@ -373,4 +397,10 @@ struct MarkdownPreviewToolbar: View {
                 .lineLimit(1)
         }
     }
+}
+
+enum MarkdownPreviewDefaults {
+    /// Whether previews take the terminal theme's light or dark look. Off by
+    /// default: a preview reads like a document, light with dark text.
+    static let followsTerminalTheme = "markdownPreviewFollowsTerminalTheme"
 }

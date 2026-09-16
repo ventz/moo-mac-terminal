@@ -121,8 +121,9 @@ Markdown files and web links as Moo tabs, folders in the Finder, and other
 files in their default app. Anything that would run (apps, scripts) is only
 revealed in the Finder, never launched.
 
-**Markdown and web tabs**: command-click a `.md` path or a link in terminal
-output, or use ⇧⌘M and the File menu. Previews reload as the file changes.
+**Markdown and web tabs**: command-click a `.md` path or a link, or use ⇧⌘M and
+the File menu. Previews reload as the file changes and are light by default;
+Settings → General → Markdown previews can make them follow the terminal theme.
 
 **Restore** is on by default (Settings → Projects). Shells start fresh in each
 pane's last directory; scrollback, commands and environment are never saved.
