@@ -115,6 +115,12 @@ Code, run `/config` and set **Notifications** to `ghostty`.
 **Command status** needs Moo's shell integration for zsh, bash, fish or elvish,
 which reports when each command starts and how it exited.
 
+**Links and files**: hold ⌘ to underline what is clickable in terminal output,
+including bare file names from `ls` such as `README.md`. Command-click opens it:
+Markdown files and web links as Moo tabs, folders in the Finder, and other
+files in their default app. Anything that would run (apps, scripts) is only
+revealed in the Finder, never launched.
+
 **Markdown and web tabs**: command-click a `.md` path or a link in terminal
 output, or use ⇧⌘M and the File menu. Previews reload as the file changes.
 
