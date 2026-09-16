@@ -479,7 +479,7 @@ struct ProfileSettingsPage: View {
             } header: {
                 Text("Window chrome")
             } footer: {
-                Text("Applies the theme to the title bar, tabs, and toolbar controls. Turn this off to follow the system appearance. The sidebar and tab strip otherwise take the background opacity set on the Text page. Settings → General can keep the tab strip opaque in every profile.")
+                Text("Applies the theme to the title bar, tabs, and toolbar controls. Turn this off to follow the system appearance. The sidebar and tab strip otherwise take the background opacity set on the Text page. Settings → General keeps the tab strip opaque in every profile unless it is turned off there.")
             }
         }
     }

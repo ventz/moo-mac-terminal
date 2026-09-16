@@ -9,7 +9,14 @@ import Observation
 enum WindowChromeDefaults {
     /// App-wide: pin the tab strip opaque in every window, whatever the
     /// profile says. A profile can still pin it on its own when this is off.
+    /// On by default: a translucent strip, mostly empty, shows the windows
+    /// behind it far more plainly than the text-filled terminal does.
     static let keepsTabStripOpaque = "windowChromeKeepsTabStripOpaque"
+    static let keepsTabStripOpaqueByDefault = true
+
+    static var registrationValues: [String: Any] {
+        [keepsTabStripOpaque: keepsTabStripOpaqueByDefault]
+    }
 }
 
 /// Follows System Settings → Accessibility → Display → Reduce transparency.

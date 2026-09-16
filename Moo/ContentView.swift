@@ -42,7 +42,7 @@ struct ContentView: View {
     @AppStorage(ProjectSidebarDefaults.showsBranch) private var showsBranch = true
     @AppStorage(ProjectSidebarDefaults.showsPath) private var showsPath = true
     @AppStorage(ProjectSidebarDefaults.showsAccent) private var showsAccent = true
-    @AppStorage(WindowChromeDefaults.keepsTabStripOpaque) private var keepsTabStripOpaque = false
+    @AppStorage(WindowChromeDefaults.keepsTabStripOpaque) private var keepsTabStripOpaque = WindowChromeDefaults.keepsTabStripOpaqueByDefault
 
     /// The pane tree the terminal host shows: the selected workspace's active
     /// terminal tab — or, while a web tab is selected, the terminal tab that
