@@ -19,6 +19,7 @@
 # reads it there and writes only signatures into the feed.
 
 set -euo pipefail
+trap 'echo "release.sh: line $LINENO failed (exit $?): $BASH_COMMAND" >&2' ERR
 
 readonly IDENTITY="Developer ID Application: Ventzislav Petkov (8J9W3ZG4ZN)"
 readonly NOTARY_PROFILE="moo-notary"
