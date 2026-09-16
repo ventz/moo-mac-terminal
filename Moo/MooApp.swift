@@ -803,10 +803,9 @@ struct AppInfoCommands: Commands {
     static let credits: NSAttributedString = {
         let text = """
         Moo © 2026 Ventz Petkov, MIT License
-        https://vpetkov.net
-        https://moo.vpetkov.net
-        https://github.com/ventz
         https://github.com/ventz/moo-mac-terminal
+        https://moo.vpetkov.net
+        https://vpetkov.net
 
         Built on SwiftTerm and Tecolot by Miguel de Icaza.
         © 2026 Miguel de Icaza, MIT License
