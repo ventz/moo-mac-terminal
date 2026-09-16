@@ -7,6 +7,10 @@
 # not part of scripts/release.sh -- editing copy should not require cutting a
 # build, and cutting a build should not silently republish the site.
 #
+# Screenshots live outside the repo, in ~/moo-releases/screenshots (override
+# with MOO_SCREENSHOTS_DIR): each as a .webp the page shows and the original
+# .png it links to. They are uploaded when that directory exists.
+#
 # Requires a logged-in wrangler: npx wrangler@latest login
 
 set -euo pipefail
@@ -39,12 +43,29 @@ wrangler r2 object put "$BUCKET/icon.png" \
     --file "$icon" --content-type "image/png" \
     --cache-control "max-age=86400" --remote
 
+screenshots="${MOO_SCREENSHOTS_DIR:-$HOME/moo-releases/screenshots}"
+if [[ -d "$screenshots" ]]; then
+    for shot in "$screenshots"/*.webp "$screenshots"/*.png; do
+        [[ -f "$shot" ]] || continue
+        case "$shot" in
+            *.webp) type="image/webp" ;;
+            *) type="image/png" ;;
+        esac
+        wrangler r2 object put "$BUCKET/screenshots/$(basename "$shot")" \
+            --file "$shot" --content-type "$type" \
+            --cache-control "max-age=86400" --remote
+    done
+else
+    echo "==> No screenshots at $screenshots -- leaving the published ones as they are"
+fi
+
 cat <<NOTE
 
 Published. Two things this does not do:
 
   - Purge the Cloudflare cache. Edits appear within the 5 minute max-age, or
-    purge $SITE_HOST/index.html to see them now.
+    purge $SITE_HOST/index.html to see them now. Screenshots are cached for a
+    day, so a replaced one needs a new ?v= in site/index.html and README.md.
   - Serve the page at the bare root. That is a zone rewrite rule
     ("Moo site: serve index.html at the root"), because an R2 custom domain
     has no index-document behavior of its own and answers / with a 404.
