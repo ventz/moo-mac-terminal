@@ -4,6 +4,7 @@
 # the right, an arrow between them on a background image that says what to do.
 
 set -euo pipefail
+trap 'echo "create-dmg.sh: line $LINENO failed (exit $?): $BASH_COMMAND" >&2' ERR
 
 if [[ $# -lt 2 || $# -gt 3 ]]; then
     echo "Usage: $0 APP_PATH OUTPUT_DMG [VOLUME_NAME]" >&2
@@ -26,12 +27,11 @@ if [[ "$output_path" != *.dmg ]]; then
     exit 64
 fi
 
-# Two runs at once would both want /Volumes/<volume_name>, and the second would
-# silently land on a "-1" mount whose layout is never saved.
-if [[ -d "/Volumes/$volume_name" ]]; then
-    echo "A volume named '$volume_name' is already mounted; detach it first." >&2
-    exit 65
-fi
+# Build under a unique volume name and rename it at the end. With the final name,
+# any open copy of an earlier image (someone installing a previous build) pushed
+# this one onto a "Moo 1" mount while Finder laid out the wrong window -- a
+# release failed that way.
+build_volume="$volume_name-build-$$"
 
 app_name="$(basename "$app_path")"
 output_directory="$(dirname "$output_path")"
@@ -64,7 +64,7 @@ fi
 # A read/write image first, so the Finder window layout can be set and saved
 # into the volume's .DS_Store, then converted to the image that ships.
 size_kb=$(du -sk "$payload" | awk '{print $1}')
-hdiutil create -srcfolder "$payload" -volname "$volume_name" \
+hdiutil create -srcfolder "$payload" -volname "$build_volume" \
     -fs HFS+ -format UDRW -size $((size_kb + 65536))k -quiet "$temp_dmg"
 
 # The attach output is captured whole and parsed afterwards. Piping it into
@@ -73,13 +73,16 @@ hdiutil create -srcfolder "$payload" -volname "$volume_name" \
 # the command substitution and ends the script with no message at all. It is a
 # race, so it looked like the DMG step failing at random.
 attach_output=$(hdiutil attach "$temp_dmg" -readwrite -noverify -noautoopen)
-device=$(printf '%s\n' "$attach_output" | awk '/^\/dev\/disk/ {print $1}' | head -1)
+# awk keeps only the first match itself: piping into `head -1` let head exit
+# early, awk die of SIGPIPE and pipefail end the script silently -- at random,
+# since hdiutil prints several /dev/disk lines (it failed a real release run).
+device=$(printf '%s\n' "$attach_output" | awk '/^\/dev\/disk/ && !found {print $1; found = 1}')
 [[ -n "$device" ]] || {
     echo "hdiutil attach returned no device:" >&2
     printf '%s\n' "$attach_output" >&2
     exit 70
 }
-mount_point="/Volumes/$volume_name"
+mount_point="/Volumes/$build_volume"
 
 # Attach returns before the volume is necessarily in /Volumes.
 for _ in $(seq 1 50); do
@@ -104,7 +107,7 @@ fi
 
 osascript <<APPLESCRIPT || echo "note: could not set the window layout; the DMG is still valid" >&2
 tell application "Finder"
-    tell disk "$volume_name"
+    tell disk "$build_volume"
         open
         set current view of container window to icon view
         set toolbar visible of container window to false
@@ -127,7 +130,17 @@ end tell
 APPLESCRIPT
 
 sync
-hdiutil detach "$device" -quiet
+diskutil rename "$mount_point" "$volume_name" >/dev/null
+
+# Finder can hold the volume for a moment after closing its window
+for attempt in 1 2 3 4 5; do
+    if hdiutil detach "$device" -quiet; then
+        device=""
+        break
+    fi
+    sleep 2
+done
+[[ -z "$device" ]] || hdiutil detach "$device" -force -quiet
 device=""
 
 hdiutil convert "$temp_dmg" -format UDZO -imagekey zlib-level=9 -ov -quiet -o "$output_path"
