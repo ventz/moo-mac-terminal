@@ -12,6 +12,7 @@
 #   - a Developer ID Application certificate in the login keychain
 #   - the "moo-notary" notarytool profile        (xcrun notarytool store-credentials)
 #   - a Sparkle EdDSA key in the login keychain  (Sparkle's generate_keys)
+#   - a logged-in gh, when origin is a GitHub repository  (gh auth login)
 #   - a logged-in wrangler                       (npx wrangler@latest login)
 #
 # The Sparkle private key never leaves the login keychain; generate_appcast
@@ -86,6 +87,27 @@ if [[ $dry_run -eq 0 ]]; then
         || { echo "wrangler is not logged in -- run: npx wrangler@latest login" >&2; exit 1; }
 fi
 
+# The GitHub release tags the commit the app is built from, so a real release
+# needs a clean checkout whose HEAD is already on origin. A repository with no
+# GitHub remote skips the GitHub release rather than failing.
+build_commit=$(git rev-parse HEAD)
+github_repo=""
+if [[ $dry_run -eq 0 ]]; then
+    tracked_changes=$(git status --porcelain --untracked-files=no)
+    [[ -z "$tracked_changes" ]] \
+        || { echo "uncommitted changes -- commit or stash them so the release matches its tag" >&2; exit 1; }
+    origin_url=$(git remote get-url origin 2>/dev/null || true)
+    if [[ "$origin_url" == *github.com* ]]; then
+        gh auth status >/dev/null 2>&1 \
+            || { echo "gh is not logged in -- run: gh auth login" >&2; exit 1; }
+        github_repo=$(gh repo view "$origin_url" --json nameWithOwner --jq .nameWithOwner)
+        git fetch --quiet origin
+        pushed=$(git branch -r --contains "$build_commit")
+        [[ -n "$pushed" ]] \
+            || { echo "$build_commit is not on origin -- push it before releasing" >&2; exit 1; }
+    fi
+fi
+
 # --- Build -------------------------------------------------------------------
 
 say "Building Release (universal)"
@@ -99,6 +121,14 @@ app="$derived_data/Build/Products/Release/Moo.app"
 
 version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$app/Contents/Info.plist")
 build_number=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$app/Contents/Info.plist")
+
+# Checked before notarizing, not after publishing: a version already released
+# on GitHub means CFBundleShortVersionString was not bumped.
+if [[ -n "$github_repo" ]]; then
+    existing=$(git ls-remote --tags origin "refs/tags/v$version")
+    [[ -z "$existing" ]] \
+        || { echo "v$version is already tagged on origin -- bump the version" >&2; exit 1; }
+fi
 say "Version $version (build $build_number), architectures: $(lipo -archs "$app/Contents/MacOS/Moo")"
 
 # --- Sign --------------------------------------------------------------------
@@ -234,3 +264,51 @@ echo "  share:    $FEED_HOST/Moo.dmg        (always the newest release)"
 echo "  download: $FEED_HOST/$(basename "$dmg")"
 echo "  appcast:  $FEED_HOST/appcast.xml"
 echo "  local:    $dmg"
+
+# --- GitHub release ----------------------------------------------------------
+# The same notarized disk image the feed serves, attached to a tag at the
+# commit it was built from. Last, like the feed: it is one more place that
+# advertises the build.
+
+if [[ -z "$github_repo" ]]; then
+    say "No GitHub remote -- skipping the GitHub release"
+    exit 0
+fi
+
+tag="v$version"
+say "Creating GitHub release $tag ($github_repo)"
+
+checksum=$(shasum -a 256 "$dmg")
+checksum=${checksum%% *}
+# Outside release_dir: generate_appcast treats notes files there as its own.
+github_notes=$(mktemp -t Moo-github-notes)
+{
+    if [[ -n "$notes_file" ]]; then
+        cat "$notes_file"
+        printf '\n'
+    fi
+    cat <<NOTES
+## Install
+
+Download **$(basename "$dmg")** below, open it, and drag Moo to Applications.
+It is signed with a Developer ID and notarized by Apple, and it updates itself
+from then on.
+
+## Verify
+
+\`\`\`
+spctl --assess --type open --context context:primary-signature -vv $(basename "$dmg")
+shasum -a 256 $(basename "$dmg")
+# $checksum
+\`\`\`
+NOTES
+} > "$github_notes"
+
+gh release create "$tag" "$dmg" \
+    --repo "$github_repo" \
+    --target "$build_commit" \
+    --title "Moo $version" \
+    --notes-file "$github_notes" \
+    --latest
+
+echo "  github:   https://github.com/$github_repo/releases/tag/$tag"
