@@ -797,39 +797,53 @@ struct TerminalPrintCommands: Commands {
 }
 
 struct AppInfoCommands: Commands {
-    /// Moo is built on Miguel de Icaza's work — SwiftTerm and Tecolot — and
-    /// the About panel says so by name rather than leaving it to a license
-    /// file nobody opens.
-    private static let credits: NSAttributedString = {
+    /// Moo's own credits come first, then Miguel de Icaza's work it is built
+    /// on — SwiftTerm and Tecolot — named here rather than left to a license
+    /// file nobody opens, then the bundled font.
+    static let credits: NSAttributedString = {
         let text = """
+        Moo © 2026 Ventz Petkov, MIT License
+        https://vpetkov.net
+        https://moo.vpetkov.net
+        https://github.com/ventz
         https://github.com/ventz/moo-mac-terminal
 
         Built on SwiftTerm and Tecolot by Miguel de Icaza.
         © 2026 Miguel de Icaza, MIT License
-
         https://github.com/migueldeicaza/SwiftTerm
         https://github.com/migueldeicaza/Tecolot
-
-        Moo © 2026 Ventz Petkov, MIT License
 
         Includes Symbols Nerd Font (Nerd Fonts 3.4.0),
         © Nerd Fonts contributors, MIT License.
         """
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .center
-        return NSAttributedString(
+        let credits = NSMutableAttributedString(
             string: text,
             attributes: [
                 .paragraphStyle: paragraph,
                 .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
             ]
         )
+        let lines = text as NSString
+        lines.enumerateSubstrings(in: NSRange(location: 0, length: lines.length), options: .byLines) { line, range, _, _ in
+            if let line, line.hasPrefix("https://"), let url = URL(string: line) {
+                credits.addAttribute(.link, value: url, range: range)
+            }
+        }
+        return credits
     }()
 
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
             Button("About Moo") {
-                NSApp.orderFrontStandardAboutPanel(options: [.credits: Self.credits])
+                // An empty version drops the "(build)" AppKit appends after
+                // the marketing version. The build number only orders
+                // Sparkle updates; it means nothing to a reader.
+                NSApp.orderFrontStandardAboutPanel(options: [
+                    .credits: Self.credits,
+                    .version: ""
+                ])
             }
         }
     }
