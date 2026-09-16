@@ -326,6 +326,7 @@ struct GeneralSettingsView: View {
     @AppStorage("startupWindowGroupID") private var startupWindowGroupID = ""
     @AppStorage("useMetalRenderer") private var useMetalRenderer = true
     @AppStorage(LinkRoutingDefaults.opensLinksInApp) private var opensLinksInApp = true
+    @AppStorage(MarkdownPreviewDefaults.followsTerminalTheme) private var markdownFollowsTheme = false
     @AppStorage(ContentBlockingDefaults.enabledKey) private var blocksAds = true
     @State private var errorMessage: String?
 
@@ -385,6 +386,12 @@ struct GeneralSettingsView: View {
             Section("Links") {
                 Toggle("Open links and Markdown files in Moo tabs", isOn: $opensLinksInApp)
                 Text("Command-click opens web addresses and Markdown files as tabs beside the terminal. Option-Command-click always uses the default app.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section("Markdown previews") {
+                Toggle("Follow the terminal theme", isOn: $markdownFollowsTheme)
+                Text("Off: previews are always light, with dark text.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

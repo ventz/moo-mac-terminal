@@ -82,6 +82,7 @@ enum AppSettings {
         AppSetting(key: "LogHostOutput", kind: .bool),
         AppSetting(key: "webInspectorEnabled", kind: .bool),
         AppSetting(key: LinkRoutingDefaults.opensLinksInApp, kind: .bool),
+        AppSetting(key: MarkdownPreviewDefaults.followsTerminalTheme, kind: .bool),
         AppSetting(key: ContentBlockingDefaults.enabledKey, kind: .bool),
         // Projects
         AppSetting(key: ProjectSidebarDefaults.isVisible, kind: .bool),
