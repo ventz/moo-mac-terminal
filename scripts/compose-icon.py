@@ -21,14 +21,16 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 CANVAS = 1024
 TILE = 824          # Apple's macOS icon grid
 RADIUS = 185        # tile corner radius
-# Centered on #2F8E3E (grass green, dark enough to set off the purple cow),
-# lighter at the top, as macOS icons are lit.
+# Centered on #3C9F4B (grass green, dark enough to set off the purple cow),
+# lighter at the top, as macOS icons are lit. Lifted from #2F8E3E, which read
+# too dark against a light Dock.
 # Earlier tiles, to go back to:
 #   yellow-green #B2C248: TILE_TOP = (196, 212, 94) #C4D45E, TILE_BOTTOM = (160, 176, 50) #A0B032
 #   first green:          TILE_TOP = (72, 214, 110) #48D66E, TILE_BOTTOM = (38, 170, 78) #26AA4E
 #   bright green #00DA4D: TILE_TOP = (0, 236, 104) #00EC68, TILE_BOTTOM = (0, 200, 50) #00C832
-TILE_TOP = (63, 163, 77)      # #3FA34D
-TILE_BOTTOM = (30, 122, 47)   # #1E7A2F
+#   dark green #2F8E3E:   TILE_TOP = (63, 163, 77) #3FA34D, TILE_BOTTOM = (30, 122, 47) #1E7A2F
+TILE_TOP = (77, 179, 91)      # #4DB35B
+TILE_BOTTOM = (42, 138, 59)   # #2A8A3B
 COW_FILL = 0.96     # the cow's width as a share of the tile's: ears near the edges
 SHADOW_OFFSET = 12  # px down
 SHADOW_BLUR = 22
