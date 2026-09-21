@@ -80,7 +80,9 @@ enum AppSettings {
         AppSetting(key: secureKeyboardEntry, kind: .bool),
         AppSetting(key: secureKeyboardEntryAtPasswordPrompts, kind: .bool),
         AppSetting(key: WorkspaceRestoreDefaults.restoresOnLaunch, kind: .bool),
-        AppSetting(key: "LogHostOutput", kind: .bool),
+        // LogHostOutput is deliberately absent. A profile document is shared
+        // socially, as "a theme", and applying one must not be able to start
+        // recording every pane's raw output to disk.
         AppSetting(key: "webInspectorEnabled", kind: .bool),
         AppSetting(key: LinkRoutingDefaults.opensLinksInApp, kind: .bool),
         AppSetting(key: MarkdownPreviewDefaults.followsTerminalTheme, kind: .bool),
@@ -122,6 +124,7 @@ enum AppSettings {
         "lastTerminalWindowFrameSize",
         AttentionCenter.itemIDKey,                   // a notification's userInfo key
         "drawsBackground",                           // a WKWebView key-value, not a default
+        "LogHostOutput",                             // never travels in a profile: see `all`
     ]
 
     /// The current value of every setting that has one, defaults included, so

@@ -1264,8 +1264,38 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
 
     private func updateLogging() {
         NSUserDefaultsController.shared.defaults.set(logging, forKey: "LogHostOutput")
-        let path = logging ? "\(FileManager.default.homeDirectoryForCurrentUser.path)/Downloads/Logs" : nil
-        terminal?.setHostLogging(directory: path)
+        terminal?.setHostLogging(directory: logging ? Self.hostLogDirectory() : nil)
+    }
+
+    /// Where host output is logged.
+    ///
+    /// Everything the shell printed lands in these files — `env` output,
+    /// tokens echoed by tooling, ssh banners — so they live under
+    /// `~/Library/Logs/Moo`, created readable by this user only. They used to
+    /// go to `~/Downloads/Logs`: the folder most likely to be synced, shared,
+    /// or read by other apps.
+    ///
+    /// Returns nil, and so logs nothing, when the directory cannot be made
+    /// private. Not logging is the safe failure; logging somewhere readable is
+    /// not.
+    nonisolated static func hostLogDirectory(
+        home: URL = FileManager.default.homeDirectoryForCurrentUser
+    ) -> String? {
+        let url = home.appendingPathComponent("Library/Logs/Moo", isDirectory: true)
+        let files = FileManager.default
+        do {
+            try files.createDirectory(
+                at: url,
+                withIntermediateDirectories: true,
+                attributes: [.posixPermissions: 0o700]
+            )
+            // createDirectory applies attributes only when it creates the
+            // directory, so an existing one is tightened explicitly.
+            try files.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
+            return url.path
+        } catch {
+            return nil
+        }
     }
 
     private func saveData(_ getData: @escaping () -> Data) {

@@ -689,7 +689,7 @@ struct TerminalCommands: Commands {
                 .disabled(!isEnabled)
             Toggle("Use Per-Frame Metal Buffering", isOn: binding(\.usePerFrameMetalBuffering))
                 .disabled(!isEnabled)
-            Toggle("Log host output to ~/Downloads/Logs", isOn: binding(\.logHostOutput))
+            Toggle("Log host output to ~/Library/Logs/Moo", isOn: binding(\.logHostOutput))
                 .disabled(!isEnabled)
             Toggle("Secure Keyboard Entry", isOn: Bindable(secureKeyboardEntry).isEnabled)
             Toggle("Secure Keyboard Entry at Password Prompts",
