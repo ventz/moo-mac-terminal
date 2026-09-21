@@ -145,6 +145,20 @@ if [[ -n "$github_repo" ]]; then
     [[ -z "$existing" ]] \
         || { echo "v$version is already tagged on origin -- bump the version" >&2; exit 1; }
 fi
+# Sparkle orders updates by CFBundleVersion, not by the marketing version. A
+# release that bumps only MARKETING_VERSION goes out end to end and is never
+# offered to anyone, so the build number is compared against the live feed.
+# `sort -n` reads all of its input before `tail` sees any, so this pipeline has
+# no early-exiting reader (see the pipefail note in CLAUDE.md).
+published_feed=$(curl -fsS "$FEED_HOST/appcast.xml" 2>/dev/null || true)
+highest_build=$(printf '%s' "$published_feed" \
+    | grep -oE '<sparkle:version>[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)
+if [[ -n "$highest_build" ]] && (( build_number <= highest_build )); then
+    echo "build $build_number is not above the published build $highest_build --" \
+        "bump CURRENT_PROJECT_VERSION, or Sparkle will never offer this release" >&2
+    exit 1
+fi
+
 say "Version $version (build $build_number), architectures: $(lipo -archs "$app/Contents/MacOS/Moo")"
 
 # --- Sign --------------------------------------------------------------------
@@ -253,8 +267,7 @@ fi
     --maximum-versions 5 \
     "$release_dir"
 
-# The publish step uploads the disk image and the feed. Anything the feed links
-# to instead of embedding would be a dead URL, so refuse to publish one.
+# Release notes are embedded, never linked: see the .html check in preflight.
 feed=$(cat "$release_dir/appcast.xml")
 if [[ "$feed" == *"<sparkle:releaseNotesLink>"* ]]; then
     echo "the generated feed links release notes that are never uploaded:" >&2
@@ -262,6 +275,24 @@ if [[ "$feed" == *"<sparkle:releaseNotesLink>"* ]]; then
     echo "write the notes as .html so they are embedded instead" >&2
     exit 1
 fi
+
+# Every file the feed points at has to be on the host before the feed is, or
+# the updater follows a link to a 404. This bit twice: Markdown release notes
+# on 0.1.3, and every delta update ever generated -- generate_appcast writes
+# <sparkle:deltas> entries, the publish step used to upload only the disk image
+# and the feed, and so for three releases every delta returned 404 and Sparkle
+# silently fell back to the full image. Collect the feed's own files here and
+# refuse to go on if any of them is missing from the release directory.
+feed_files=()
+while IFS= read -r name; do
+    [[ -z "$name" || "$name" == "appcast.xml" ]] && continue
+    feed_files+=("$name")
+done < <(grep -oE "${FEED_HOST//./\\.}/[A-Za-z0-9._-]+" "$release_dir/appcast.xml" \
+            | sed "s|^$FEED_HOST/||" | sort -u)
+for name in "${feed_files[@]}"; do
+    [[ -f "$release_dir/$name" ]] \
+        || { echo "the feed references $name, which is not in $release_dir" >&2; exit 1; }
+done
 
 # --- Publish -----------------------------------------------------------------
 
@@ -272,6 +303,22 @@ say "Publishing to R2 ($BUCKET)"
 # recorded for that exact file.
 wrangler r2 object put "$BUCKET/$(basename "$dmg")" \
     --file "$dmg" --content-type application/x-apple-diskimage --remote
+
+# Everything else the feed references -- delta updates, chiefly. They are
+# named by version pair and never change once made, so one that is already
+# published is left alone rather than put again.
+for name in "${feed_files[@]}"; do
+    [[ "$name" == "$(basename "$dmg")" ]] && continue
+    # The status is compared explicitly. `curl -fsSI` looks like the obvious
+    # existence check and is not one: with -I, --fail does not turn a 404 into
+    # a failing exit, so every missing file reads as already published and is
+    # skipped -- which is how this loop would have quietly kept every delta a
+    # 404 while appearing to fix it.
+    http_status=$(curl -s -o /dev/null -I -w '%{http_code}' "$FEED_HOST/$name" || true)
+    [[ "$http_status" == "200" ]] && continue
+    wrangler r2 object put "$BUCKET/$name" \
+        --file "$release_dir/$name" --content-type application/octet-stream --remote
+done
 
 # Moo.dmg is a plain copy of the newest release, for handing someone a link
 # that does not go stale. Nothing in the update path reads it, so it is short
