@@ -13,7 +13,7 @@
 #   - the "moo-notary" notarytool profile        (xcrun notarytool store-credentials)
 #   - a Sparkle EdDSA key in the login keychain  (Sparkle's generate_keys)
 #   - a logged-in gh, when origin is a GitHub repository  (gh auth login)
-#   - a logged-in wrangler                       (npx wrangler@latest login)
+#   - a logged-in wrangler                       (npx wrangler@4.136.0 login; see WRANGLER_VERSION)
 #
 # The Sparkle private key never leaves the login keychain; generate_appcast
 # reads it there and writes only signatures into the feed.
@@ -97,10 +97,15 @@ fi
 
 # CI=1 and the metrics opt-out keep wrangler from stopping on its first-run
 # prompts, which block forever in a non-interactive release.
-wrangler() { CI=1 WRANGLER_SEND_METRICS=false npx --yes wrangler@latest "$@"; }
+# Pinned, and bumped on purpose. This runs on the machine holding the
+# Developer ID key, the notary profile, the Sparkle signing key and a Cloudflare
+# session that can write the bucket serving the update feed; "@latest" would
+# execute whatever npm published most recently. 4.136.0 cut 0.1.3.
+readonly WRANGLER_VERSION="4.136.0"
+wrangler() { CI=1 WRANGLER_SEND_METRICS=false npx --yes "wrangler@$WRANGLER_VERSION" "$@"; }
 if [[ $dry_run -eq 0 ]]; then
     wrangler whoami >/dev/null 2>&1 \
-        || { echo "wrangler is not logged in -- run: npx wrangler@latest login" >&2; exit 1; }
+        || { echo "wrangler is not logged in -- run: npx wrangler@$WRANGLER_VERSION login" >&2; exit 1; }
 fi
 
 # The GitHub release tags the commit the app is built from, so a real release

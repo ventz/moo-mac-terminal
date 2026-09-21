@@ -11,7 +11,7 @@
 # with MOO_SCREENSHOTS_DIR): each as a .webp the page shows and the original
 # .png it links to. They are uploaded when that directory exists.
 #
-# Requires a logged-in wrangler: npx wrangler@latest login
+# Requires a logged-in wrangler: npx wrangler@4.136.0 login (see WRANGLER_VERSION)
 
 set -euo pipefail
 
@@ -23,10 +23,15 @@ cd "$repo_root"
 
 # CI=1 and the metrics opt-out keep wrangler off its first-run prompts, which
 # block forever when nothing is there to answer them.
-wrangler() { CI=1 WRANGLER_SEND_METRICS=false npx --yes wrangler@latest "$@"; }
+# Pinned, and bumped on purpose. This runs on the machine holding the
+# Developer ID key, the notary profile, the Sparkle signing key and a Cloudflare
+# session that can write the bucket serving the update feed; "@latest" would
+# execute whatever npm published most recently. 4.136.0 cut 0.1.3.
+readonly WRANGLER_VERSION="4.136.0"
+wrangler() { CI=1 WRANGLER_SEND_METRICS=false npx --yes "wrangler@$WRANGLER_VERSION" "$@"; }
 
 wrangler whoami >/dev/null 2>&1 \
-    || { echo "wrangler is not logged in -- run: npx wrangler@latest login" >&2; exit 1; }
+    || { echo "wrangler is not logged in -- run: npx wrangler@$WRANGLER_VERSION login" >&2; exit 1; }
 
 # The page's icon is the same artwork the app bundle uses, so it is copied
 # from docs/ rather than kept as a second copy under site/.
