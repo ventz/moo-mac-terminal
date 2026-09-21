@@ -600,6 +600,15 @@ struct ProfileSettingsPage: View {
         )
     }
 
+    /// App-wide rather than per-profile: macOS reads press-and-hold once, for
+    /// the whole application, so a profile cannot own it.
+    private var keyRepeatBinding: Binding<Bool> {
+        Binding(
+            get: { KeyRepeat.isEnabled() },
+            set: { KeyRepeat.set(enabled: $0) }
+        )
+    }
+
     @ViewBuilder
     private var keyboardSettings: some View {
         Form {
@@ -607,6 +616,12 @@ struct ProfileSettingsPage: View {
                 Toggle("Use Option as Meta key", isOn: binding(\.optionAsMetaKey))
                 Toggle("Delete sends Control-H", isOn: binding(\.backspaceSendsControlH))
                 Toggle("Hide pointer while typing", isOn: binding(\.hidePointerWhileTyping))
+            }
+            Section {
+                Toggle("Repeat keys when held", isOn: keyRepeatBinding)
+                Text("Holding a letter repeats it, as it does in a terminal. Turn this off to get macOS's accent picker instead, at the cost of \u{2018}hjkl\u{2019} not repeating in vim and other terminal apps. Applies to Moo only.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             // Projects and tabs cannot both own cmd+1...9, so the choice
             // lives here with the other key settings rather than as a

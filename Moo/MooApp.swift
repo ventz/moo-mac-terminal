@@ -880,7 +880,10 @@ struct MooApp: App {
         registered.merge(LinkRoutingDefaults.registrationValues) { current, _ in current }
         registered.merge(ContentBlockingDefaults.registrationValues) { current, _ in current }
         registered.merge(WindowChromeDefaults.registrationValues) { current, _ in current }
+        registered.merge(KeyboardDefaults.registrationValues) { current, _ in current }
         UserDefaults.standard.register(defaults: registered)
+        // Before any window exists, so the very first keystroke repeats.
+        KeyRepeat.applyStoredSetting()
         MarkdownPreviewOpener.install()
         BrowserOpener.install()
     }

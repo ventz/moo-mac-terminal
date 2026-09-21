@@ -76,6 +76,7 @@ enum AppSettings {
         AppSetting(key: "useCommandDigitsForTabs", kind: .bool),
         AppSetting(key: "restoredRowsLimit", kind: .int),
         AppSetting(key: "useMetalRenderer", kind: .bool),
+        AppSetting(key: KeyboardDefaults.keyRepeatEnabled, kind: .bool),
         AppSetting(key: secureKeyboardEntry, kind: .bool),
         AppSetting(key: secureKeyboardEntryAtPasswordPrompts, kind: .bool),
         AppSetting(key: WorkspaceRestoreDefaults.restoresOnLaunch, kind: .bool),
