@@ -285,8 +285,10 @@ Company, and Christopher Jeffrey.
 | [swift-png](https://github.com/tayloraswift/swift-png) | Taylor Swift (tayloraswift) | MPL 2.0 |
 | Symbols Nerd Font (Nerd Fonts 3.4.0) | Nerd Fonts contributors | MIT |
 
-Sparkle auto-update is deliberately disabled: this fork publishes no appcast,
-and inheriting upstream's feed would install the upstream app over Moo.
+Moo updates itself through Sparkle, from its own feed at
+[moo.vpetkov.net](https://moo.vpetkov.net/appcast.xml) only — never upstream's,
+which would install the upstream app over Moo. Every update is signed with
+Moo's EdDSA key and notarized by Apple.
 
 ## License
 
