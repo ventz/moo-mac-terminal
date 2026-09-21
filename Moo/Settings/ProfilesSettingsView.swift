@@ -274,6 +274,9 @@ struct ProfilesSettingsView: View {
         }
         AppSettings.apply(embedded.settings, profileIDs: profileIDs)
         SecureKeyboardEntry.shared.reloadFromDefaults()
+        // Imported settings can change key repeat too, and AppKit only sees
+        // it once it is written back into its own key.
+        KeyRepeat.applyStoredSetting()
     }
 
     private func exportSelectedProfile() {

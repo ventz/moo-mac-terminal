@@ -124,6 +124,8 @@ enum AppSettings {
         "lastTerminalWindowFrameSize",
         AttentionCenter.itemIDKey,                   // a notification's userInfo key
         "drawsBackground",                           // a WKWebView key-value, not a default
+        KeyRepeat.pressAndHoldKey,                   // AppKit's own key, derived from
+                                                     // keyboardKeyRepeatEnabled at launch
         "LogHostOutput",                             // never travels in a profile: see `all`
     ]
 
