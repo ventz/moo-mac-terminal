@@ -52,6 +52,21 @@ say() { printf '\n==> %s\n' "$*"; }
 
 say "Checking prerequisites"
 
+# generate_appcast embeds HTML notes into the feed as a <description>, but for
+# any other format it writes a <sparkle:releaseNotesLink> pointing at a file
+# beside the archive -- and the publish step below uploads the disk image and
+# the feed, nothing else. A Markdown notes file therefore ships a feed whose
+# "release notes" link 404s for everyone updating. It cost exactly that on
+# 0.1.3, so the format is checked here rather than discovered in the updater.
+if [[ -n "$notes_file" ]]; then
+    [[ -f "$notes_file" ]] || { echo "notes file not found: $notes_file" >&2; exit 1; }
+    case "${notes_file##*.}" in
+        html|htm) ;;
+        *) echo "notes must be .html so they are embedded in the feed, not linked: $notes_file" >&2
+           exit 1 ;;
+    esac
+fi
+
 identities=$(security find-identity -v -p codesigning)
 [[ "$identities" == *"$IDENTITY"* ]] \
     || { echo "missing signing identity: $IDENTITY" >&2; exit 1; }
@@ -237,6 +252,16 @@ fi
     --download-url-prefix "$FEED_HOST/" \
     --maximum-versions 5 \
     "$release_dir"
+
+# The publish step uploads the disk image and the feed. Anything the feed links
+# to instead of embedding would be a dead URL, so refuse to publish one.
+feed=$(cat "$release_dir/appcast.xml")
+if [[ "$feed" == *"<sparkle:releaseNotesLink>"* ]]; then
+    echo "the generated feed links release notes that are never uploaded:" >&2
+    grep -o "<sparkle:releaseNotesLink>[^<]*" "$release_dir/appcast.xml" >&2
+    echo "write the notes as .html so they are embedded instead" >&2
+    exit 1
+fi
 
 # --- Publish -----------------------------------------------------------------
 
