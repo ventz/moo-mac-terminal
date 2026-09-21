@@ -64,9 +64,14 @@ enum MarkdownPreviewOpener {
     /// Nothing is executed: the text lands at the prompt for the user to
     /// read and confirm with Return, because a code block can hide what it
     /// really contains (text scrolled off to the right, bidi overrides, a
-    /// line below the fold). A multi-line block goes through the terminal's
-    /// own paste path, which honours bracketed paste, so the shell shows it
-    /// as one pasted unit instead of running every line but the last.
+    /// line below the fold).
+    ///
+    /// A multi-line block is framed in bracketed-paste markers and sent
+    /// directly, so the shell shows it as one pasted unit instead of running
+    /// every line but the last. That only works if the program on the other
+    /// end has turned bracketed paste on — without it every newline is a
+    /// Return — so when it has not, the block is refused rather than typed.
+    /// The clipboard is never touched on the way.
     static func run(command: String, from preview: MarkdownPreviewSession) {
         let runtime = ProjectRuntime.shared
         guard let session = runtime.selectedSession,
@@ -82,18 +87,32 @@ enum MarkdownPreviewOpener {
         runtime.invalidate()
 
         if script.contains("\n") {
-            let pasteboard = NSPasteboard.general
-            let previous = pasteboard.string(forType: .string)
-            pasteboard.clearContents()
-            pasteboard.setString(script, forType: .string)
-            terminal.paste(self)
-            if let previous {
-                pasteboard.clearContents()
-                pasteboard.setString(previous, forType: .string)
+            guard terminal.terminalStateSnapshot().bracketedPasteMode else {
+                refuseUnframedRun(script)
+                return
             }
+            // prepareCommand strips every C0 control, ESC included, so the
+            // block cannot contain the end marker and break out of the frame.
+            terminal.send(txt: "\u{1b}[200~" + script + "\u{1b}[201~")
         } else {
             terminal.send(txt: script)
         }
+    }
+
+    /// Explains why a multi-line block was not typed, and offers to copy it so
+    /// it can be pasted somewhere it will be checked before it runs.
+    private static func refuseUnframedRun(_ script: String) {
+        let alert = NSAlert()
+        alert.messageText = "This block was not typed into the terminal"
+        alert.informativeText =
+            "The program in the terminal has not turned on bracketed paste, "
+            + "so each line of a multi-line block would run as soon as it was "
+            + "typed. Copy the block and paste it where you can check it first."
+        alert.addButton(withTitle: "Copy Block")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(script, forType: .string)
     }
 
     /// Strips prompt markers and anything that could make the typed text
