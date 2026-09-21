@@ -155,6 +155,41 @@ final class AppTerminalView: LocalProcessTerminalView {
         super.send(source: source, data: data)
     }
 
+    // MARK: OSC 52 clipboard
+    //
+    // SwiftTerm's defaults answer an OSC 52 read with the entire clipboard and
+    // apply an OSC 52 write unconditionally. That puts the clipboard under the
+    // control of whatever is running in the pane: `cat` a crafted file, or
+    // read anything a remote host prints over ssh, and `ESC ] 52 ; c ; ? BEL`
+    // sends the clipboard back — frequently a password just pasted from a
+    // password manager — with no user action and nothing on screen.
+    //
+    // The kitty clipboard protocol already asks first (see
+    // TerminalSessionController.kittyClipboardRequestPermission). This makes
+    // the xterm path agree with it.
+
+    /// Refused, always. There is no use for a program reading the clipboard
+    /// that justifies handing it to a remote host silently, and reads are the
+    /// half of OSC 52 that exfiltrates.
+    override func clipboardRead(source: TerminalView) -> Data? {
+        nil
+    }
+
+    /// Allowed with consent. A write is genuinely useful — yanking from vim on
+    /// a remote machine into the local clipboard — so it is asked about rather
+    /// than refused, with the text shown before it lands.
+    override func clipboardCopy(source: TerminalView, content: Data) {
+        guard let text = String(data: content, encoding: .utf8), !text.isEmpty else {
+            return
+        }
+        guard sessionController?.permitsClipboardWrite(text) == true else {
+            return
+        }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+    }
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         registerForDraggedTypes([.fileURL])

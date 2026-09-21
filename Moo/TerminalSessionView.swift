@@ -468,6 +468,68 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         return .allow(rememberPassword: remember)
     }
 
+    /// Remembered consent for OSC 52 writes from this pane, for this session.
+    /// Never persisted: a decision made about one program in one pane should
+    /// not quietly apply to whatever runs there tomorrow.
+    private var clipboardWritesAllowedForSession = false
+
+    /// Longest stretch of a pending clipboard write shown in the prompt.
+    static let clipboardPreviewLimit = 240
+
+    /// Asks whether a program in this pane may replace the clipboard.
+    ///
+    /// Same shape as the kitty prompt: the pane is named, the content is shown
+    /// as data, and Return denies — a prompt that appears mid-typing must not
+    /// be approved by the next keystroke.
+    func permitsClipboardWrite(_ text: String) -> Bool {
+        if clipboardWritesAllowedForSession { return true }
+
+        var pane = AttentionCenter.location(of: self)
+        if let workspace, workspace.isZoomed, workspace.zoomedControllerID != id {
+            pane += " (hidden while zoomed)"
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "Allow a program to replace the clipboard?"
+        alert.informativeText =
+            "A program in \(pane) wants to put \(text.count) character"
+            + (text.count == 1 ? "" : "s")
+            + " on your clipboard:\n\n"
+            + Self.clipboardPreview(text)
+        let allow = alert.addButton(withTitle: "Allow")
+        let deny = alert.addButton(withTitle: "Deny")
+        allow.keyEquivalent = ""
+        deny.keyEquivalent = "\r"
+        alert.showsSuppressionButton = true
+        alert.suppressionButton?.title = "Allow for this pane until it closes"
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return false }
+        if alert.suppressionButton?.state == .on {
+            clipboardWritesAllowedForSession = true
+        }
+        return true
+    }
+
+    /// What the prompt shows of a pending write. The text comes from the
+    /// program, so controls and bidi overrides are replaced — the preview must
+    /// read as what will land on the clipboard, not be able to disguise it —
+    /// and a long payload is cut, with the cut stated.
+    nonisolated static func clipboardPreview(_ text: String) -> String {
+        let cleaned = String(text.unicodeScalars.map { scalar -> Character in
+            let v = scalar.value
+            if scalar == "\n" { return "\u{21B5}" }   // ↵, so line breaks stay visible
+            if v < 0x20 || (0x7F...0x9F).contains(v) { return "\u{FFFD}" }
+            if (0x202A...0x202E).contains(v) || (0x2066...0x2069).contains(v)
+                || v == 0x200E || v == 0x200F || v == 0x061C {
+                return "\u{FFFD}"
+            }
+            return Character(scalar)
+        })
+        guard cleaned.count > clipboardPreviewLimit else { return cleaned }
+        return String(cleaned.prefix(clipboardPreviewLimit))
+            + "\u{2026} (\(cleaned.count - clipboardPreviewLimit) more)"
+    }
+
     func noteBell() {
         noteOutputActivity()
         guard !NSApp.isActive else { return }
