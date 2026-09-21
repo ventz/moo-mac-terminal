@@ -193,6 +193,23 @@ final class AppTerminalView: LocalProcessTerminalView {
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         registerForDraggedTypes([.fileURL])
+        resumeWhenReady()
+    }
+
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        resumeWhenReady()
+    }
+
+    /// A shell start or focus request may be waiting for this view to have a
+    /// window or a usable size. Deferred a turn so it never runs inside
+    /// AppKit's own layout pass: starting the shell lays the view out, and
+    /// doing that from within setFrameSize would re-enter layout.
+    private func resumeWhenReady() {
+        guard sessionController?.isWaitingForTerminal == true else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.sessionController?.terminalViewBecameReady()
+        }
     }
 
     override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation {

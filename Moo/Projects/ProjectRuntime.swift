@@ -198,6 +198,11 @@ final class ProjectRuntime {
     /// Windows from the last run, taken in order as windows open.
     @ObservationIgnored private var restoredWindows: [SavedWindow] = []
     @ObservationIgnored private var restoreStore: WorkspaceRestoreStore?
+    /// The projects that still exist, so a deleted one's layout is not saved.
+    /// Replaceable for tests, which have no project list of their own.
+    @ObservationIgnored var existingProjectIDs: () -> Set<UUID> = {
+        Set(AppModel.shared.projects.projects.map(\.id))
+    }
     @ObservationIgnored private var restoreAutosave: Timer?
     /// Set once quitting is certain. Quitting closes windows, and closing a
     /// window discards its workspaces; a save after that would record an
@@ -248,6 +253,14 @@ final class ProjectRuntime {
         scopes.first { $0.selectedProjectID == projectID }
     }
 
+    /// The scope a particular window owns. A close request names its window;
+    /// resolving the key window instead acts on whichever window happens to be
+    /// in front, which is how a click on a background window's close button
+    /// used to close a tab somewhere else.
+    func scope(for window: NSWindow) -> WindowScope? {
+        scopes.first { $0.window === window }
+    }
+
     /// The scope whose on-screen tab holds a controller: the window a terminal
     /// is actually in, which is not necessarily the key window.
     func scope(showing controller: TerminalSessionController) -> WindowScope? {
@@ -290,6 +303,12 @@ final class ProjectRuntime {
     func windowWillClose(_ window: NSWindow?) {
         guard let window,
               let scope = scopes.first(where: { $0.window === window }) else { return }
+        let isLastWindow = !scopes.contains { $0 !== scope && !$0.isClosed }
+        // Before anything is torn down: the layout has to be read while the
+        // sessions still exist.
+        if isLastWindow, !isTerminating {
+            keepLayoutAfterLastWindow()
+        }
         let ended = projectIDsEnded(byClosing: scope)
         scope.isClosed = true
         scope.selectedProjectID = nil
@@ -297,12 +316,26 @@ final class ProjectRuntime {
         for projectID in ended {
             discardSession(for: projectID)
         }
-        // Closing the last window ends everything on purpose, including
-        // workspaces from the last run nobody reopened.
-        if scopes.isEmpty, !isTerminating {
-            restoredWorkspaces.removeAll()
-            restoredWindows.removeAll()
-        }
+    }
+
+    /// Closing the last window keeps the layout it leaves behind.
+    ///
+    /// Decided 2026-09-21. It used to end everything, including workspaces
+    /// from the last run nobody had reopened — so closing the window and then
+    /// quitting lost the saved layout, while quitting with cmd+Q kept it, and
+    /// nothing on screen said the two differed. Both now keep it.
+    ///
+    /// The shells still end: the close confirmation promised that. What
+    /// survives is the arrangement — which workspaces, tabs, splits and
+    /// directories — saved now and held as though just restored, so the next
+    /// autosave carries it forward instead of writing it away, and the next
+    /// window to open picks it back up.
+    private func keepLayoutAfterLastWindow() {
+        guard let restoreStore, WorkspaceRestoreDefaults.isEnabled else { return }
+        let projectIDs = existingProjectIDs()
+        let document = restoreSnapshot(existingProjectIDs: projectIDs)
+        restoreStore.save(document)
+        prepareRestore(document)
     }
 
     /// cmd+B. Toggles the sidebar in one window only.
@@ -527,9 +560,14 @@ final class ProjectRuntime {
         let unvisited = restoredWorkspaces.values
             .filter { sessions[$0.projectID] == nil && exists($0.projectID) }
             .sorted { $0.projectID.uuidString < $1.projectID.uuidString }
-        let windows = scopes
+        let open = scopes
             .filter { !$0.isClosed && $0.window != nil }
             .map { SavedWindow(projectID: $0.selectedProjectID, showsSidebar: $0.isSidebarVisible) }
+        // With no window open — after the last one closed, or at launch before
+        // any has appeared — the windows worth saving are the ones waiting to
+        // come back. Saving the empty list instead is what made closing the
+        // last window forget which workspace each window showed.
+        let windows = open.isEmpty ? restoredWindows : open
         return WorkspaceRestoreDocument(windows: windows, workspaces: visited + unvisited)
     }
 
@@ -541,7 +579,7 @@ final class ProjectRuntime {
             restoreStore.remove()
             return
         }
-        let projectIDs = Set(AppModel.shared.projects.projects.map(\.id))
+        let projectIDs = existingProjectIDs()
         restoreStore.save(restoreSnapshot(existingProjectIDs: projectIDs))
     }
 

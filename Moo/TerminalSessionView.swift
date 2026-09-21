@@ -775,10 +775,34 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
             ?? NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
     }
 
+    /// How long a closed pane's shell has to exit on SIGHUP before it is killed
+    static let shellKillDelay: DispatchTimeInterval = .seconds(2)
+
+    /// Ends the pane's shell the way closing a terminal should: with a hangup.
+    ///
+    /// SwiftTerm's terminate() sends SIGTERM, which an interactive zsh or bash
+    /// ignores, and only escalates to SIGKILL when the process object is
+    /// deallocated. Anything that kept the view alive therefore left the shell
+    /// running with no window. SIGHUP is what a shell expects when its terminal
+    /// goes away: it exits and hangs up its own jobs. If it is still there
+    /// after `shellKillDelay`, it is killed.
     func terminate() {
         flushBufferSnapshot()
         AttentionCenter.shared.removeItems(from: id)
-        terminal?.terminate()
+        guard let terminal else { return }
+        let process = terminal.process
+        terminal.terminate()
+        guard let process else { return }
+        let pid = process.shellPid
+        guard pid > 0 else { return }
+        kill(pid, SIGHUP)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.shellKillDelay) {
+            // SwiftTerm clears shellPid when it reaps the child, and a PID
+            // cannot be reused before it is reaped, so a matching shellPid
+            // means this is still our shell and not some later process.
+            guard process.shellPid == pid else { return }
+            kill(pid, SIGKILL)
+        }
     }
 
     func requestClose() {
@@ -962,10 +986,42 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         return result
     }
 
-    private func scheduleFocusIfNeeded() {
+    /// How long to wait before looking again when the terminal is not ready:
+    /// no window yet, or too small to start a shell in.
+    ///
+    /// These retries used to be posted for the very next turn of the run loop,
+    /// with no delay and no limit, so a pane that stayed detached — a split
+    /// in a tab switched away from, whose shell then exited — or one sized
+    /// down to two cells spun the main thread flat out for as long as it
+    /// stayed that way. The view now reports when it gains a window or a
+    /// usable size (`terminalViewBecameReady`), so this is only the backstop
+    /// for an event that never comes, and it no longer spins.
+    static let notReadyRetryDelay: DispatchTimeInterval = .milliseconds(250)
+
+    /// True while a shell start or a focus request is waiting on the view.
+    var isWaitingForTerminal: Bool {
+        (startsProcess && !didStartProcess) || pendingFocus
+    }
+
+    /// Called by the terminal view, a turn after it gains a window or changes
+    /// size, so waiting work happens as soon as it can rather than at the next
+    /// backstop retry. Focus is only resumed if a request is actually
+    /// outstanding: a pane that was never asked for focus must not take it
+    /// because it was resized.
+    func terminalViewBecameReady() {
+        if startsProcess, !didStartProcess {
+            startShellIfReady()
+        }
+        if pendingFocus, !didRequestFocus {
+            focusIfNeeded()
+        }
+    }
+
+    private func scheduleFocusIfNeeded(retry: Bool = false) {
         guard !didRequestFocus, !pendingFocus else { return }
         pendingFocus = true
-        DispatchQueue.main.async { [weak self] in
+        let deadline: DispatchTime = retry ? .now() + Self.notReadyRetryDelay : .now()
+        DispatchQueue.main.asyncAfter(deadline: deadline) { [weak self] in
             guard let self else { return }
             self.pendingFocus = false
             self.focusIfNeeded()
@@ -975,7 +1031,7 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     private func focusIfNeeded() {
         guard !didRequestFocus, let terminal else { return }
         guard let window = terminal.window else {
-            scheduleFocusIfNeeded()
+            scheduleFocusIfNeeded(retry: true)
             return
         }
         registerWindowIfAvailable()
@@ -1038,10 +1094,11 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         updateWindowTitle()
     }
 
-    private func scheduleStartIfNeeded() {
+    private func scheduleStartIfNeeded(retry: Bool = false) {
         guard startsProcess, !didStartProcess, !pendingStart else { return }
         pendingStart = true
-        DispatchQueue.main.async { [weak self] in
+        let deadline: DispatchTime = retry ? .now() + Self.notReadyRetryDelay : .now()
+        DispatchQueue.main.asyncAfter(deadline: deadline) { [weak self] in
             guard let self else { return }
             self.pendingStart = false
             self.startShellIfReady()
@@ -1051,13 +1108,13 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     private func startShellIfReady() {
         guard !didStartProcess, let terminal else { return }
         guard terminal.window != nil else {
-            scheduleStartIfNeeded()
+            scheduleStartIfNeeded(retry: true)
             return
         }
         terminal.layoutSubtreeIfNeeded()
         let dimensions = terminal.terminalDimensions
         guard dimensions.cols > 2, dimensions.rows > 2 else {
-            scheduleStartIfNeeded()
+            scheduleStartIfNeeded(retry: true)
             return
         }
         didStartProcess = true
@@ -1713,7 +1770,10 @@ extension Notification.Name {
 @Observable
 final class TerminalCommandState {
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
-    var controller: TerminalSessionController?
+    /// Weak: the menu commands hold this for the life of the app, and a strong
+    /// reference kept the last focused pane, its view and its shell alive
+    /// after its window closed.
+    weak var controller: TerminalSessionController?
 
     init() {
         startObserving()

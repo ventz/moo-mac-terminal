@@ -127,11 +127,19 @@ final class WindowCloseInterceptor: NSObject, NSWindowDelegate {
             return forwardedWindowShouldClose(sender)
         }
 
-        // cmd+W and the red button arrive here. The document architecture puts
-        // Close on the window, but with workspace tabs the window is the whole
-        // app, so closing it would take every workspace's shells down at once.
-        // Hand the request to the close policy instead.
-        if ProjectCloseCoordinator.closeSelected() == .handled {
+        // cmd+W and the red button both arrive here, and they mean different
+        // things. cmd+W closes the thing you are working in: with workspace
+        // tabs that is a tab, or a project, never the whole window at once.
+        // The red button belongs to one particular window and means that
+        // window — so it skips the tab/project policy and goes straight to the
+        // window confirmation below. Routing it through the policy used to act
+        // on the key window rather than this one, and with the sidebar showing
+        // it could delete a project when all that was asked was to close a
+        // window.
+        if !Self.isCloseButtonClick(NSApp.currentEvent, in: sender),
+           ProjectCloseCoordinator.closeSelected(
+               in: ProjectRuntime.shared.scope(for: sender)
+           ) == .handled {
             return false
         }
 
@@ -165,6 +173,24 @@ final class WindowCloseInterceptor: NSObject, NSWindowDelegate {
             sender?.close()
         }
         return false
+    }
+
+    /// Whether `event` is a click on `window`'s own close button, as opposed
+    /// to cmd+W or File ▸ Close (a key event, or a click in a menu).
+    ///
+    /// Tested by position rather than by event type alone: choosing File ▸ Close
+    /// with the mouse is also a mouse event, but it happens in the menu, not on
+    /// this window's button, and it should behave like cmd+W.
+    static func isCloseButtonClick(_ event: NSEvent?, in window: NSWindow) -> Bool {
+        guard let event,
+              event.type == .leftMouseDown || event.type == .leftMouseUp,
+              event.window === window,
+              let button = window.standardWindowButton(.closeButton),
+              let container = button.superview else {
+            return false
+        }
+        let point = container.convert(event.locationInWindow, from: nil)
+        return button.frame.contains(point)
     }
 
     private func forwardedDelegateResponds(to selector: Selector) -> Bool {

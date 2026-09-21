@@ -447,9 +447,20 @@ struct TabSelectionCommands: Commands {
         }
     }
 
+    // Moo's tabs live inside one window, in the workspace — they are not
+    // native window tabs. These used to walk only NSWindow.tabGroup, which a
+    // workspace window does not have, so cmd+1-9 did nothing at all inside a
+    // workspace while shift-cmd-[ and ] worked. They now select the
+    // workspace's own tabs, the same way those do, and fall back to native
+    // window tabs only where there is no workspace.
+
     private func selectTab(at index: Int) {
-        guard UserDefaults.standard.bool(forKey: "useCommandDigitsForTabs"),
-              let tabGroup = (NSApp.keyWindow ?? NSApp.mainWindow)?.tabGroup,
+        guard UserDefaults.standard.bool(forKey: "useCommandDigitsForTabs") else { return }
+        if let session = ProjectRuntime.shared.selectedSession {
+            session.select(index: index)
+            return
+        }
+        guard let tabGroup = (NSApp.keyWindow ?? NSApp.mainWindow)?.tabGroup,
               tabGroup.windows.indices.contains(index) else {
             return
         }
@@ -457,8 +468,12 @@ struct TabSelectionCommands: Commands {
     }
 
     private func selectLastTab() {
-        guard UserDefaults.standard.bool(forKey: "useCommandDigitsForTabs"),
-              let tabGroup = (NSApp.keyWindow ?? NSApp.mainWindow)?.tabGroup,
+        guard UserDefaults.standard.bool(forKey: "useCommandDigitsForTabs") else { return }
+        if let session = ProjectRuntime.shared.selectedSession {
+            session.select(index: session.tabs.count - 1)
+            return
+        }
+        guard let tabGroup = (NSApp.keyWindow ?? NSApp.mainWindow)?.tabGroup,
               let lastWindow = tabGroup.windows.last else {
             return
         }

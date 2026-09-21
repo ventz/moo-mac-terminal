@@ -1,3 +1,4 @@
+import AppKit
 import Darwin
 import Foundation
 import Testing
@@ -81,7 +82,8 @@ final class WorkspaceRestoreTests {
         session.addTab(web: StubWebContent())
 
         let snapshot = runtime.restoreSnapshot()
-        #expect(snapshot.windows.isEmpty)
+        // No window is open, so the one still waiting to come back is kept.
+        #expect(snapshot.windows == [SavedWindow(projectID: unvisited, showsSidebar: true)])
         let saved = try #require(snapshot.workspaces.first { $0.projectID == visited })
         #expect(saved.tabs.count == 1)
         #expect(saved.selectedTabIndex == 0)
@@ -173,6 +175,41 @@ final class WorkspaceRestoreTests {
         }
         #expect(TerminalPaneWorkspace(startsProcesses: false, restoring: balanced(10)).paneCount
             <= SavedPane.maximumPanes + SavedPane.maximumDepth)
+    }
+
+    /// Closing the last window ends the shells but not the layout: it is
+    /// saved, and held so the next autosave and the next window keep it.
+    @Test(.enabled(if: WorkspaceRestoreDefaults.isEnabled))
+    func closingTheLastWindowKeepsItsLayout() throws {
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let store = WorkspaceRestoreStore(directory: directory)
+        runtime.beginRestore(from: store, restoring: false)
+        let projectID = UUID()
+        runtime.existingProjectIDs = { [projectID] }
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 200, height: 100),
+            styleMask: [.titled], backing: .buffered, defer: true
+        )
+        window.isReleasedWhenClosed = false
+        let scope = WindowScope()
+        scope.window = window
+        runtime.register(scope)
+        runtime.select(projectID: projectID, in: scope)
+        let panes = try #require(runtime.session(for: projectID).ensureTab().panes)
+        panes.split(panes.controllers[0], orientation: .vertical)
+
+        runtime.windowWillClose(window)
+
+        #expect(runtime.existingSession(for: projectID) == nil)
+        let saved = try #require(store.load())
+        #expect(saved.windows.map(\.projectID) == [projectID])
+        let workspace = try #require(saved.workspaces.first { $0.projectID == projectID })
+        guard case .split(.vertical, _, _) = workspace.tabs[0].root else {
+            Issue.record("the split should be saved")
+            return
+        }
+        #expect(runtime.restoreSnapshot(existingProjectIDs: [projectID]) == saved)
     }
 
     @Test func theStoreIgnoresDamageAndWritesPrivately() throws {
