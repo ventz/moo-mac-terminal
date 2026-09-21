@@ -267,15 +267,26 @@ enum LinkRouter {
     static let executableExtensions: Set<String> = [
         "app", "command", "tool", "sh", "bash", "zsh", "fish", "scpt", "scptd",
         "applescript", "workflow", "action", "terminal", "webloc", "inetloc",
-        "shortcut", "pkg", "mpkg", "dmg", "iso", "jar", "py", "rb", "pl", "fileloc"
+        "shortcut", "pkg", "mpkg", "dmg", "iso", "jar", "py", "rb", "pl", "fileloc",
+        // Not executable, but one click from changing the system: a
+        // configuration profile goes straight to System Settings' installer
+        // (certificates, proxies, MDM payloads), and the rest install code
+        // that runs inside other processes.
+        "mobileconfig", "prefpane", "saver", "plugin", "qlgenerator"
     ]
 
     nonisolated static func isExecutable(_ url: URL) -> Bool {
         if executableExtensions.contains(url.pathExtension.lowercased()) { return true }
+        // A file that cannot be inspected cannot be shown to be safe. The path
+        // came from untrusted text, so fail closed: revealing a file that
+        // turns out to be harmless costs a click, opening one that was not
+        // costs far more. (A missing file reveals to nothing, harmlessly.)
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path) else {
+            return true
+        }
         // A bundle or a file with the execute bit set is also something that
         // runs when opened.
-        if let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
-           let permissions = attributes[FileAttributeKey.posixPermissions] as? Int,
+        if let permissions = attributes[FileAttributeKey.posixPermissions] as? Int,
            attributes[FileAttributeKey.type] as? FileAttributeType == .typeRegular,
            permissions & 0o111 != 0 {
             return true
