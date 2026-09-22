@@ -49,11 +49,15 @@ It aims for two things at once:
 
 ## Screenshots
 
+<p align="center">
+  <a href="https://moo.vpetkov.net/screenshots/moo-splash-gh.png"><img src="https://moo.vpetkov.net/screenshots/moo-splash-gh.webp" alt="figlet &quot;Moo Mac Terminal&quot; piped through lolcat in a Moo window" width="860"></a>
+</p>
+
 <p align="center"><b>Terminal</b></p>
 <p align="center">
-  <a href="https://moo.vpetkov.net/screenshots/moo-terminal.png"><img src="https://moo.vpetkov.net/screenshots/moo-terminal.webp" alt="A Moo terminal window" width="720"></a>
+  <a href="https://moo.vpetkov.net/screenshots/moo-hero-gh.png"><img src="https://moo.vpetkov.net/screenshots/moo-hero-gh.webp" alt="A Moo window with the workspaces sidebar, a terminal, and Markdown and browser tabs" width="860"></a>
 </p>
-<p align="center"><i>Fast, native, and out of the way: one window, tabs across the top.</i></p>
+<p align="center"><i>Fast, native, and out of the way: workspaces down the side, tabs across the top.</i></p>
 
 <table>
   <tr>
@@ -79,6 +83,18 @@ It aims for two things at once:
   <tr>
     <td align="center"><i>Workspaces in the sidebar, each with its own tabs and status</i></td>
     <td align="center"><i>Over 140 bundled themes, browsable as a list or in 2D and 3D</i></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><b>Appearance</b></td>
+    <td width="50%" align="center"><b>Project settings</b></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-settings-appearance.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-appearance.webp" alt="Appearance settings"></a></td>
+    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-settings.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings.webp" alt="Projects settings"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><i>Fonts, cursor, opacity and colors, set per profile</i></td>
+    <td align="center"><i>Choose what each project row shows, and reopen everything on launch</i></td>
   </tr>
 </table>
 

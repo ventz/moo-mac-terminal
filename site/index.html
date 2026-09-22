@@ -233,7 +233,14 @@
   .shot a { display: block; border-radius: 12px; }
   .shot a:focus-visible { outline: 2px solid var(--green-lift); outline-offset: 4px; }
 
-  .hero { margin: 44px auto 0; max-width: 700px; }
+  /* A little wider than the text column, like the gallery below. */
+  .hero {
+    width: min(860px, calc(100vw - 40px));
+    margin: 44px 0 0 50%;
+    transform: translateX(-50%);
+  }
+  /* The framed images carry their own margin, so stacked heroes need no gap. */
+  .hero + .hero { margin-top: 0; }
 
   /* The gallery runs wider than the text column; two screenshots side by side
      are unreadable at 370px each. */
@@ -300,11 +307,17 @@
   </header>
 
   <figure class="hero shot">
-    <p class="shot-label">Terminal</p>
-    <a href="/screenshots/moo-terminal.png">
-      <img src="/screenshots/moo-terminal.webp" alt="A Moo terminal window" width="1484" height="1600">
+    <a href="/screenshots/moo-splash.png">
+      <img src="/screenshots/moo-splash.webp" alt="figlet &quot;Moo Mac Terminal&quot; piped through lolcat in a Moo window" width="1600" height="898">
     </a>
-    <figcaption>Fast, native, and out of the way: one window, tabs across the top.</figcaption>
+  </figure>
+
+  <figure class="hero shot">
+    <p class="shot-label">Terminal</p>
+    <a href="/screenshots/moo-hero.png">
+      <img src="/screenshots/moo-hero.webp" alt="A Moo window with the workspaces sidebar, a terminal, and Markdown and browser tabs" width="1600" height="935">
+    </a>
+    <figcaption>Fast, native, and out of the way: workspaces down the side, tabs across the top.</figcaption>
   </figure>
 
   <hr class="rule">
