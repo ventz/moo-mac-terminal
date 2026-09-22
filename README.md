@@ -65,7 +65,7 @@ It aims for two things at once:
     <td width="50%" align="center"><b>Browser tabs</b></td>
   </tr>
   <tr>
-    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-markdown.png?v=2"><img src="https://moo.vpetkov.net/screenshots/moo-markdown.webp?v=2" alt="A rendered Markdown tab"></a></td>
+    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-markdown.png"><img src="https://moo.vpetkov.net/screenshots/moo-markdown.webp" alt="A rendered Markdown tab"></a></td>
     <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-browser.png"><img src="https://moo.vpetkov.net/screenshots/moo-browser.webp" alt="A web page open in a browser tab"></a></td>
   </tr>
   <tr>

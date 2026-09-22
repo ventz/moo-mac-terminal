@@ -12,8 +12,8 @@ the frame for a dark page instead:
     the top, keeping the title bar and tabs and dropping empty rows below;
   - flattens the translucent terminal onto solid black, so the page does not
     show through it;
-  - gives the new bottom edge the window's own rounded corners, mirrored from
-    the top;
+  - redraws the window edge as a clean rounded rectangle, so the new bottom
+    edge gets the same corners as the top;
   - lays a light hairline ring around the edge and a soft green glow and drop
     shadow behind it, on a margin in the page's own background color.
 
@@ -22,12 +22,14 @@ so there is no background and no glow, only the ring and a neutral shadow.
 """
 import sys
 
-from PIL import Image, ImageChops, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 PAGE_BG = (12, 18, 16)      # site --bg, so the margin blends into the page
 GLOW = (63, 163, 77)        # site --green
 FILL = (0, 0, 0)            # the stock theme's background, made opaque
 MARGIN = 0.07               # of the window width, each side
+RADIUS = 32                 # macOS window corner in a Retina capture, px
+SS = 4                      # supersampling for the drawn edge
 
 
 def main(src, out, aspect=1.9, transparent=False):
@@ -38,43 +40,48 @@ def main(src, out, aspect=1.9, transparent=False):
     h = min(win.height, round(w / aspect))
     win = win.crop((0, 0, w, h))
 
-    # Edge mask from the window's own antialiased alpha, stretched so the
-    # translucent body reads as fully opaque.
-    mask = win.getchannel("A").point(
-        lambda v: 0 if v < 120 else 255 if v >= 216 else round((v - 120) * 255 / 96))
-    corner = mask.crop((0, 0, w, 64))
-    mask.paste(corner.transpose(Image.FLIP_TOP_BOTTOM), (0, h - 64))
-
-    body = Image.new("RGBA", win.size, FILL + (255,))
-    body.alpha_composite(win)
-    body.putalpha(mask)
-
     pad = round(w * (0.045 if transparent else MARGIN))
     size = (w + 2 * pad, h + 2 * pad)
     canvas = Image.new("RGBA", size, PAGE_BG + (0 if transparent else 255,))
 
-    def placed(m, dy=0):
-        layer = Image.new("L", size, 0)
-        layer.paste(m, (pad, pad + dy))
-        return layer
+    # The edge is drawn, not taken from the capture: the capture's alpha is
+    # soft and uneven, and rings derived from it smudged at the corners.
+    def shape(grow):
+        big = Image.new("L", (size[0] * SS, size[1] * SS), 0)
+        box = [round((pad - grow) * SS), round((pad - grow) * SS),
+               round((pad + w + grow) * SS) - 1, round((pad + h + grow) * SS) - 1]
+        ImageDraw.Draw(big).rounded_rectangle(box, radius=round((RADIUS + grow) * SS), fill=255)
+        return big.resize(size, Image.LANCZOS)
+
+    edge = shape(0)
 
     def paint(color, alpha):
         canvas.alpha_composite(Image.merge("RGBA", (*[Image.new("L", size, c) for c in color], alpha)))
 
-    if transparent:
-        paint((0, 0, 0), placed(mask.point(lambda v: v * 0.45), dy=round(pad * 0.25))
-              .filter(ImageFilter.GaussianBlur(pad * 0.35)))
-    else:
-        paint(GLOW, placed(mask.point(lambda v: v * 0.30)).filter(ImageFilter.GaussianBlur(pad * 0.45)))
-        paint((0, 0, 0), placed(mask.point(lambda v: v * 0.9), dy=round(pad * 0.12))
-              .filter(ImageFilter.GaussianBlur(pad * 0.25)))
-    canvas.alpha_composite(body, (pad, pad))
+    def shadow(opacity, dy, blur):
+        m = Image.new("L", size, 0)
+        m.paste(edge.crop((pad, pad, pad + w, pad + h)).point(lambda v: v * opacity), (pad, pad + dy))
+        return m.filter(ImageFilter.GaussianBlur(blur))
 
-    edge = placed(mask)
-    outer = edge.filter(ImageFilter.GaussianBlur(2.2)).point(lambda v: min(255, v * 3))
-    paint((150, 150, 150), ImageChops.subtract(outer, edge).point(lambda v: v * 0.85))
-    inner = edge.filter(ImageFilter.GaussianBlur(1.5)).point(lambda v: max(0, v * 2 - 255))
-    paint((255, 255, 255), ImageChops.subtract(edge, inner).point(lambda v: v * 0.18))
+    if transparent:
+        paint((0, 0, 0), shadow(0.45, round(pad * 0.25), pad * 0.35))
+    else:
+        paint(GLOW, shadow(0.30, 0, pad * 0.45))
+        paint((0, 0, 0), shadow(0.9, round(pad * 0.12), pad * 0.25))
+
+    body = Image.new("RGBA", size, FILL + (255,))
+    body.alpha_composite(win, (pad, pad))
+    body.putalpha(edge)
+    canvas.alpha_composite(body)
+
+    # Outer ring: light to lift the edge off the dark page; on GitHub a faint
+    # dark line, which a white page needs. Inner hairline for dark themes.
+    outer = ImageChops.subtract(shape(1.5), edge)
+    if transparent:
+        paint((0, 0, 0), outer.point(lambda v: v * 0.30))
+    else:
+        paint((150, 150, 150), outer.point(lambda v: v * 0.85))
+    paint((255, 255, 255), ImageChops.subtract(edge, shape(-1.5)).point(lambda v: v * 0.20))
 
     (canvas if transparent else canvas.convert("RGB")).save(out)
     print(f"{out}: {size[0]}x{size[1]}")

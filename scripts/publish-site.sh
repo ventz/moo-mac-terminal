@@ -17,6 +17,15 @@ set -euo pipefail
 
 readonly BUCKET="moo-mac-terminal-autoupdate"
 readonly SITE_HOST="https://moo.vpetkov.net"
+readonly ZONE_ID="792ac1cce71566cf301c50241f783e51"   # vpetkov.net
+
+# Purging needs an API token with only Zone > Cache Purge on vpetkov.net;
+# wrangler's OAuth login cannot purge. Kept in the login keychain:
+#   security add-generic-password -a "$USER" -s moo-cf-purge -w <token>
+# Without it everything still publishes, and edits show within the 5 minute
+# max-age instead of at once.
+purge_token=${CLOUDFLARE_PURGE_TOKEN:-$(security find-generic-password -s moo-cf-purge -w 2>/dev/null || true)}
+published=()
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$repo_root"
@@ -47,6 +56,7 @@ wrangler r2 object put "$BUCKET/index.html" \
 wrangler r2 object put "$BUCKET/icon.png" \
     --file "$icon" --content-type "image/png" \
     --cache-control "max-age=86400" --remote
+published+=("$SITE_HOST/" "$SITE_HOST/index.html" "$SITE_HOST/icon.png")
 
 screenshots="${MOO_SCREENSHOTS_DIR:-$HOME/moo-releases/screenshots}"
 if [[ -d "$screenshots" ]]; then
@@ -56,21 +66,38 @@ if [[ -d "$screenshots" ]]; then
             *.webp) type="image/webp" ;;
             *) type="image/png" ;;
         esac
+        # Short-lived like the page, so a replaced screenshot keeps its URL:
+        # no ?v= to bump, and browsers pick it up within minutes.
         wrangler r2 object put "$BUCKET/screenshots/$(basename "$shot")" \
             --file "$shot" --content-type "$type" \
-            --cache-control "max-age=86400" --remote
+            --cache-control "max-age=300" --remote
+        published+=("$SITE_HOST/screenshots/$(basename "$shot")")
     done
 else
     echo "==> No screenshots at $screenshots -- leaving the published ones as they are"
 fi
 
+# Clear Cloudflare's copy of everything just uploaded, 30 URLs per request.
+if [[ -n "$purge_token" ]]; then
+    echo "==> Purging ${#published[@]} URLs from the Cloudflare cache"
+    for ((i = 0; i < ${#published[@]}; i += 30)); do
+        files=$(printf '"%s",' "${published[@]:i:30}")
+        response=$(curl -sS -X POST \
+            "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/purge_cache" \
+            -H "Authorization: Bearer $purge_token" \
+            -H "Content-Type: application/json" \
+            --data "{\"files\":[${files%,}]}")
+        [[ $response == *'"success":true'* ]] \
+            || { echo "cache purge failed: $response" >&2; exit 1; }
+    done
+else
+    echo "==> No moo-cf-purge token -- Cloudflare serves the old copies for up to 5 minutes"
+fi
+
 cat <<NOTE
 
-Published. Two things this does not do:
+Published. One thing this does not do:
 
-  - Purge the Cloudflare cache. Edits appear within the 5 minute max-age, or
-    purge $SITE_HOST/index.html to see them now. Screenshots are cached for a
-    day, so a replaced one needs a new ?v= in site/index.html and README.md.
   - Serve the page at the bare root. That is a zone rewrite rule
     ("Moo site: serve index.html at the root"), because an R2 custom domain
     has no index-document behavior of its own and answers / with a 404.
