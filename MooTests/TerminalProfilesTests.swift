@@ -1237,3 +1237,16 @@ final class MooShellIntegrationTests {
         #expect(nushellResult.args == nushell.args)
     }
 }
+
+final class ShellExitBehaviorTests {
+    /// ctrl+D after ctrl+C at a prompt exits zsh with 130 (verified with a
+    /// pty, 2026-09-22); that must still close the pane.
+    @Test func interruptedLastCommandStillCountsAsClean () {
+        #expect (ShellExitBehavior.exitedCleanly (0))
+        #expect (ShellExitBehavior.exitedCleanly (nil))
+        #expect (ShellExitBehavior.exitedCleanly (130))
+        #expect (ShellExitBehavior.exitedCleanly (141))
+        #expect (!ShellExitBehavior.exitedCleanly (1))
+        #expect (!ShellExitBehavior.exitedCleanly (127))
+    }
+}

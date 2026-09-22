@@ -590,7 +590,7 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     }
 
     func processTerminated(source: TerminalView, exitCode: Int32?) {
-        let exitedCleanly = (exitCode ?? 0) == 0
+        let exitedCleanly = ShellExitBehavior.exitedCleanly(exitCode)
         switch profile.whenShellExits {
         case .closeWindow:
             closePaneOrWindow()

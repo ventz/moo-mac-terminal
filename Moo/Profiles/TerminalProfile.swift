@@ -32,6 +32,16 @@ public enum ShellExitBehavior: String, Codable, CaseIterable, Sendable, CustomSt
         case .keepOpen: return "Don't close the window"
         }
     }
+
+    /// Whether a shell's exit status counts as clean. ctrl+D and a bare `exit`
+    /// return the shell's `$?`, and ctrl+C at a prompt sets that to 130, so
+    /// leaving a shell right after interrupting something would otherwise keep
+    /// the pane open. 130 and 141 are the same statuses the command marks do
+    /// not count as failures; nil (no status) is clean, as before.
+    static func exitedCleanly(_ exitCode: Int32?) -> Bool {
+        guard let exitCode else { return true }
+        return !CommandCompletion(exitCode: exitCode, duration: 0).failed
+    }
 }
 
 /// Whether closing a window with a live process asks for confirmation
