@@ -252,6 +252,12 @@
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 34px 26px;
   }
+  /* The odd one out gets its own row, centered at one column's width. */
+  .shot-last {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: min(100%, 342px);
+  }
 
   .shot-label {
     margin: 0 0 10px;
@@ -373,7 +379,7 @@
       <figcaption>Web pages open as browser tabs, with ad blocking.</figcaption>
     </figure>
     <figure class="shot">
-      <p class="shot-label">Workspaces</p>
+      <p class="shot-label">Workspaces (Projects)</p>
       <a href="/screenshots/moo-projects-terminal.png"><img src="/screenshots/moo-projects-terminal.webp" alt="Terminal with the projects sidebar" loading="lazy" width="1600" height="1574"></a>
       <figcaption>Workspaces in the sidebar, each with its own tabs and status.</figcaption>
     </figure>
@@ -391,6 +397,11 @@
       <p class="shot-label">Project settings</p>
       <a href="/screenshots/moo-settings.png"><img src="/screenshots/moo-settings.webp" alt="Projects settings" loading="lazy" width="1600" height="1588"></a>
       <figcaption>Choose what each project row shows, and reopen everything on launch.</figcaption>
+    </figure>
+    <figure class="shot shot-last">
+      <p class="shot-label">Notifications</p>
+      <a href="/screenshots/moo-settings-notifications.png"><img src="/screenshots/moo-settings-notifications.webp" alt="Notifications settings" loading="lazy" width="1600" height="1588"></a>
+      <figcaption>Banners, Dock badge, bounce, sound or speech when a program is waiting for you.</figcaption>
     </figure>
   </div>
 

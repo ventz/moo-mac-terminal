@@ -73,28 +73,37 @@ It aims for two things at once:
     <td align="center"><i>Web pages open as browser tabs, with ad blocking</i></td>
   </tr>
   <tr>
-    <td width="50%" align="center"><b>Workspaces</b></td>
-    <td width="50%" align="center"><b>Themes</b></td>
-  </tr>
-  <tr>
-    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-projects-terminal.png"><img src="https://moo.vpetkov.net/screenshots/moo-projects-terminal.webp" alt="Terminal with the projects sidebar"></a></td>
-    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-settings-themes.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-themes.webp" alt="The theme picker"></a></td>
-  </tr>
-  <tr>
-    <td align="center"><i>Workspaces in the sidebar, each with its own tabs and status</i></td>
-    <td align="center"><i>Over 140 bundled themes, browsable as a list or in 2D and 3D</i></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><b>Appearance</b></td>
+    <td width="50%" align="center"><b>Workspaces (Projects)</b></td>
     <td width="50%" align="center"><b>Project settings</b></td>
   </tr>
   <tr>
-    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-settings-appearance.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-appearance.webp" alt="Appearance settings"></a></td>
+    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-projects-terminal.png"><img src="https://moo.vpetkov.net/screenshots/moo-projects-terminal.webp" alt="Terminal with the projects sidebar"></a></td>
     <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-settings.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings.webp" alt="Projects settings"></a></td>
   </tr>
   <tr>
-    <td align="center"><i>Fonts, cursor, opacity and colors, set per profile</i></td>
+    <td align="center"><i>Workspaces in the sidebar, each with its own tabs and status</i></td>
     <td align="center"><i>Choose what each project row shows, and reopen everything on launch</i></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><b>Themes</b></td>
+    <td width="50%" align="center"><b>Appearance</b></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-settings-themes.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-themes.webp" alt="The theme picker"></a></td>
+    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-settings-appearance.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-appearance.webp" alt="Appearance settings"></a></td>
+  </tr>
+  <tr>
+    <td align="center"><i>Over 140 bundled themes, browsable as a list or in 2D and 3D</i></td>
+    <td align="center"><i>Fonts, cursor, opacity and colors, set per profile</i></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><b>Notifications</b></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><a href="https://moo.vpetkov.net/screenshots/moo-settings-notifications.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-notifications.webp" alt="Notifications settings" width="50%"></a></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><i>Banners, Dock badge, bounce, sound or speech when a program is waiting for you</i></td>
   </tr>
 </table>
 
