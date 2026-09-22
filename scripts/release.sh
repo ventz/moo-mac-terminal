@@ -229,7 +229,11 @@ scripts/create-dmg.sh "$app" "$dmg" "Moo"
 
 if [[ -n "$notes_file" ]]; then
     # generate_appcast attaches notes whose filename matches the archive.
-    cp "$notes_file" "$release_dir/Moo-$version.${notes_file##*.}"
+    # Notes already written there need no copy, and cp onto itself fails.
+    notes_dest="$release_dir/Moo-$version.${notes_file##*.}"
+    if [[ ! "$notes_file" -ef "$notes_dest" ]]; then
+        cp "$notes_file" "$notes_dest"
+    fi
 fi
 
 # --- Notarize ----------------------------------------------------------------
