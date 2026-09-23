@@ -33,6 +33,7 @@ struct ContentView: View {
     @EnvironmentObject private var themes: ThemeStore
     @EnvironmentObject private var themeIndex: ThemeCatalogIndex
     @EnvironmentObject private var projects: ProjectStore
+    @Environment(\.displayScale) private var displayScale
 
     /// This window's sidebar, not the app's: cmd+B in one window leaves the
     /// others as they were.
@@ -171,6 +172,11 @@ struct ContentView: View {
                 .opacity(sidebarIsVisible ? 1 : 0)
                 .allowsHitTesting(sidebarIsVisible)
                 .accessibilityHidden(!sidebarIsVisible)
+                .overlay(alignment: .trailing) {
+                    if sidebarIsVisible {
+                        sidebarEdge
+                    }
+                }
                 // An overlay, not a column: reserving width for the grip put a
                 // visible gutter between the panes. Applied after .clipped()
                 // so it is not cut off, and offset to straddle the edge.
@@ -201,12 +207,31 @@ struct ContentView: View {
         }
     }
 
+    /// A single-pixel rule on the sidebar's edge. The darkened sidebar alone
+    /// does not separate it from a dark terminal, or from anything at all when
+    /// the chrome is not themed. An overlay, so it takes no width from either
+    /// pane and leaves no gap for a transparent window to show through.
+    private var sidebarEdge: some View {
+        Rectangle()
+            .fill(sidebarEdgeColor)
+            .frame(width: 1 / max(displayScale, 1))
+            .allowsHitTesting(false)
+    }
+
+    /// Derived from the theme's foreground so the rule is equally faint on
+    /// light and dark themes; the system separator otherwise.
+    private var sidebarEdgeColor: Color {
+        guard usesThemeWindowChrome else {
+            return Color(nsColor: .separatorColor)
+        }
+        return windowTheme.foreground.swiftUIColor.opacity(0.15)
+    }
+
     /// The divider doubles as the resize grip. It is drawn at the configured
     /// border width but claims a wider hit area, because a one-point target is
     /// not something a person can reliably grab.
     private var sidebarResizeHandle: some View {
-        // No drawn rule: the sidebar's own background is the edge, and a
-        // divider made the split read as a heavy bar. This is purely a grip.
+        // Purely a grip; sidebarEdge draws the visible rule.
         Color.clear
             .frame(width: 8)
         .contentShape(Rectangle())
@@ -252,9 +277,9 @@ struct ContentView: View {
     }
 
     /// The sidebar sits beside the terminal rather than behind text, so it is
-    /// darkened a little to separate the two without drawing a divider — and
-    /// it takes the same opacity, so the whole window is uniformly transparent
-    /// — unless the profile pins it opaque.
+    /// darkened a little to set it apart — and it takes the same opacity, so
+    /// the whole window is uniformly transparent — unless the profile pins it
+    /// opaque.
     private var sidebarBackground: Color {
         guard usesThemeWindowChrome else {
             return Color(nsColor: .underPageBackgroundColor)
