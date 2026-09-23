@@ -373,7 +373,10 @@ struct ContentView: View {
                 }
             }
             .onChange(of: profiles.profiles) {
-                for controller in workspace.controllers {
+                // Every workspace, not just the one on screen: see
+                // ProjectRuntime.applyStoredProfiles.
+                runtime.applyStoredProfiles { profiles.profile(withID: $0) }
+                for controller in fallbackWorkspace.controllers {
                     if let stored = profiles.profile(withID: controller.profile.id),
                        stored != controller.profile {
                         controller.applyProfile(stored)
@@ -382,7 +385,7 @@ struct ContentView: View {
             }
             .onChange(of: themes.themes) {
                 // A user theme was edited/imported: re-resolve colors
-                for controller in workspace.controllers {
+                for controller in runtime.allControllers + fallbackWorkspace.controllers {
                     controller.applyAppearance()
                 }
             }

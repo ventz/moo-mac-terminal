@@ -564,4 +564,27 @@ final class WorkspaceTabClosePolicyTests {
 
         #expect(runtime.scope(showing: controller) === first)
     }
+
+    /// A profile edit reaches workspaces that are not on screen and tabs that
+    /// are not selected, not just the terminal being looked at.
+    @Test func storedProfilesReachHiddenWorkspacesAndTabs() {
+        let runtime = ProjectRuntime(startsProcesses: false)
+        let visible = runtime.session(for: UUID())
+        let hidden = runtime.session(for: UUID())
+        visible.ensureTab()
+        hidden.ensureTab()
+        hidden.addTab()
+
+        let original = TerminalProfile(name: "Shared")
+        for controller in runtime.allControllers {
+            controller.applyProfile(original)
+        }
+        var edited = original
+        edited.useThemeColorsForWindowChrome.toggle()
+
+        runtime.applyStoredProfiles { $0 == edited.id ? edited : nil }
+
+        #expect(runtime.allControllers.count == 3)
+        #expect(runtime.allControllers.allSatisfy { $0.profile == edited })
+    }
 }

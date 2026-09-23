@@ -602,6 +602,18 @@ final class ProjectRuntime {
         sessions.values.flatMap(\.controllers)
     }
 
+    /// Hands every controller the stored version of its profile. A profile
+    /// edit has to reach hidden workspaces and background tabs too: a
+    /// controller left on the old copy keeps drawing the old settings, and
+    /// the window chrome flips between the two as workspaces are switched.
+    func applyStoredProfiles(_ stored: (UUID) -> TerminalProfile?) {
+        for controller in allControllers {
+            if let profile = stored(controller.profile.id), profile != controller.profile {
+                controller.applyProfile(profile)
+            }
+        }
+    }
+
     // MARK: Status
 
     /// The stored status. Reading it inside a view's body means that view
