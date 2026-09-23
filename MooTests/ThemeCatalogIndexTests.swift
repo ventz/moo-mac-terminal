@@ -213,8 +213,11 @@ final class ThemeCatalogIndexTests {
         let elapsed = clock.measure {
             index.update(themes: catalog)
         }
-        // Budget is 10 ms for 300 themes; allow generous CI headroom
-        #expect(elapsed < .milliseconds(500))
+        // Budget is 10 ms for 300 themes. The limit is far above that on
+        // purpose: a shared CI runner hit 540 ms against the old 500 ms limit
+        // while other suites loaded the CPU. It is here to catch a blowup,
+        // not to time the analysis.
+        #expect(elapsed < .seconds(2))
         #expect(index.metrics.count == catalog.count)
     }
 

@@ -109,10 +109,7 @@ final class MarkdownPreviewSessionTests {
     }
 
     private func waitUntil(_ timeout: TimeInterval, _ condition: () -> Bool) async {
-        let deadline = Date().addingTimeInterval(timeout)
-        while !condition() && Date() < deadline {
-            try? await Task.sleep(for: .milliseconds(50))
-        }
+        await pollUntil(timeout, every: .milliseconds(50), condition)
     }
 
     @Test func rendersAFileAndFollowsEdits() async {
@@ -188,10 +185,7 @@ final class MarkdownFileWatcherTests {
     /// one in particular) share the main thread, so a debounced event can
     /// take well over its nominal delay to be delivered.
     private func waitUntil(_ timeout: TimeInterval, _ condition: () -> Bool) async {
-        let deadline = Date().addingTimeInterval(timeout)
-        while !condition() && Date() < deadline {
-            try? await Task.sleep(for: .milliseconds(25))
-        }
+        await pollUntil(timeout, every: .milliseconds(25), condition)
     }
 
     private func wait(_ seconds: TimeInterval) async {
@@ -252,5 +246,20 @@ final class MarkdownFileWatcherTests {
             Issue.record("expected .missing, got \(events)")
             return
         }
+    }
+}
+
+/// Waits for `condition` by counting polls, not by watching the clock. On a
+/// loaded CI runner the main thread can stall for longer than the whole
+/// timeout (every suite shares it, and WebKit and the content-blocker compile
+/// start at once). A wall-clock deadline then expires during the stall, and
+/// the loop gives up on its first turn back, before the file event or the
+/// debounce queued behind it has run. A stall costs only one poll here.
+@MainActor
+private func pollUntil(_ timeout: TimeInterval, every interval: Duration, _ condition: () -> Bool) async {
+    var polls = Int((Duration.seconds(timeout) / interval).rounded(.up))
+    while !condition() && polls > 0 {
+        try? await Task.sleep(for: interval)
+        polls -= 1
     }
 }

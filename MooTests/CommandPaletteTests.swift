@@ -48,7 +48,9 @@ final class CommandPaletteTests {
         let started = Date()
         let rows = Array(repeating: String(repeating: "a.", count: 20_000), count: 40)
         _ = QuickSelectMatcher.matches(inRows: rows)
-        #expect(Date().timeIntervalSince(started) < 1)
+        // Catches backtracking blowups, which take far longer than this. A
+        // shared CI runner took 1.003 s against the old 1 s limit.
+        #expect(Date().timeIntervalSince(started) < 4)
     }
 
     @Test func shortcutsReadAsInMenus() {
