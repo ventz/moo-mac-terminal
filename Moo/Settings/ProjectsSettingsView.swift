@@ -6,8 +6,8 @@
 //  shortcut is fixed at cmd+B, its width is whatever you last dragged it to,
 //  and the cmd+digit binding lives in Keyboard. None of those are options.
 //
-//  What is left is what a project actually is: the list, and how much of it a
-//  row shows.
+//  What is left is what a project actually is: the list, how much of it a row
+//  shows, and whether a line sets the sidebar apart from the terminal.
 //
 
 import AppKit
@@ -21,6 +21,7 @@ struct ProjectsSettingsView: View {
     @AppStorage(ProjectSidebarDefaults.showsBranch) private var showsBranch = true
     @AppStorage(ProjectSidebarDefaults.showsPath) private var showsPath = true
     @AppStorage(ProjectSidebarDefaults.showsAccent) private var showsAccent = true
+    @AppStorage(ProjectSidebarDefaults.drawsDivider) private var drawsDivider = true
     @AppStorage(WorkspaceRestoreDefaults.restoresOnLaunch) private var restoresOnLaunch =
         WorkspaceRestoreDefaults.defaultRestoresOnLaunch
 
@@ -37,6 +38,14 @@ struct ProjectsSettingsView: View {
                 Toggle("Git branch", isOn: $showsBranch)
                 Toggle("Directory path", isOn: $showsPath)
                 Toggle("Accent color", isOn: $showsAccent)
+            }
+
+            Section {
+                Toggle("Draw a divider between the sidebar and the terminal", isOn: $drawsDivider)
+            } header: {
+                Text("Sidebar")
+            } footer: {
+                Text("Turn this off for a seamless window, where only the sidebar's shading sets it apart.")
             }
 
             Section("Projects") {

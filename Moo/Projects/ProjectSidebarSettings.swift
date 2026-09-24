@@ -18,6 +18,9 @@ enum ProjectSidebarDefaults {
     static let showsBranch = "projectsSidebarShowsBranch"
     static let showsPath = "projectsSidebarShowsPath"
     static let showsAccent = "projectsSidebarShowsAccent"
+    /// A hairline between the sidebar and the terminal. On by default; off
+    /// gives the seamless look, where only the sidebar's shading sets it apart.
+    static let drawsDivider = "projectsSidebarDrawsDivider"
     static let selectedProjectID = "projectsSidebarSelectedProjectID"
     /// "projects" or "tabs" — what cmd+1...9 selects.
     static let commandDigitsTarget = "projectsCommandDigitsTarget"
@@ -37,6 +40,7 @@ enum ProjectSidebarDefaults {
         showsBranch: true,
         showsPath: true,
         showsAccent: true,
+        drawsDivider: true,
         commandDigitsTarget: CommandDigitsTarget.projects.rawValue
     ]
 

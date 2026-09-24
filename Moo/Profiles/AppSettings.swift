@@ -95,6 +95,7 @@ enum AppSettings {
         AppSetting(key: ProjectSidebarDefaults.showsBranch, kind: .bool),
         AppSetting(key: ProjectSidebarDefaults.showsPath, kind: .bool),
         AppSetting(key: ProjectSidebarDefaults.showsAccent, kind: .bool),
+        AppSetting(key: ProjectSidebarDefaults.drawsDivider, kind: .bool),
         AppSetting(key: ProjectSidebarDefaults.commandDigitsTarget, kind: .string),
         // Notifications
         AppSetting(key: AttentionDefaults.showsBanners, kind: .bool),

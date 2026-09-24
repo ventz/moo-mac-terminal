@@ -43,6 +43,7 @@ struct ContentView: View {
     @AppStorage(ProjectSidebarDefaults.showsBranch) private var showsBranch = true
     @AppStorage(ProjectSidebarDefaults.showsPath) private var showsPath = true
     @AppStorage(ProjectSidebarDefaults.showsAccent) private var showsAccent = true
+    @AppStorage(ProjectSidebarDefaults.drawsDivider) private var drawsSidebarDivider = true
     @AppStorage(WindowChromeDefaults.keepsTabStripOpaque) private var keepsTabStripOpaque = WindowChromeDefaults.keepsTabStripOpaqueByDefault
 
     /// The pane tree the terminal host shows: the selected workspace's active
@@ -173,7 +174,7 @@ struct ContentView: View {
                 .allowsHitTesting(sidebarIsVisible)
                 .accessibilityHidden(!sidebarIsVisible)
                 .overlay(alignment: .trailing) {
-                    if sidebarIsVisible {
+                    if sidebarIsVisible && drawsSidebarDivider {
                         sidebarEdge
                     }
                 }
@@ -211,6 +212,7 @@ struct ContentView: View {
     /// does not separate it from a dark terminal, or from anything at all when
     /// the chrome is not themed. An overlay, so it takes no width from either
     /// pane and leaves no gap for a transparent window to show through.
+    /// Settings → Projects turns it off for the seamless look.
     private var sidebarEdge: some View {
         Rectangle()
             .fill(sidebarEdgeColor)
