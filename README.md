@@ -160,7 +160,8 @@ and rejected, and the traps in measuring terminals are in
   web pages open as browser tabs with ad blocking, next to the terminal that
   printed them.
 - **Splits and zoom.** Split with ⌘D and ⇧⌘D; ⇧⌘↩ zooms one pane to fill the
-  tab and back, keeping the dividers where you left them.
+  tab and back, keeping the dividers where you left them. Right-click a pane
+  for its split, zoom, theme, reset and font commands.
 - **Safe by default.** Secure Keyboard Entry turns on by itself at password
   prompts. Links in terminal output open only the web and mail without asking,
   and files that would run are revealed in Finder instead.
