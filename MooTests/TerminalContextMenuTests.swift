@@ -99,4 +99,27 @@ final class TerminalContextMenuTests {
         #expect(view.menu(for: click(.leftMouseDown, modifiers: .command)) == nil)
         withExtendedLifetime(controller) {}
     }
+
+    @Test func controlClickGoesToAProgramTrackingTheMouse() async {
+        let workspace = TerminalPaneWorkspace(startsProcesses: false)
+        let controller = workspace.controllers[0]
+        let view = AppTerminalView(frame: CGRect(x: 0, y: 0, width: 400, height: 200))
+        view.sessionController = controller
+
+        view.feed(text: "\u{1b}[?1000h")
+        await withCheckedContinuation { DispatchQueue.main.async(execute: $0.resume) }
+        #expect(view.menu(for: click(.leftMouseDown, modifiers: .control)) == nil)
+        // Right clicks are never reported to programs, so they still open it.
+        #expect(view.menu(for: click(.rightMouseDown)) != nil)
+
+        // With reporting turned off in the view, the program gets no clicks.
+        view.allowMouseReporting = false
+        #expect(view.menu(for: click(.leftMouseDown, modifiers: .control)) != nil)
+
+        view.allowMouseReporting = true
+        view.feed(text: "\u{1b}[?1000l")
+        await withCheckedContinuation { DispatchQueue.main.async(execute: $0.resume) }
+        #expect(view.menu(for: click(.leftMouseDown, modifiers: .control)) != nil)
+        withExtendedLifetime(controller) {}
+    }
 }

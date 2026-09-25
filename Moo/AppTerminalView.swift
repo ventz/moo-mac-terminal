@@ -269,10 +269,14 @@ final class AppTerminalView: LocalProcessTerminalView {
         super.rightMouseDown(with: event)
     }
 
-    /// Opened by a right-click or a control-click.
+    /// Opened by a right-click or a control-click. A control-click is left to
+    /// the program while it tracks the mouse (vim with `mouse=a`, tmux), as
+    /// Ghostty does; right clicks are never reported, so they always open it.
     override func menu(for event: NSEvent) -> NSMenu? {
+        let programTracksMouse = allowMouseReporting && currentMouseMode != .off
         let isContextClick = event.type == .rightMouseDown
-            || (event.type == .leftMouseDown && event.modifierFlags.contains(.control))
+            || (event.type == .leftMouseDown && event.modifierFlags.contains(.control)
+                && !programTracksMouse)
         guard isContextClick, let sessionController else { return nil }
         return TerminalContextMenu.make(for: sessionController)
     }
