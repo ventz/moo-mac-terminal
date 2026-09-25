@@ -248,12 +248,40 @@ final class AppTerminalView: LocalProcessTerminalView {
     /// A click in an unfocused split moves focus there. SwiftTerm does not take
     /// first responder on its own, so without this the keystrokes after the
     /// click still go to the pane that had focus.
+    ///
+    /// A control-click opens the context menu instead, as it does in Ghostty
+    /// and Terminal, for a mouse or trackpad without a secondary click.
     override func mouseDown(with event: NSEvent) {
+        focusForClick()
+        if event.modifierFlags.contains(.control), let menu = menu(for: event) {
+            NSMenu.popUpContextMenu(menu, with: event, for: self)
+            return
+        }
+        super.mouseDown(with: event)
+    }
+
+    /// A right-click focuses the pane under it, as a left click does, so the
+    /// menu it opens and the keystrokes after it act on the same pane.
+    /// SwiftTerm does not report right clicks to programs, so nothing running
+    /// in the pane loses the click to the menu.
+    override func rightMouseDown(with event: NSEvent) {
+        focusForClick()
+        super.rightMouseDown(with: event)
+    }
+
+    /// Opened by a right-click or a control-click.
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let isContextClick = event.type == .rightMouseDown
+            || (event.type == .leftMouseDown && event.modifierFlags.contains(.control))
+        guard isContextClick, let sessionController else { return nil }
+        return TerminalContextMenu.make(for: sessionController)
+    }
+
+    private func focusForClick() {
         if window?.firstResponder !== self,
            window?.makeFirstResponder(self) == true {
             sessionController?.didBecomeFocused()
         }
-        super.mouseDown(with: event)
     }
 
     /// Watches for the escape sequences programs use to ask for the user.
