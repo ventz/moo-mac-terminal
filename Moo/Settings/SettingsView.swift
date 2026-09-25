@@ -239,6 +239,13 @@ struct SettingsEscapeKeyHandler: NSViewRepresentable {
                       window.attachedSheet == nil else {
                     return event
                 }
+
+                if window.firstResponder is NSTextView {
+                    // Some text is being edited. Do not close the window, let
+                    // the text view handle the escape button.
+                    return event
+                }
+
                 closeWindow(window)
                 return nil
             }
