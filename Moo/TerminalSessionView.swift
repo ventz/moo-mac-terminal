@@ -693,6 +693,21 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         return true
     }
 
+    /// Clears the screen and scrollback, as Terminal.app's Clear to Start does.
+    /// At a shell prompt a form feed follows, so the shell redraws its prompt
+    /// and any typed line at the top instead of leaving an empty screen. A
+    /// running program is left alone; it repaints on its next output.
+    func clearToStart() {
+        guard let terminal else { return }
+        terminal.feed(text: "\u{1b}[H\u{1b}[2J")
+        terminal.clearScrollback()
+        guard let process = terminal.process, process.running else { return }
+        let group = TerminalProcessInspector.foregroundProcessGroup(ptyDescriptor: process.childfd)
+        if group == process.shellPid {
+            terminal.send(txt: "\u{0c}")
+        }
+    }
+
     func softReset() {
         terminal?.softReset()
     }

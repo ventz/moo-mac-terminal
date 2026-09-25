@@ -50,6 +50,9 @@ enum TerminalContextMenu {
             Item("Export Buffer...") { [weak controller] in
                 controller?.exportBuffer()
             },
+            Item("Clear to Start", key: "k", modifiers: [.command, .shift]) { [weak controller] in
+                controller?.clearToStart()
+            },
             Item("Clear Scrollback", key: "k", modifiers: [.command, .option]) { [weak controller] in
                 controller?.terminal?.clearScrollback()
             },

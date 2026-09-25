@@ -664,6 +664,13 @@ struct TerminalCommands: Commands {
 
             Divider()
 
+            Button("Clear to Start") {
+                controller?.clearToStart()
+            }
+            // Terminal.app uses command-K, which opens the palette here.
+            .keyboardShortcut("k", modifiers: [.command, .shift])
+            .disabled(!isEnabled)
+
             Button("Clear Scrollback") {
                 controller?.terminal?.clearScrollback()
             }

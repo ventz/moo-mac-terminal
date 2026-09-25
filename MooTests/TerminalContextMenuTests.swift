@@ -20,7 +20,7 @@ final class TerminalContextMenuTests {
             "-",
             "Theme…",
             "-",
-            "Export Buffer...", "Clear Scrollback",
+            "Export Buffer...", "Clear to Start", "Clear Scrollback",
             "-",
             "Scroll to Previous Prompt", "Scroll to Next Prompt", "Soft Reset", "Hard Reset",
             "-",
@@ -34,6 +34,7 @@ final class TerminalContextMenuTests {
         let split = item("Split Pane Horizontally", in: menu)
         #expect(split?.keyEquivalent == "d")
         #expect(split?.keyEquivalentModifierMask == [.command, .shift])
+        #expect(item("Clear to Start", in: menu)?.keyEquivalentModifierMask == [.command, .shift])
         #expect(item("Clear Scrollback", in: menu)?.keyEquivalentModifierMask == [.command, .option])
         let soft = item("Soft Reset", in: menu)
         #expect(soft?.keyEquivalent == "")
@@ -120,6 +121,24 @@ final class TerminalContextMenuTests {
         view.feed(text: "\u{1b}[?1000l")
         await withCheckedContinuation { DispatchQueue.main.async(execute: $0.resume) }
         #expect(view.menu(for: click(.leftMouseDown, modifiers: .control)) != nil)
+        withExtendedLifetime(controller) {}
+    }
+}
+
+@MainActor
+struct TerminalClearToStartTests {
+    @Test func clearsTheScreenAndTheScrollback() async {
+        let workspace = TerminalPaneWorkspace(startsProcesses: false)
+        let controller = workspace.controllers[0]
+        let view = controller.makeTerminalView(document: TerminalDocument())
+        view.feed(text: (1...200).map { "line \($0)" }.joined(separator: "\r\n"))
+        await withCheckedContinuation { DispatchQueue.main.async(execute: $0.resume) }
+        #expect(String(decoding: view.getBufferAsData(), as: UTF8.self).contains("line 1\n"))
+
+        controller.clearToStart()
+        await withCheckedContinuation { DispatchQueue.main.async(execute: $0.resume) }
+        let text = String(decoding: view.getBufferAsData(), as: UTF8.self)
+        #expect(!text.contains("line"))
         withExtendedLifetime(controller) {}
     }
 }
