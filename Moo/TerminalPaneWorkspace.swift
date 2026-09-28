@@ -54,10 +54,13 @@ final class TerminalPaneWorkspace {
     @ObservationIgnored weak var hostView: TerminalPaneHostView?
 
     init(startsProcesses: Bool = true,
-         inheritingFrom source: TerminalSessionController? = nil) {
+         inheritingFrom source: TerminalSessionController? = nil,
+         directory: String? = nil) {
         self.startsProcesses = startsProcesses
         let controller = TerminalSessionController(startsProcess: startsProcesses)
-        if let source {
+        if let directory {
+            controller.prepareForLaunch(in: directory, beside: source)
+        } else if let source {
             controller.prepareForNewTab(from: source)
         }
         root = TerminalPaneNode(content: .terminal(controller))

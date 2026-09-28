@@ -183,6 +183,23 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         launchDirectory = inheritsDirectory ? source.currentWorkingDirectory : nil
     }
 
+    /// Seeds a tab opened on a folder from outside the app (a Finder
+    /// service). The folder is the point, so it wins over the directory
+    /// setting; the profile still follows the tab it opens beside.
+    @MainActor
+    func prepareForLaunch(in directory: String, beside source: TerminalSessionController?) {
+        guard !didResolveLaunch else { return }
+        didResolveLaunch = true
+        let inheritsProfile = UserDefaults.standard.object(forKey: "newTabsUseCurrentProfile") as? Bool ?? true
+        if let source, inheritsProfile {
+            profile = source.profile
+            themeOverride = source.themeOverride
+        } else {
+            profile = AppModel.shared.profiles.defaultProfile
+        }
+        launchDirectory = directory
+    }
+
     /// The directory the next shell launch will start in: inherited from the
     /// terminal this session was opened beside, or nil for a plain launch
     /// (which lands in the home directory).
