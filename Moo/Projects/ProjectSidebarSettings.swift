@@ -53,9 +53,26 @@ enum ProjectSidebarDefaults {
 
 /// What the cmd+digit shortcuts select. Projects and tabs cannot both own
 /// cmd+1...9, so this is an explicit choice rather than a guess.
-enum CommandDigitsTarget: String, CaseIterable, Identifiable {
+/// Settings shows it through CommandDigitsChoice, which adds "Nothing".
+enum CommandDigitsTarget: String {
     case projects
     case tabs
+
+    static var current: CommandDigitsTarget {
+        let raw = UserDefaults.standard.string(forKey: ProjectSidebarDefaults.commandDigitsTarget)
+        return raw.flatMap(CommandDigitsTarget.init(rawValue:)) ?? .projects
+    }
+}
+
+/// The one ⌘1–9 setting the user sees, over the two keys that store it:
+/// `projectsCommandDigitsTarget` picks projects or tabs, and
+/// `useCommandDigitsForTabs` only matters for tabs, where off means the
+/// shortcuts do nothing. Settings used to show them as two separate controls
+/// on two pages.
+enum CommandDigitsChoice: String, CaseIterable, Identifiable {
+    case projects
+    case tabs
+    case off
 
     var id: Self { self }
 
@@ -63,12 +80,26 @@ enum CommandDigitsTarget: String, CaseIterable, Identifiable {
         switch self {
         case .projects: return "Projects"
         case .tabs: return "Tabs"
+        case .off: return "Nothing"
         }
     }
 
-    static var current: CommandDigitsTarget {
-        let raw = UserDefaults.standard.string(forKey: ProjectSidebarDefaults.commandDigitsTarget)
-        return raw.flatMap(CommandDigitsTarget.init(rawValue:)) ?? .projects
+    static let selectsTabsKey = "useCommandDigitsForTabs"
+
+    static func current(_ defaults: UserDefaults = .standard) -> CommandDigitsChoice {
+        let raw = defaults.string(forKey: ProjectSidebarDefaults.commandDigitsTarget)
+        if raw.flatMap(CommandDigitsTarget.init(rawValue:)) ?? .projects == .projects {
+            return .projects
+        }
+        return defaults.bool(forKey: selectsTabsKey) ? .tabs : .off
+    }
+
+    func store(in defaults: UserDefaults = .standard) {
+        let target: CommandDigitsTarget = self == .projects ? .projects : .tabs
+        defaults.set(target.rawValue, forKey: ProjectSidebarDefaults.commandDigitsTarget)
+        if self != .projects {
+            defaults.set(self == .tabs, forKey: Self.selectsTabsKey)
+        }
     }
 }
 

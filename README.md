@@ -185,16 +185,16 @@ Code, run `/config` and set **Notifications** to `ghostty`.
 which reports when each command starts and how it exited.
 
 **Links and files**: hold ⌘ to underline what is clickable in terminal output,
-including bare file names from `ls` such as `README.md`. Command-click opens it:
+including bare file names from `ls` such as `README.md`. ⌘-click opens it:
 Markdown files and web links as Moo tabs, folders in the Finder, and other
 files in their default app. Anything that would run (apps, scripts) is only
 revealed in the Finder, never launched.
 
 **Markdown and web tabs**: command-click a `.md` path or a link, or use ⇧⌘M and
 the File menu. Previews reload as the file changes and are light by default;
-Settings → General → Markdown previews can make them follow the terminal theme.
+Settings → Links & Markdown can make them follow the terminal theme.
 
-**Restore** is on by default (Settings → Projects). Shells start fresh in each
+**Restore** is on by default (Settings → General → Startup). Shells start fresh in each
 pane's last directory; scrollback, commands and environment are never saved.
 
 ## Keyboard Shortcuts
@@ -281,6 +281,9 @@ arm64-only. Release packaging, signing and notarization are in
 **[docs/DEVELOPING.md](docs/DEVELOPING.md)**: the developer guide, covering
 build prerequisites, code signing and why the certificate type matters,
 notarization, cutting a release, tracking upstream, and troubleshooting.
+
+**[docs/SETTINGS.md](docs/SETTINGS.md)**: every setting, page by page, with
+its options, its default and what it does.
 
 **[docs/SHORTCUTS.md](docs/SHORTCUTS.md)**: every keyboard and mouse
 shortcut, grouped by windows, tabs, splits, terminal, Markdown previews and

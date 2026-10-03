@@ -128,18 +128,17 @@ struct ProfilesSettingsView: View {
                 ForEach(profiles.profiles) { profile in
                     HStack {
                         nameView(for: profile)
-
-                        if profile.id == profiles.defaultProfileID {
-                            Spacer()
-                            Image(systemName: "star.fill")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .help("Default profile")
-                        }
+                        Spacer(minLength: 4)
+                        DefaultProfileMarker(
+                            isDefault: profile.id == profiles.defaultProfileID,
+                            isSelected: profile.id == activeProfileID,
+                            makeDefault: { setDefault(profile.id) }
+                        )
                     }
                     .tag(profile.id)
                 }
             }
+            .settingsAnchor(.profiles, "Profiles")
             Divider()
             HStack(spacing: 8) {
                 Button {
@@ -304,8 +303,12 @@ struct ProfilesSettingsView: View {
 
     private func setSelectedProfileAsDefault() {
         guard let activeProfileID else { return }
+        setDefault(activeProfileID)
+    }
+
+    private func setDefault(_ id: TerminalProfile.ID) {
         do {
-            try profiles.setDefault(activeProfileID)
+            try profiles.setDefault(id)
         } catch {
             report(error)
         }
@@ -404,7 +407,7 @@ enum ProfileSettingsSection {
         case .shell: self = .shell
         case .keyboard: self = .keyboard
         case .advanced: self = .advanced
-        case .general, .profiles, .projects, .notifications, .updates, .data: return nil
+        case .general, .links, .profiles, .projects, .notifications, .updates, .data: return nil
         }
     }
 
@@ -461,6 +464,29 @@ struct ProfileSettingsPage: View {
                     .frame(maxHeight: 190)
             }
             Section {
+                Toggle(
+                    "Color the window to match the theme",
+                    isOn: binding(\.useThemeColorsForWindowChrome)
+                )
+                .settingsAnchor(.text, "Color the window to match the theme")
+                Toggle(
+                    "Keep the projects sidebar opaque",
+                    isOn: binding(\.keepsSidebarOpaque)
+                )
+                .settingsAnchor(.text, "Keep the projects sidebar opaque")
+                .disabled(!profile.useThemeColorsForWindowChrome)
+                Toggle(
+                    "Keep the tab strip opaque",
+                    isOn: binding(\.keepsTabStripOpaque)
+                )
+                .settingsAnchor(.text, "Keep the tab strip opaque")
+                .disabled(!profile.useThemeColorsForWindowChrome)
+            } header: {
+                Text("Window colors")
+            } footer: {
+                Text("The theme colors the title bar, tabs and sidebar; off, they follow the system's light or dark appearance. The sidebar and tab strip otherwise take the background opacity above.")
+            }
+            Section {
                 ThemeSectionView(
                     themes: themes,
                     selectedThemeName: profile.themeName,
@@ -468,6 +494,7 @@ struct ProfileSettingsPage: View {
                         update { $0.themeName = themeName }
                     }
                 )
+                .settingsAnchor(.text, "Theme")
             } header: {
                 Text("Theme")
             }
@@ -482,6 +509,7 @@ struct ProfileSettingsPage: View {
                     get: { profile.titleOverride ?? "" },
                     set: { newValue in update { $0.titleOverride = newValue.isEmpty ? nil : newValue } }
                 ), prompt: Text("Default"))
+                    .settingsAnchor(.window, "Custom title:")
                 HStack(alignment: .top, spacing: 40) {
                     VStack(alignment: .leading, spacing: 8) {
                         titleComponentToggle(.workingDirectory)
@@ -498,6 +526,7 @@ struct ProfileSettingsPage: View {
                     }
                     Spacer(minLength: 0)
                 }
+                .settingsAnchor(.window, "Title components")
                 .toggleStyle(.checkbox)
             } header: {
                 Text("Title")
@@ -510,38 +539,21 @@ struct ProfileSettingsPage: View {
                     dimensionField("Rows:", keyPath: \.rows)
                     Spacer(minLength: 0)
                 }
+                .settingsAnchor(.window, "Window Size")
             }
             Section("Scrollback") {
                 Toggle("Limit scrollback", isOn: Binding(
                     get: { profile.scrollbackLines != nil },
                     set: { limited in update { $0.scrollbackLines = limited ? 10_000 : nil } }
                 ))
+                    .settingsAnchor(.window, "Limit scrollback")
                 if profile.scrollbackLines != nil {
                     TextField("Scrollback lines:", value: Binding(
                         get: { profile.scrollbackLines ?? 10_000 },
                         set: { newValue in update { $0.scrollbackLines = max(0, newValue) } }
                     ), format: .number)
+                    .settingsAnchor(.window, "Scrollback lines:")
                 }
-            }
-            Section {
-                Toggle(
-                    "Match window chrome to theme",
-                    isOn: binding(\.useThemeColorsForWindowChrome)
-                )
-                Toggle(
-                    "Keep the projects sidebar opaque",
-                    isOn: binding(\.keepsSidebarOpaque)
-                )
-                .disabled(!profile.useThemeColorsForWindowChrome)
-                Toggle(
-                    "Keep the tab strip opaque",
-                    isOn: binding(\.keepsTabStripOpaque)
-                )
-                .disabled(!profile.useThemeColorsForWindowChrome)
-            } header: {
-                Text("Window chrome")
-            } footer: {
-                Text("Applies the theme to the title bar, tabs, and toolbar controls. Turn this off to follow the system appearance. The sidebar and tab strip otherwise take the background opacity set on the Text page. Settings → General keeps the tab strip opaque in every profile unless it is turned off there.")
             }
         }
     }
@@ -626,49 +638,33 @@ struct ProfileSettingsPage: View {
                     Text("Default login shell").tag(ShellKind.loginShell)
                     Text("Command").tag(ShellKind.command)
                 }
+                .settingsAnchor(.shell, "Run:")
                 if case .command(let commandLine, let runInShell) = profile.shell {
                     TextField("Command:", text: Binding(
                         get: { commandLine },
                         set: { newValue in update { $0.shell = .command(newValue, runInShell: runInShell) } }
                     ))
+                    .settingsAnchor(.shell, "Command:")
                     Toggle("Run inside shell", isOn: Binding(
                         get: { runInShell },
                         set: { newValue in update { $0.shell = .command(commandLine, runInShell: newValue) } }
                     ))
+                        .settingsAnchor(.shell, "Run inside shell")
                 }
                 Picker("When the shell exits:", selection: binding(\.whenShellExits)) {
                     ForEach(ShellExitBehavior.allCases, id: \.self) { behavior in
                         Text(behavior.description).tag(behavior)
                     }
                 }
+                .settingsAnchor(.shell, "When the shell exits:")
                 Picker("Ask before closing:", selection: binding(\.askBeforeClosing)) {
                     ForEach(AskBeforeClosing.allCases, id: \.self) { policy in
                         Text(policy.description).tag(policy)
                     }
                 }
+                .settingsAnchor(.shell, "Ask before closing:")
             }
         }
-    }
-
-    private var commandDigitsTargetBinding: Binding<CommandDigitsTarget> {
-        Binding(
-            get: { CommandDigitsTarget.current },
-            set: {
-                UserDefaults.standard.set(
-                    $0.rawValue,
-                    forKey: ProjectSidebarDefaults.commandDigitsTarget
-                )
-            }
-        )
-    }
-
-    /// App-wide rather than per-profile: macOS reads press-and-hold once, for
-    /// the whole application, so a profile cannot own it.
-    private var keyRepeatBinding: Binding<Bool> {
-        Binding(
-            get: { KeyRepeat.isEnabled() },
-            set: { KeyRepeat.set(enabled: $0) }
-        )
     }
 
     @ViewBuilder
@@ -676,30 +672,17 @@ struct ProfileSettingsPage: View {
         Form {
             Section {
                 Toggle("Use Option as Meta key", isOn: binding(\.optionAsMetaKey))
+                    .settingsAnchor(.keyboard, "Use Option as Meta key")
                 Toggle("Delete sends Control-H", isOn: binding(\.backspaceSendsControlH))
+                    .settingsAnchor(.keyboard, "Delete sends Control-H")
                 Toggle("Hide pointer while typing", isOn: binding(\.hidePointerWhileTyping))
+                    .settingsAnchor(.keyboard, "Hide pointer while typing")
             }
-            Section {
-                Toggle("Repeat keys when held", isOn: keyRepeatBinding)
-                Text("Holding a letter repeats it, as it does in a terminal. Turn this off to get macOS's accent picker instead, at the cost of \u{2018}hjkl\u{2019} not repeating in vim and other terminal apps. Applies to Moo only.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            // Projects and tabs cannot both own cmd+1...9, so the choice
-            // lives here with the other key settings rather than as a
-            // sub-feature of Projects.
-            Section("Shortcuts") {
-                Picker("⌘1–9 selects", selection: commandDigitsTargetBinding) {
-                    ForEach(CommandDigitsTarget.allCases) { target in
-                        Text(target.title).tag(target)
-                    }
-                }
-                Text("Projects are numbered in sidebar order, so dragging one changes its shortcut. ⌘9 always selects the last.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            // ⌘1–9 and key repeat apply to every profile, so they live in
+            // Settings → General, not here.
             Section("Key Mappings"){
                 TerminalKeyBindingsEditor(profile: profile, update: updateIgnoringResult)
+                    .settingsAnchor(.keyboard, "Key Mappings")
             }
             KeyboardShortcutList()
         }
@@ -712,15 +695,19 @@ struct ProfileSettingsPage: View {
                 LabeledContent("Declare terminal as:") {
                     TerminalNameComboBox(text: binding(\.termName))
                 }
+                .settingsAnchor(.advanced, "Declare terminal as:")
                 if profile.termName == "xterm-ghostty" {
                     TextField("TERM_PROGRAM:", text: binding(\.termProgram))
+                        .settingsAnchor(.advanced, "TERM_PROGRAM:")
                     TextField("TERM_VERSION:", text: binding(\.termVersion))
+                        .settingsAnchor(.advanced, "TERM_VERSION:")
                 }
                 Picker("Bell:", selection: binding(\.bellStyle)) {
                     ForEach(BellStyle.allCases, id: \.tagName) { style in
                         Text(style.displayName).tag(style)
                     }
                 }
+                .settingsAnchor(.advanced, "Bell:")
             }
             Section {
                 Text("Moo inherits the app environment, then applies these changes.")
@@ -747,6 +734,7 @@ struct ProfileSettingsPage: View {
                 }
             } header: {
                 Text("Environment")
+                    .settingsAnchor(.advanced, "Environment")
             } footer: {
                 Text("Unset removes an inherited value. An empty value is passed as an empty string. Later entries with the same name win.")
             }
@@ -1057,6 +1045,7 @@ struct ProfileTextSettingsFields: View {
                     Text(fontDescription)
                         .foregroundStyle(.secondary)
                 }
+                .settingsAnchor(.text, "Font:")
             }
             .buttonStyle(.plain)
             .foregroundStyle(.primary)
@@ -1082,10 +1071,12 @@ struct ProfileTextSettingsFields: View {
                 Text(style.displayName).tag(style)
             }
         }
+        .settingsAnchor(.text, "Cursor:")
         Toggle("Use bright colors for bold text", isOn: Binding(
             get: { profile.useBrightColorsForBold },
             set: { newValue in update { $0.useBrightColorsForBold = newValue } }
         ))
+            .settingsAnchor(.text, "Use bright colors for bold text")
         LabeledContent("Background opacity:") {
             Slider(
                 value: $backgroundOpacityPreview,
@@ -1094,6 +1085,7 @@ struct ProfileTextSettingsFields: View {
             )
             .frame(maxWidth: 200)
         }
+        .settingsAnchor(.text, "Background opacity:")
         .onChange(of: backgroundOpacityPreview) { _, newValue in
             TerminalSessionRegistry.shared.previewBackgroundOpacity(
                 newValue,
@@ -1330,12 +1322,54 @@ private struct ProfileSettingsPagePreview: View {
 
 /// Settings → Keyboard → Shortcuts: what Moo already binds, so a key
 /// mapping can avoid it. App-wide, unlike the rest of the page.
+/// The right end of a profile row. The default profile says so in words, not
+/// only with a star; any other profile offers a hollow star, on hover or when
+/// selected, that makes it the default in one click.
+private struct DefaultProfileMarker: View {
+    let isDefault: Bool
+    let isSelected: Bool
+    let makeDefault: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        Group {
+            if isDefault {
+                Label("Default", systemImage: "star.fill")
+                    .labelStyle(.titleAndIcon)
+                    .font(.caption.weight(.semibold))
+                    // On the selected row the list's own highlight is the
+                    // accent color, which would swallow an accent capsule:
+                    // there it is a tint of the row's text color instead.
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : AnyShapeStyle(.white))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(isSelected ? Color.primary.opacity(0.2) : Color.accentColor))
+                    .help("The default profile: new windows use it")
+                    .accessibilityLabel("Default profile")
+            } else {
+                Button(action: makeDefault) {
+                    Image(systemName: "star")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 20, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .opacity(isHovering || isSelected ? 1 : 0)
+                .help("Make this the default profile")
+                .accessibilityLabel("Make default profile")
+            }
+        }
+        .onHover { isHovering = $0 }
+    }
+}
+
 private struct KeyboardShortcutList: View {
     var body: some View {
         Section {
             EmptyView()
         } header: {
             Text("Shortcuts")
+                .settingsAnchor(.keyboard, "Shortcuts")
         } footer: {
             Text("Built into Moo and the same in every profile. ⇧⌘[ and ⇧⌘] always switch tabs; ⌘[ and ⌘] go back and forward in Markdown and browser tabs, and switch splits in a terminal.")
         }

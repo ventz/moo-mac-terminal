@@ -22,8 +22,6 @@ struct ProjectsSettingsView: View {
     @AppStorage(ProjectSidebarDefaults.showsPath) private var showsPath = true
     @AppStorage(ProjectSidebarDefaults.showsAccent) private var showsAccent = true
     @AppStorage(ProjectSidebarDefaults.drawsDivider) private var drawsDivider = true
-    @AppStorage(WorkspaceRestoreDefaults.restoresOnLaunch) private var restoresOnLaunch =
-        WorkspaceRestoreDefaults.defaultRestoresOnLaunch
 
     @State private var selection: Project.ID?
     @State private var errorMessage: String?
@@ -35,28 +33,32 @@ struct ProjectsSettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Status", isOn: $showsStatus)
+                    .settingsAnchor(.projects, "Status")
                 Toggle("Git branch", isOn: $showsBranch)
+                    .settingsAnchor(.projects, "Git branch")
                 Toggle("Directory path", isOn: $showsPath)
+                    .settingsAnchor(.projects, "Directory path")
                 Toggle("Accent color", isOn: $showsAccent)
+                    .settingsAnchor(.projects, "Accent color")
             }
 
             Section {
                 Toggle("Draw a divider between the sidebar and the terminal", isOn: $drawsDivider)
+                    .settingsAnchor(.projects, "Draw a divider between the sidebar and the terminal")
             } header: {
                 Text("Sidebar")
             } footer: {
-                Text("Turn this off for a seamless window, where only the sidebar's shading sets it apart.")
+                Text("⌘B shows or hides the sidebar. Turn the divider off for a seamless window, where only the sidebar's shading sets it apart.")
             }
 
             Section("Projects") {
-                Toggle("Reopen workspaces, tabs, and splits on launch", isOn: $restoresOnLaunch)
-                    .help("Shells start fresh in each pane's last directory. Scrollback is not kept.")
                 projectTable
+                    .settingsAnchor(.projects, "Projects")
                 HStack {
                     Button("Remove", action: removeSelected)
                         .disabled(selection == nil)
                     Spacer()
-                    Text("New projects are created with ⌘N.")
+                    Text("New project: ⇧⌘P, or ⌘N while the sidebar is open.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -109,6 +111,7 @@ struct ProjectsSettingsView: View {
         }
 
         ColorPicker("Accent", selection: accentBinding(for: project), supportsOpacity: false)
+            .settingsAnchor(.projects, "Accent")
 
         overridePicker("Status", for: project, keyPath: \.showsStatus, global: showsStatus)
         overridePicker("Git branch", for: project, keyPath: \.showsBranch, global: showsBranch)

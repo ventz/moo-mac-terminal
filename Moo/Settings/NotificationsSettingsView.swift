@@ -43,6 +43,7 @@ struct NotificationsSettingsView: View {
 
             Section("Visual") {
                 Toggle("Show system banners", isOn: $showsBanners)
+                    .settingsAnchor(.notifications, "Show system banners")
                 if showsBanners, bannersDenied {
                     HStack {
                         Text("Banners are turned off for Moo in System Settings.")
@@ -53,22 +54,29 @@ struct NotificationsSettingsView: View {
                     }
                 }
                 Toggle("Show in menu bar", isOn: $showsStatusItem)
+                    .settingsAnchor(.notifications, "Show in menu bar")
                 Toggle("Show unread count on the Dock icon", isOn: $showsDockBadge)
+                    .settingsAnchor(.notifications, "Show unread count on the Dock icon")
                 Picker("Bounce the Dock icon", selection: $dockBounce) {
                     ForEach(AttentionDockBounce.allCases) { bounce in
                         Text(bounce.title).tag(bounce)
                     }
                 }
+                .settingsAnchor(.notifications, "Bounce the Dock icon")
                 Toggle("Mark waiting tabs and projects", isOn: $marksWaiting)
+                    .settingsAnchor(.notifications, "Mark waiting tabs and projects")
             }
 
             Section {
                 Toggle("Notify when a long command finishes out of sight", isOn: $notifiesLongCommands)
+                    .settingsAnchor(.notifications, "Notify when a long command finishes out of sight")
                 Stepper(value: $longCommandSeconds, in: 5...3600, step: 5) {
                     Text("Long means at least \(Int(longCommandSeconds)) seconds")
                 }
                 .disabled(!notifiesLongCommands)
+                .settingsAnchor(.notifications, "Long means at least … seconds")
                 Toggle("Mark tabs whose last command failed", isOn: $marksFailedCommands)
+                    .settingsAnchor(.notifications, "Mark tabs whose last command failed")
             } header: {
                 Text("Commands")
             } footer: {
@@ -87,6 +95,7 @@ struct NotificationsSettingsView: View {
                         Text(name).tag(name)
                     }
                 }
+                .settingsAnchor(.notifications, "Sound")
                 LabeledContent("Volume") {
                     HStack {
                         Slider(value: $volume, in: 0...1)
@@ -99,13 +108,16 @@ struct NotificationsSettingsView: View {
                         .help("Play the sound")
                     }
                 }
+                .settingsAnchor(.notifications, "Volume")
                 .disabled(sound.isEmpty)
                 Toggle("Speak the message aloud", isOn: $speaksMessage)
+                    .settingsAnchor(.notifications, "Speak the message aloud")
                 Picker("Play", selection: $audioTiming) {
                     ForEach(AttentionAudioTiming.allCases) { timing in
                         Text(timing.title).tag(timing)
                     }
                 }
+                .settingsAnchor(.notifications, "Play")
                 .disabled(sound.isEmpty && !speaksMessage)
             }
 

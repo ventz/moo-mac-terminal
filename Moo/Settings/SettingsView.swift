@@ -2,8 +2,10 @@
 //  SettingsView.swift
 //  Moo
 //
-//  Settings window: General, Updates and Data are app-wide. The remaining pages edit
-//  the profile selected in the Settings toolbar.
+//  Settings window. The sidebar is grouped by scope: the first group is
+//  app-wide, the second edits the profile picked in the Settings toolbar,
+//  and the last holds updates and data. A search field filters every
+//  setting by name (SettingsSearch.swift).
 //
 import Combine
 import AppKit
@@ -17,19 +19,62 @@ struct SettingsView: View {
     @State private var destination: SettingsDestination? = .general
     @State private var activeProfileID: TerminalProfile.ID?
     @State private var profileErrorMessage: String?
+    @State private var searchText = ""
+    /// Search results are selected one by one, by entry; selecting one opens
+    /// its page. Tagging rows by page instead highlighted every match on it.
+    @State private var searchSelection: SettingsSearch.Entry.ID?
 
     var body: some View {
         NavigationSplitView {
-            List(selection: $destination) {
-                ForEach(SettingsDestination.allCases) { destination in
-                    Label(sidebarTitle(for: destination), systemImage: destination.systemImage)
-                        .tag(destination)
+            Group {
+                if SettingsSearch.isSearching(searchText) {
+                    List(selection: $searchSelection) {
+                        searchResults
+                    }
+                    .onChange(of: searchSelection) { _, id in
+                        guard let entry = SettingsSearch.entries.first(where: { $0.id == id }) else { return }
+                        choose(entry)
+                    }
+                } else {
+                    List(selection: $destination) {
+                        ForEach(SettingsDestination.Group.allCases) { group in
+                            Section {
+                                ForEach(group.destinations) { destination in
+                                    Label(sidebarTitle(for: destination), systemImage: destination.systemImage)
+                                        .tag(destination)
+                                }
+                            } header: {
+                                if let title = group.title {
+                                    Text(title)
+                                }
+                            }
+                        }
+                    }
                 }
             }
+            .searchable(text: $searchText, placement: .sidebar, prompt: "Search settings")
             .navigationTitle("Settings")
-            .frame(minWidth: 170)
+            .frame(minWidth: 190)
         } detail: {
-            detail
+            // Scrolls the chosen search result into view once its page is
+            // up; the setting's own anchor then outlines it.
+            // A setting already on screen is scrolled to at once; one whose
+            // page is still opening asks again when its anchor appears
+            // (SettingsHighlight.scrollRequest), rather than this guessing
+            // how long the page takes.
+            ScrollViewReader { proxy in
+                detail
+                    .onChange(of: SettingsHighlight.shared.request) { _, request in
+                        guard let request else { return }
+                        DispatchQueue.main.async {
+                            withAnimation { proxy.scrollTo(request.anchorID, anchor: .center) }
+                        }
+                    }
+                    .onChange(of: SettingsHighlight.shared.scrollRequest) { _, _ in
+                        guard let request = SettingsHighlight.shared.request else { return }
+                        withAnimation { proxy.scrollTo(request.anchorID, anchor: .center) }
+                    }
+            }
         }
         .toolbar {
             if currentDestination.isProfileDriven {
@@ -56,6 +101,46 @@ struct SettingsView: View {
         }
     }
 
+    /// Matching settings, grouped under their page. Selecting one opens its
+    /// page; the search stays so the next match is one click away.
+    @ViewBuilder
+    private var searchResults: some View {
+        let groups = SettingsSearch.results(for: searchText)
+        if groups.isEmpty {
+            Text("No settings match \u{201C}\(searchText)\u{201D}")
+                .foregroundStyle(.secondary)
+        }
+        ForEach(groups, id: \.destination) { group in
+            Section(group.destination.title) {
+                ForEach(group.entries) { entry in
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(entry.title)
+                            .lineLimit(2)
+                        Text(entry.section)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    // Selection only changes once; clicking the result that
+                    // is already selected shows its setting again.
+                    .simultaneousGesture(TapGesture().onEnded {
+                        if searchSelection == entry.id { choose(entry) }
+                    })
+                    .accessibilityElement(children: .combine)
+                    .tag(entry.id)
+                }
+            }
+        }
+    }
+
+    /// Opens a result's page and points at its setting.
+    private func choose(_ entry: SettingsSearch.Entry) {
+        destination = entry.destination
+        SettingsHighlight.shared.reveal(entry.id)
+    }
+
     private var dataTabTitle: String {
         issueCenter.issues.isEmpty ? "Data" : "Data (\(issueCenter.issues.count))"
     }
@@ -77,6 +162,8 @@ struct SettingsView: View {
         switch currentDestination {
         case .general:
             GeneralSettingsView()
+        case .links:
+            LinksSettingsView()
         case .profiles:
             ProfilesSettingsView(activeProfileID: $activeProfileID)
         case .text, .window, .shell, .keyboard, .advanced:
@@ -127,8 +214,13 @@ struct SettingsView: View {
                 systemImage: "person.crop.circle"
             )
         }
+        // Title and icon: the toolbar otherwise shows the icon alone, which
+        // leaves no sign of which profile these pages are editing.
+        .labelStyle(.titleAndIcon)
+        .help("The profile these settings change")
         .disabled(profiles.profiles.isEmpty)
-        .accessibilityLabel("Active profile")
+        .accessibilityLabel("Profile")
+        .accessibilityValue(activeProfile?.name ?? "None")
     }
 
     private func repairActiveProfileSelection() {
@@ -268,23 +360,56 @@ struct SettingsEscapeKeyHandler: NSViewRepresentable {
 
 enum SettingsDestination: CaseIterable, Hashable, Identifiable {
     case general
+    case links
+    case projects
+    case notifications
+
+    case profiles
     case text
     case window
     case shell
     case keyboard
     case advanced
 
-    case profiles
-    case projects
-    case notifications
     case updates
     case data
 
     var id: Self { self }
 
+    /// The sidebar's sections. Scope decides the group, so a setting that
+    /// applies everywhere is never on a page that edits one profile.
+    enum Group: CaseIterable, Identifiable {
+        case app
+        case profile
+        case maintenance
+
+        var id: Self { self }
+
+        var title: String? {
+            switch self {
+            case .app: return "Moo"
+            case .profile: return "Profiles"
+            case .maintenance: return nil
+            }
+        }
+
+        var destinations: [SettingsDestination] {
+            SettingsDestination.allCases.filter { $0.group == self }
+        }
+    }
+
+    var group: Group {
+        switch self {
+        case .general, .links, .projects, .notifications: return .app
+        case .profiles, .text, .window, .shell, .keyboard, .advanced: return .profile
+        case .updates, .data: return .maintenance
+        }
+    }
+
     var title: String {
         switch self {
         case .general: return "General"
+        case .links: return "Links & Markdown"
         case .profiles: return "Profiles"
         case .projects: return "Projects"
         case .notifications: return "Notifications"
@@ -301,6 +426,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
     var systemImage: String {
         switch self {
         case .general: return "gearshape"
+        case .links: return "link"
         case .profiles: return "person.2.badge.gearshape"
         case .projects: return "sidebar.left"
         case .notifications: return "bell.badge"
@@ -318,7 +444,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
         switch self {
         case .text, .window, .shell, .keyboard, .advanced:
             return true
-        case .general, .profiles, .projects, .notifications, .updates, .data:
+        case .general, .links, .profiles, .projects, .notifications, .updates, .data:
             return false
         }
     }
@@ -330,16 +456,21 @@ struct GeneralSettingsView: View {
     @ObservedObject private var windowGroups: WindowGroupStore
     @AppStorage("newTabsUseCurrentDirectory") private var newTabsUseCurrentDirectory = true
     @AppStorage("newTabsUseCurrentProfile") private var newTabsUseCurrentProfile = true
-    @AppStorage("useCommandDigitsForTabs") private var useCommandDigitsForTabs = true
     @AppStorage("restoredRowsLimit") private var restoredRowsLimit = 1_000
     @AppStorage("startupMode") private var startupMode = "default"
     @AppStorage("startupProfileID") private var startupProfileID = ""
     @AppStorage("startupWindowGroupID") private var startupWindowGroupID = ""
     @AppStorage("useMetalRenderer") private var useMetalRenderer = true
-    @AppStorage(LinkRoutingDefaults.opensLinksInApp) private var opensLinksInApp = true
-    @AppStorage(MarkdownPreviewDefaults.followsTerminalTheme) private var markdownFollowsTheme = false
     @AppStorage(WindowChromeDefaults.keepsTabStripOpaque) private var keepsTabStripOpaque = WindowChromeDefaults.keepsTabStripOpaqueByDefault
-    @AppStorage(ContentBlockingDefaults.enabledKey) private var blocksAds = true
+    @AppStorage(WorkspaceRestoreDefaults.restoresOnLaunch) private var restoresOnLaunch =
+        WorkspaceRestoreDefaults.defaultRestoresOnLaunch
+    /// Read through CommandDigitsChoice, which spans two keys; these only
+    /// make the view redraw when either changes.
+    @AppStorage(ProjectSidebarDefaults.commandDigitsTarget) private var commandDigitsTarget = CommandDigitsTarget.projects.rawValue
+    @AppStorage(CommandDigitsChoice.selectsTabsKey) private var commandDigitsSelectTabs = true
+    /// Read from defaults rather than held in @State, so an Import that
+    /// applies settings while this window is open shows up here.
+    @AppStorage(KeyboardDefaults.keyRepeatEnabled) private var keyRepeat = KeyboardDefaults.keyRepeatEnabledByDefault
     @State private var errorMessage: String?
 
     @MainActor
@@ -353,31 +484,20 @@ struct GeneralSettingsView: View {
 
     var body: some View {
         Form {
-            if profiles.profiles.isEmpty {
-                LabeledContent("Default profile:") {
-                    Text("Built-in defaults")
-                }
-            } else {
-                Picker("Default profile:", selection: defaultProfileBinding) {
-                    ForEach(profiles.profiles) { profile in
-                        Text(profile.name).tag(profile.id)
-                    }
-                }
-                .help("Used for new windows, and wherever no explicit profile is chosen")
-            }
-
             Section("Startup") {
                 Picker("Open:", selection: $startupMode) {
                     Text("A window with the default profile").tag("default")
                     Text("A window with this profile").tag("profile")
                     Text("A window group").tag("windowGroup")
                 }
+                .settingsAnchor(.general, "Open:")
                 if startupMode == "profile" {
                     Picker("Profile:", selection: $startupProfileID) {
                         ForEach(profiles.profiles) { profile in
                             Text(profile.name).tag(profile.id.uuidString)
                         }
                     }
+                    .settingsAnchor(.general, "Profile:")
                 } else if startupMode == "windowGroup" {
                     Picker("Window group:", selection: $startupWindowGroupID) {
                         Text("None").tag("")
@@ -385,58 +505,67 @@ struct GeneralSettingsView: View {
                             Text(group.name).tag(group.id.uuidString)
                         }
                     }
+                    .settingsAnchor(.general, "Window group:")
                 }
-            }
-
-            Section("New tabs") {
-                Toggle("Open with the working directory of the current tab", isOn: $newTabsUseCurrentDirectory)
-                Toggle("Use the profile of the current window", isOn: $newTabsUseCurrentProfile)
-            }
-            Section("Tabs") {
-                Toggle("Use Command-1 through Command-9 to select tabs", isOn: $useCommandDigitsForTabs)
-                Toggle("Keep the tab strip opaque in every profile", isOn: $keepsTabStripOpaque)
-                Text("Off: each profile decides, and the strip otherwise takes the terminal's background opacity. Reduce transparency in System Settings makes all of Moo opaque.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Section("Links") {
-                Toggle("Open links and Markdown files in Moo tabs", isOn: $opensLinksInApp)
-                Text("Command-click opens web addresses and Markdown files as tabs beside the terminal. Option-Command-click always uses the default app.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Section("Markdown previews") {
-                Toggle("Follow the terminal theme", isOn: $markdownFollowsTheme)
-                Text("Off: previews are always light, with dark text.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Section("Browser tabs") {
-                Toggle("Block ads and trackers", isOn: $blocksAds)
-                    .onChange(of: blocksAds) { _, enabled in
-                        BrowserContentBlocking.shared.setEnabled(enabled)
-                    }
-                Text("Uses uBlock Origin Lite's filter lists through WebKit's content blocker. Applies to open tabs on their next page load.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Section("Rendering") {
-                Toggle("Use Metal", isOn: metalRendererBinding)
-            }
-            Section("Resume") {
+                Toggle("Reopen workspaces, tabs, and splits on launch", isOn: $restoresOnLaunch)
+                    .help("Shells start fresh in each pane's last directory. Scrollback is not kept.")
+                    .settingsAnchor(.general, "Reopen workspaces, tabs, and splits on launch")
                 Stepper(
-                    "Restore up to \(restoredRowsLimit) rows when a saved session opens",
+                    "Restore up to \(restoredRowsLimit) rows of text when a saved session opens",
                     value: $restoredRowsLimit,
                     in: 0...100_000,
                     step: 100
                 )
-                Text("Set the value to 0 to restore no terminal text.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .settingsAnchor(.general, "Restore rows of text when a saved session opens")
+            }
+
+            Section("New tabs and windows") {
+                if profiles.profiles.isEmpty {
+                    LabeledContent("Default profile:") {
+                        Text("Built-in defaults")
+                    }
+                } else {
+                    Picker("Default profile:", selection: defaultProfileBinding) {
+                        ForEach(profiles.profiles) { profile in
+                            Text(profile.name).tag(profile.id)
+                        }
+                    }
+                    .settingsAnchor(.general, "Default profile:")
+                    .help("Used for new windows, and wherever no explicit profile is chosen")
+                }
+                Toggle("Open new tabs in the current tab's directory", isOn: $newTabsUseCurrentDirectory)
+                    .settingsAnchor(.general, "Open new tabs in the current tab's directory")
+                Toggle("Open new tabs with the current window's profile", isOn: $newTabsUseCurrentProfile)
+                    .settingsAnchor(.general, "Open new tabs with the current window's profile")
+            }
+
+            Section {
+                Picker("⌘1–9 selects:", selection: commandDigitsBinding) {
+                    ForEach(CommandDigitsChoice.allCases) { choice in
+                        Text(choice.title).tag(choice)
+                    }
+                }
+                .settingsAnchor(.general, "⌘1–9 selects:")
+                Toggle("Repeat keys when held", isOn: keyRepeatBinding)
+                    .settingsAnchor(.general, "Repeat keys when held")
+            } header: {
+                Text("Keyboard")
+            } footer: {
+                Text("Projects are numbered in sidebar order, and ⌘9 always selects the last. Turning key repeat off brings back macOS's accent picker, but \u{2018}hjkl\u{2019} then stop repeating in vim. Per-profile keys, and a list of every shortcut, are under Profiles → Keyboard.")
+            }
+
+            Section {
+                Toggle("Keep the tab strip opaque in every profile", isOn: $keepsTabStripOpaque)
+                    .settingsAnchor(.general, "Keep the tab strip opaque in every profile")
+                Toggle("Draw with Metal", isOn: metalRendererBinding)
+                    .settingsAnchor(.general, "Draw with Metal")
+            } header: {
+                Text("Window")
+            } footer: {
+                Text("Off, each profile decides whether its tab strip is opaque. Colors, fonts and the title bar are set per profile, under Profiles → Appearance.")
             }
         }
         .formStyle(.grouped)
-        .padding()
         .alert("Could Not Change Default Profile", isPresented: errorPresentation) {
             Button("OK") {
                 errorMessage = nil
@@ -444,6 +573,25 @@ struct GeneralSettingsView: View {
         } message: {
             Text(errorMessage ?? "An unknown error occurred.")
         }
+    }
+
+    private var commandDigitsBinding: Binding<CommandDigitsChoice> {
+        Binding(
+            get: {
+                _ = (commandDigitsTarget, commandDigitsSelectTabs)
+                return CommandDigitsChoice.current()
+            },
+            set: { $0.store() }
+        )
+    }
+
+    /// App-wide rather than per-profile: macOS reads press-and-hold once, for
+    /// the whole application, so a profile cannot own it.
+    private var keyRepeatBinding: Binding<Bool> {
+        Binding(
+            get: { keyRepeat },
+            set: { KeyRepeat.set(enabled: $0) }
+        )
     }
 
     private var defaultProfileBinding: Binding<TerminalProfile.ID> {
@@ -474,6 +622,48 @@ struct GeneralSettingsView: View {
             get: { errorMessage != nil },
             set: { if !$0 { errorMessage = nil } }
         )
+    }
+}
+
+/// Where links open, Markdown previews, and browser tabs. App-wide.
+struct LinksSettingsView: View {
+    @AppStorage(LinkRoutingDefaults.opensLinksInApp) private var opensLinksInApp = true
+    @AppStorage(MarkdownPreviewDefaults.followsTerminalTheme) private var markdownFollowsTheme = false
+    @AppStorage(MarkdownPreviewDefaults.opensLinksInNewTab) private var markdownLinksOpenTabs = true
+    @AppStorage(ContentBlockingDefaults.enabledKey) private var blocksAds = true
+
+    var body: some View {
+        Form {
+            Section("From the terminal") {
+                Toggle("⌘-click opens links and Markdown files in Moo tabs", isOn: $opensLinksInApp)
+                    .settingsAnchor(.links, "⌘-click opens links and Markdown files in Moo tabs")
+                note("⌘-click a web address or a .md file in the terminal and it opens as a tab beside it. Off: it opens in your default browser or editor. ⌥⌘-click always uses the default app.")
+            }
+            Section("Markdown previews") {
+                Toggle("Follow the terminal theme", isOn: $markdownFollowsTheme)
+                    .settingsAnchor(.links, "Follow the terminal theme")
+                note("Off: previews are always light, with dark text. On: a dark terminal theme gives a dark preview.")
+                Toggle("Open links to other Markdown files in new tabs", isOn: $markdownLinksOpenTabs)
+                    .settingsAnchor(.links, "Open links to other Markdown files in new tabs")
+                note("Clicking a link in a preview opens that file in a new tab. Off: it replaces the page instead. ⌘-click does the opposite of this setting. ⌘[ and ⌘] go back and forward either way.")
+            }
+            Section("Browser tabs") {
+                Toggle("Block ads and trackers", isOn: $blocksAds)
+                    .onChange(of: blocksAds) { _, enabled in
+                        BrowserContentBlocking.shared.setEnabled(enabled)
+                    }
+                    .settingsAnchor(.links, "Block ads and trackers")
+                note("Uses uBlock Origin Lite's filter lists through WebKit's content blocker. Applies to open tabs on their next page load. ⇧⌘B opens a browser tab; ⌘L, ⌘[ / ⌘], ⌘R and ⌘F work as in Safari.")
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    /// A note under the toggle it explains, so each one reads on its own.
+    private func note(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
     }
 }
 

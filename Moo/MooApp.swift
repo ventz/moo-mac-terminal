@@ -367,25 +367,34 @@ struct NewItemCommands: Commands {
 struct TabSelectionCommands: Commands {
     @State private var commandState = TerminalCommandState()
     @State private var runtime = ProjectRuntime.shared
+    /// Observed so the menu rebuilds when Settings → General changes ⌘1–9;
+    /// read through CommandDigitsChoice, which spans both keys.
+    @AppStorage(ProjectSidebarDefaults.commandDigitsTarget) private var commandDigitsTarget = CommandDigitsTarget.projects.rawValue
+    @AppStorage(CommandDigitsChoice.selectsTabsKey) private var commandDigitsSelectTabs = true
 
     var body: some Commands {
         CommandGroup(after: .windowArrangement) {
             // cmd+1...9 has a single owner. Which thing it selects is a
             // preference, because projects and tabs cannot both claim it.
-            Menu(digitsTarget == .projects ? "Select Project" : "Select Tab") {
-                ForEach(1...8, id: \.self) { number in
-                    Button(digitsTarget == .projects
-                           ? "Select Project \(number)"
-                           : "Select Tab \(number)") {
-                        selectByDigit(index: number - 1)
+            // "Nothing" drops the menu, so ⌘1–9 fall to the terminal view: a
+            // program using the kitty keyboard protocol gets them as
+            // Super+digit, and anywhere else they do nothing.
+            if digitsChoice != .off {
+                Menu(digitsTarget == .projects ? "Select Project" : "Select Tab") {
+                    ForEach(1...8, id: \.self) { number in
+                        Button(digitsTarget == .projects
+                               ? "Select Project \(number)"
+                               : "Select Tab \(number)") {
+                            selectByDigit(index: number - 1)
+                        }
+                        .keyboardShortcut(KeyEquivalent(Character(String(number))), modifiers: [.command])
                     }
-                    .keyboardShortcut(KeyEquivalent(Character(String(number))), modifiers: [.command])
+                    Divider()
+                    Button(digitsTarget == .projects ? "Select Last Project" : "Select Last Tab") {
+                        selectLastByDigit()
+                    }
+                    .keyboardShortcut("9", modifiers: [.command])
                 }
-                Divider()
-                Button(digitsTarget == .projects ? "Select Last Project" : "Select Last Tab") {
-                    selectLastByDigit()
-                }
-                .keyboardShortcut("9", modifiers: [.command])
             }
 
             Divider()
@@ -457,7 +466,13 @@ struct TabSelectionCommands: Commands {
     }
 
     private var digitsTarget: CommandDigitsTarget {
-        CommandDigitsTarget.current
+        _ = commandDigitsTarget
+        return CommandDigitsTarget.current
+    }
+
+    private var digitsChoice: CommandDigitsChoice {
+        _ = (commandDigitsTarget, commandDigitsSelectTabs)
+        return CommandDigitsChoice.current()
     }
 
     private func selectByDigit(index: Int) {

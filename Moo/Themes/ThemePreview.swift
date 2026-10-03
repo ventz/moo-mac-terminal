@@ -108,7 +108,6 @@ struct ThemePreview: View {
 
 enum ThemePreviewPage: Int, CaseIterable, Identifiable {
     case shell
-    case midnightCommander
     case claudeCode
 
     var id: Self { self }
@@ -116,7 +115,6 @@ enum ThemePreviewPage: Int, CaseIterable, Identifiable {
     var title: LocalizedStringResource {
         switch self {
         case .shell: "Shell"
-        case .midnightCommander: "mc"
         case .claudeCode: "Claude"
         }
     }
@@ -176,112 +174,9 @@ private struct ThemePreviewPageView: View {
                     fontSize: compact ? 8 : 12,
                     extended: !compact
                 )
-            case .midnightCommander:
-                MidnightCommanderThemePreview(theme: theme)
             case .claudeCode:
                 ClaudeCodeThemePreview(theme: theme, compact: compact)
             }
-        }
-    }
-}
-
-/// Reproduces the stable regions of an 80-column Midnight Commander capture.
-private struct MidnightCommanderThemePreview: View {
-    let theme: TerminalTheme
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Text("Left")
-                Text("File")
-                Text("Command")
-                Text("Options")
-                Text("Right")
-                Spacer(minLength: 0)
-            }
-            .foregroundStyle(theme.ansi[0].swiftUIColor)
-            .padding(.horizontal, 5)
-            .background(theme.ansi[6].swiftUIColor)
-
-            HStack(spacing: 4) {
-                MidnightCommanderPanel(
-                    path: "~/src/moo",
-                    selectedEntry: "/Moo",
-                    secondEntry: "/MooTests",
-                    thirdEntry: "/scripts",
-                    fileEntry: "README.md",
-                    theme: theme
-                )
-                MidnightCommanderPanel(
-                    path: "~/src/SwiftTerm",
-                    selectedEntry: "/Sources",
-                    secondEntry: "/Tests",
-                    thirdEntry: "/Tools",
-                    fileEntry: "Package.swift",
-                    theme: theme
-                )
-            }
-            .padding(4)
-
-            Spacer(minLength: 1)
-
-            Text("bash-3.2$ ")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .foregroundStyle(theme.foreground.swiftUIColor)
-                .padding(.horizontal, 5)
-
-            HStack(spacing: 0) {
-                Text(" 1").foregroundStyle(theme.ansi[15].swiftUIColor)
-                Text("Help  ").foregroundStyle(theme.ansi[0].swiftUIColor)
-                Text(" 3").foregroundStyle(theme.ansi[15].swiftUIColor)
-                Text("View  ").foregroundStyle(theme.ansi[0].swiftUIColor)
-                Text(" 5").foregroundStyle(theme.ansi[15].swiftUIColor)
-                Text("Copy  ").foregroundStyle(theme.ansi[0].swiftUIColor)
-                Text("10").foregroundStyle(theme.ansi[15].swiftUIColor)
-                Text("Quit").foregroundStyle(theme.ansi[0].swiftUIColor)
-                Spacer(minLength: 0)
-            }
-            .background(theme.ansi[6].swiftUIColor)
-        }
-        .font(.system(size: 8, design: .monospaced))
-        .background(theme.ansi[4].swiftUIColor)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Midnight Commander preview with the \(theme.name) theme")
-    }
-}
-
-private struct MidnightCommanderPanel: View {
-    let path: String
-    let selectedEntry: String
-    let secondEntry: String
-    let thirdEntry: String
-    let fileEntry: String
-    let theme: TerminalTheme
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text("<─ \(path) ─>")
-                .lineLimit(1)
-            Text("Name                 Size")
-                .foregroundStyle(theme.ansi[11].swiftUIColor)
-            Text(selectedEntry)
-                .foregroundStyle(theme.ansi[0].swiftUIColor)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(theme.ansi[14].swiftUIColor)
-            Text(secondEntry)
-            Text(thirdEntry)
-            Text(fileEntry)
-                .foregroundStyle(theme.ansi[11].swiftUIColor)
-            Spacer(minLength: 0)
-            Divider().overlay(theme.ansi[15].swiftUIColor)
-            Text("698G / 3722G (18%)")
-                .frame(maxWidth: .infinity, alignment: .trailing)
-        }
-        .foregroundStyle(theme.ansi[15].swiftUIColor)
-        .padding(3)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .overlay {
-            Rectangle().stroke(theme.ansi[15].swiftUIColor.opacity(0.8))
         }
     }
 }
@@ -459,7 +354,7 @@ private struct ThemeCardContent: View {
         ),
         isSelected: true,
         isFavorite: true,
-        samplePage: .midnightCommander
+        samplePage: .claudeCode
     )
     .frame(width: 180)
     .padding()
