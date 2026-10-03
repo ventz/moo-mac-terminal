@@ -357,6 +357,10 @@ struct ContentView: View {
             .background(WindowTabbingConfigurator(
                 theme: usesThemeWindowChrome ? windowTheme : nil,
                 backgroundOpacity: chromeBackgroundOpacity,
+                // The toggle is disabled while the window is not themed, so it
+                // must not apply then either.
+                usesStandardTitlebar: usesThemeWindowChrome
+                    && chromeController?.profile.usesStandardTitlebar == true,
                 sizingProfile: chromeController?.profile ?? profiles.defaultProfile,
                 scope: scope
             ))
@@ -554,6 +558,8 @@ struct ThemePickerPopover: View {
 struct WindowTabbingConfigurator: NSViewRepresentable {
     let theme: TerminalTheme?
     var backgroundOpacity: Double = 1
+    /// The profile asks for the standard macOS title row, not the theme.
+    var usesStandardTitlebar = false
     /// The profile a new window is sized from when it has no saved frame.
     var sizingProfile: TerminalProfile?
     /// Bound so the runtime can tell which window is key, and so selecting a
@@ -575,9 +581,8 @@ struct WindowTabbingConfigurator: NSViewRepresentable {
             guard let window = view.window else { return }
             scope?.window = window
             window.tabbingIdentifier = "TerminalDocument"
+            WindowTitleAccessory.install(in: window)
             window.tabbingMode = .preferred
-            // The tab strip occupies the titlebar and already names the active
-            // terminal, so the window title would only repeat it.
             // A normal titlebar. macOS Terminal keeps its title row and puts
             // tabs in a row of their own below it, so Moo does the same.
             if let sizingProfile {
@@ -591,6 +596,7 @@ struct WindowTabbingConfigurator: NSViewRepresentable {
             TerminalWindowAppearance.apply(
                 theme: theme,
                 backgroundOpacity: backgroundOpacity,
+                usesStandardTitlebar: usesStandardTitlebar,
                 to: window
             )
         }

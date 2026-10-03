@@ -470,6 +470,12 @@ struct ProfileSettingsPage: View {
                 )
                 .settingsAnchor(.text, "Color the window to match the theme")
                 Toggle(
+                    "Use the system title bar color instead (light or dark)",
+                    isOn: binding(\.usesStandardTitlebar)
+                )
+                .settingsAnchor(.text, "Use the system title bar color instead (light or dark)")
+                .disabled(!profile.useThemeColorsForWindowChrome)
+                Toggle(
                     "Keep the projects sidebar opaque",
                     isOn: binding(\.keepsSidebarOpaque)
                 )
@@ -484,7 +490,7 @@ struct ProfileSettingsPage: View {
             } header: {
                 Text("Window colors")
             } footer: {
-                Text("The theme colors the title bar, tabs and sidebar; off, they follow the system's light or dark appearance. The sidebar and tab strip otherwise take the background opacity above.")
+                Text("The theme colors the title bar, tabs and sidebar; off, they follow the system's light or dark appearance. The system title bar works like Terminal.app's: light in Light Mode, dark in Dark Mode, always opaque, so it stands apart as the place to drag the window. The sidebar and tab strip otherwise take the background opacity above.")
             }
             Section {
                 ThemeSectionView(

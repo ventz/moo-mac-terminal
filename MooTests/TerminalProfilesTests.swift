@@ -472,6 +472,7 @@ final class ProfileStoreTests {
         profile.useThemeColorsForWindowChrome = false
         profile.keepsSidebarOpaque = true
         profile.keepsTabStripOpaque = true
+        profile.usesStandardTitlebar = true
         profile.columns = 130
         profile.rows = 32
         profile.scrollbackLines = nil

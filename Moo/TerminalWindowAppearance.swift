@@ -19,8 +19,20 @@ enum TerminalWindowAppearance {
     /// while its titlebar is out of reach (it is not built yet, or the window
     /// is in full screen), which keeps the next update from being skipped.
     private static let settledWindows = NSHashTable<NSWindow>.weakObjects()
+    /// Windows whose profile asks for the standard title bar (Appearance →
+    /// Title bar), drawn in the system's appearance rather than the theme's.
+    private static let standardTitlebarWindows = NSHashTable<NSWindow>.weakObjects()
+    /// Follows the system's light/dark switch while any window has a standard
+    /// title row. The window itself is pinned to the theme's appearance, so
+    /// nothing else tells its titlebar the system changed.
+    private static var systemAppearanceObservation: NSKeyValueObservation?
 
-    static func apply(theme: TerminalTheme?, backgroundOpacity: Double = 1, to window: NSWindow) {
+    static func apply(
+        theme: TerminalTheme?,
+        backgroundOpacity: Double = 1,
+        usesStandardTitlebar: Bool = false,
+        to window: NSWindow
+    ) {
         let color = theme.map { theme -> NSColor in
             let background = theme.background
             return NSColor(
@@ -35,6 +47,7 @@ enum TerminalWindowAppearance {
         // SwiftUI reapplies this on every update of the terminal view; a
         // repeated refresh would relayout the whole titlebar for nothing.
         guard color != themeBackgrounds.object(forKey: window)
+                || usesStandardTitlebar != standardTitlebarWindows.contains(window)
                 || !settledWindows.contains(window)
         else { return }
 
@@ -46,7 +59,51 @@ enum TerminalWindowAppearance {
         } else {
             themeBackgrounds.removeObject(forKey: window)
         }
+        if usesStandardTitlebar {
+            standardTitlebarWindows.add(window)
+            observeSystemAppearance()
+        } else {
+            standardTitlebarWindows.remove(window)
+        }
         scheduleChromeRefresh(for: window)
+    }
+
+    /// The light or dark appearance System Settings asks for. Moo never sets
+    /// `NSApp.appearance`, so the app's effective appearance is the system's.
+    static func systemAppearance(_ effective: NSAppearance? = nil) -> NSAppearance? {
+        let effective = effective ?? NSApp.effectiveAppearance
+        // Increase Contrast is not lost here: AppKit applies it system-wide,
+        // and even NSAppearance(named: .accessibilityHighContrastAqua) comes
+        // back named plain .aqua (checked on macOS 26, 2026-10-03).
+        let name = effective.bestMatch(from: [.aqua, .darkAqua]) ?? .aqua
+        return NSAppearance(named: name)
+    }
+
+    /// What a standard title row is painted with: the system window color in
+    /// the system appearance (white in light mode, as in Terminal.app), and
+    /// always opaque, so it stands apart from a translucent terminal.
+    ///
+    /// Painted rather than left to AppKit: on macOS 26 the native titlebar
+    /// background is see-through, so with only the appearance changed the
+    /// title turned dark while the dark terminal still showed behind it.
+    static func standardTitlebarColor(in appearance: NSAppearance?) -> NSColor {
+        var color = NSColor.windowBackgroundColor
+        (appearance ?? NSAppearance(named: .aqua))?.performAsCurrentDrawingAppearance {
+            color = NSColor.windowBackgroundColor.usingColorSpace(.sRGB) ?? color
+        }
+        return color.withAlphaComponent(1)
+    }
+
+    private static func observeSystemAppearance() {
+        guard systemAppearanceObservation == nil else { return }
+        systemAppearanceObservation = NSApp.observe(\.effectiveAppearance) { _, _ in
+            DispatchQueue.main.async {
+                for window in standardTitlebarWindows.allObjects {
+                    settledWindows.remove(window)
+                    scheduleChromeRefresh(for: window)
+                }
+            }
+        }
     }
 
     static func scheduleChromeRefresh(for window: NSWindow) {
@@ -67,7 +124,17 @@ enum TerminalWindowAppearance {
                 settledWindows.remove(window)
                 return
             }
-            let settled = applyBackground(themeBackgrounds.object(forKey: window), to: chromeView)
+            let standard = standardTitlebarWindows.contains(window)
+            // The window keeps the theme's appearance for everything below
+            // the title row; only the titlebar container follows the system.
+            let titlebarAppearance = standard ? systemAppearance() : nil
+            chromeView.appearance = titlebarAppearance
+            let settled = applyBackground(
+                standard
+                    ? standardTitlebarColor(in: titlebarAppearance)
+                    : themeBackgrounds.object(forKey: window),
+                to: chromeView
+            )
             if settled {
                 settledWindows.add(window)
             } else {

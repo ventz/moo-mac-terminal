@@ -196,6 +196,10 @@ public struct TerminalProfile: Identifiable, Codable, Equatable, Sendable {
     /// Keep the workspace tab strip fully opaque even when the terminal is
     /// translucent
     public var keepsTabStripOpaque: Bool
+    /// Draw the title row as the standard macOS title bar, in the system's
+    /// light or dark appearance, as Terminal.app does, instead of the theme's
+    /// background. It then stands apart as the place to drag the window.
+    public var usesStandardTitlebar: Bool
 
     // MARK: Window
     /// Initial window width in character columns
@@ -246,6 +250,7 @@ public struct TerminalProfile: Identifiable, Codable, Equatable, Sendable {
         self.useThemeColorsForWindowChrome = defaults.useThemeColorsForWindowChrome
         self.keepsSidebarOpaque = defaults.keepsSidebarOpaque
         self.keepsTabStripOpaque = defaults.keepsTabStripOpaque
+        self.usesStandardTitlebar = defaults.usesStandardTitlebar
         self.columns = defaults.columns
         self.rows = defaults.rows
         self.scrollbackLines = defaults.scrollbackLines
@@ -272,6 +277,7 @@ public struct TerminalProfile: Identifiable, Codable, Equatable, Sendable {
                                 cursorStyle: CursorStyle, backgroundOpacity: Double,
                                 useThemeColorsForWindowChrome: Bool,
                                 keepsSidebarOpaque: Bool, keepsTabStripOpaque: Bool,
+                                usesStandardTitlebar: Bool,
                                 columns: Int, rows: Int, scrollbackLines: Int?,
                                 titleOverride: String?, titleComponents: Set<TerminalTitleComponent>, shell: ShellCommand,
                                 whenShellExits: ShellExitBehavior, askBeforeClosing: AskBeforeClosing,
@@ -285,6 +291,7 @@ public struct TerminalProfile: Identifiable, Codable, Equatable, Sendable {
          cursorStyle: .blinkBlock, backgroundOpacity: 0.85,
          useThemeColorsForWindowChrome: true,
          keepsSidebarOpaque: false, keepsTabStripOpaque: false,
+         usesStandardTitlebar: false,
          columns: 80, rows: 25, scrollbackLines: 10_000,
          titleOverride: nil, titleComponents: [.workingDirectory, .activeTitle, .activeProcessName], shell: .loginShell,
          whenShellExits: .closeIfExitedCleanly, askBeforeClosing: .onlyIfProcessesRunning,
@@ -298,7 +305,7 @@ public struct TerminalProfile: Identifiable, Codable, Equatable, Sendable {
         case id, name, themeName, fontFamily, fontSize, fontSmoothing
         case useBrightColorsForBold, cursorStyle, backgroundOpacity
         case useThemeColorsForWindowChrome
-        case keepsSidebarOpaque, keepsTabStripOpaque
+        case keepsSidebarOpaque, keepsTabStripOpaque, usesStandardTitlebar
         case columns, rows, scrollbackLines, titleOverride, titleComponents
         case shell, whenShellExits, askBeforeClosing
         case optionAsMetaKey, backspaceSendsControlH, hidePointerWhileTyping, keyBindings
@@ -338,6 +345,10 @@ public struct TerminalProfile: Identifiable, Codable, Equatable, Sendable {
             Bool.self,
             forKey: .keepsTabStripOpaque
         ) ?? defaults.keepsTabStripOpaque
+        self.usesStandardTitlebar = try c.decodeIfPresent(
+            Bool.self,
+            forKey: .usesStandardTitlebar
+        ) ?? defaults.usesStandardTitlebar
         self.columns = try c.decodeIfPresent (Int.self, forKey: .columns) ?? defaults.columns
         self.rows = try c.decodeIfPresent (Int.self, forKey: .rows) ?? defaults.rows
         // An explicit null means "unlimited"; only a missing key falls back to the default
@@ -393,6 +404,7 @@ public struct TerminalProfile: Identifiable, Codable, Equatable, Sendable {
         try c.encode(useThemeColorsForWindowChrome, forKey: .useThemeColorsForWindowChrome)
         try c.encode(keepsSidebarOpaque, forKey: .keepsSidebarOpaque)
         try c.encode(keepsTabStripOpaque, forKey: .keepsTabStripOpaque)
+        try c.encode(usesStandardTitlebar, forKey: .usesStandardTitlebar)
         try c.encode (columns, forKey: .columns)
         try c.encode (rows, forKey: .rows)
         // Encoded unconditionally: an explicit null means "unlimited scrollback"
