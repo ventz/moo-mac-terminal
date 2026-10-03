@@ -40,8 +40,8 @@ struct AppSettingsTests {
         let data = try ProfileStore.encodedProfile(TerminalProfile(name: "Carrier"),
                                                    settings: AppSettings.snapshot(from: source))
         let embedded = try #require(ProfileStore.embeddedSettings(in: data))
-        #expect(embedded.settings.count == AppSettings.all.count)
-        AppSettings.apply(embedded.settings, to: target)
+        #expect(embedded.count == AppSettings.all.count)
+        AppSettings.apply(embedded, to: target)
 
         for setting in AppSettings.all {
             switch setting.kind {
@@ -67,11 +67,49 @@ struct AppSettingsTests {
         #expect(stored["fromTheFuture"] == nil)
     }
 
-    @Test func startupProfileFollowsTheImportedProfile() {
+    /// A shared .mooprofile cannot switch off Secure Keyboard Entry, turn on
+    /// output logging or the web inspector, stop update checks, change what
+    /// opens at launch, or switch off content blocking: export leaves them
+    /// out, and import ignores them even when a file holds them.
+    @Test func importNeverChangesSecuritySensitiveSettings() {
         let (defaults, suite) = makeDefaults()
         defer { defaults.removePersistentDomain(forName: suite) }
-        AppSettings.apply([AppSettings.startupProfileID: .string("OLD")], to: defaults, profileIDs: ["OLD": "NEW"])
-        #expect(defaults.string(forKey: AppSettings.startupProfileID) == "NEW")
+        defaults.set(true, forKey: AppSettings.secureKeyboardEntry)
+        defaults.set(true, forKey: AppSettings.secureKeyboardEntryAtPasswordPrompts)
+        defaults.set(false, forKey: "webInspectorEnabled")
+        defaults.set(false, forKey: "LogHostOutput")
+        defaults.set(UpdateAlertMode.window.rawValue, forKey: UpdateDefaults.alertMode)
+        defaults.set("default", forKey: "startupMode")
+        defaults.set("MINE", forKey: AppSettings.startupProfileID)
+        defaults.set("MINE", forKey: "startupWindowGroupID")
+        defaults.set(true, forKey: ContentBlockingDefaults.enabledKey)
+
+        AppSettings.apply([
+            AppSettings.secureKeyboardEntry: .bool(false),
+            AppSettings.secureKeyboardEntryAtPasswordPrompts: .bool(false),
+            "webInspectorEnabled": .bool(true),
+            "LogHostOutput": .bool(true),
+            UpdateDefaults.alertMode: .string(UpdateAlertMode.off.rawValue),
+            "startupMode": .string("profile"),
+            AppSettings.startupProfileID: .string("THEIRS"),
+            "startupWindowGroupID": .string("THEIRS"),
+            ContentBlockingDefaults.enabledKey: .bool(false),
+        ], to: defaults)
+
+        let stored = defaults.persistentDomain(forName: suite) ?? [:]
+        #expect(stored[AppSettings.secureKeyboardEntry] as? Bool == true)
+        #expect(stored[AppSettings.secureKeyboardEntryAtPasswordPrompts] as? Bool == true)
+        #expect(stored["webInspectorEnabled"] as? Bool == false)
+        #expect(stored["LogHostOutput"] as? Bool == false)
+        #expect(stored[UpdateDefaults.alertMode] as? String == UpdateAlertMode.window.rawValue)
+        #expect(stored["startupMode"] as? String == "default")
+        #expect(stored[AppSettings.startupProfileID] as? String == "MINE")
+        #expect(stored["startupWindowGroupID"] as? String == "MINE")
+        #expect(stored[ContentBlockingDefaults.enabledKey] as? Bool == true)
+
+        let exported = AppSettings.snapshot(from: defaults)
+        #expect(exported.keys.allSatisfy { !AppSettings.securitySensitiveKeys.contains($0) })
+        #expect(AppSettings.all.allSatisfy { !AppSettings.securitySensitiveKeys.contains($0.key) })
     }
 
     @Test func storedProfilesCarryNoSettings() throws {

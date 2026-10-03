@@ -81,12 +81,7 @@ struct ProfilesSettingsView: View {
                 let gotAccess = url.startAccessingSecurityScopedResource()
                 defer { if gotAccess { url.stopAccessingSecurityScopedResource() } }
                 do {
-                    let imported = try profiles.importProfile(
-                        from: url,
-                        adoptTheme: { try themes.adoptEmbeddedTheme($0) }
-                    )
-                    activeProfileID = imported.id
-                    offerAppSettings(from: url, importedProfileID: imported.id)
+                    try importProfile(from: url)
                 } catch {
                     report(error)
                 }
@@ -314,35 +309,111 @@ struct ProfilesSettingsView: View {
         }
     }
 
-    /// A file exported by Moo carries the app settings too. They change all of
-    /// Moo rather than one profile, so ask before applying them.
-    private func offerAppSettings(from url: URL, importedProfileID: TerminalProfile.ID) {
-        guard let data = try? Data(contentsOf: url),
-              let embedded = ProfileStore.embeddedSettings(in: data) else { return }
+    /// Reads the file, asks about anything in it beyond appearance and about
+    /// its app settings, and only then changes anything: Cancel at either
+    /// question leaves Moo as it was.
+    private func importProfile(from url: URL) throws {
+        let candidate = try ProfileStore.readImport(from: url)
+        guard let scope = Self.askImportScope(for: candidate.profile) else { return }
+        let embedded = ProfileStore.embeddedSettings(in: candidate.data)
+        var appliesSettings = false
+        if embedded != nil {
+            guard let answer = Self.askApplySettings() else { return }
+            appliesSettings = answer
+        }
+        let imported = try profiles.importProfile(
+            candidate,
+            scope: scope,
+            adoptTheme: { try themes.adoptEmbeddedTheme($0) }
+        )
+        activeProfileID = imported.id
+        if appliesSettings, let embedded {
+            AppSettings.apply(embedded)
+            SecureKeyboardEntry.shared.reloadFromDefaults()
+            // Imported settings can change key repeat too, and AppKit only
+            // sees it once it is written back into its own key.
+            KeyRepeat.applyStoredSetting()
+        }
+    }
+
+    /// A profile that only looks different imports without a question. One
+    /// that would run a command, set variables, map keys or change the
+    /// terminal's identity is listed item by item, and the default (Return)
+    /// keeps only its appearance. Nil for Cancel.
+    private static func askImportScope(for profile: TerminalProfile) -> ProfileImportScope? {
+        let items = ProfileImportReview.items(in: profile)
+        guard !items.isEmpty else { return .everything }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "This profile does more than change how Moo looks"
+        alert.informativeText = """
+            Besides its font, colors and window settings, the file would:
+
+            \(ProfileImportReview.summary(of: items))
+
+            Import its appearance only unless you trust where the file came from \
+            and have read every line above.
+            """
+        alert.addButton(withTitle: "Import Appearance Only")
+        alert.addButton(withTitle: "Import Everything")
+        alert.addButton(withTitle: "Cancel")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: return .appearanceOnly
+        case .alertSecondButtonReturn: return .everything
+        default: return nil
+        }
+    }
+
+    /// A file exported by Moo carries the app settings too. They change all
+    /// of Moo rather than one profile, so ask before applying them. Nil for
+    /// Cancel.
+    private static func askApplySettings() -> Bool? {
         let alert = NSAlert()
         alert.messageText = "Apply Moo settings from this file?"
         alert.informativeText = """
-            The profile was imported. The file also carries Moo's app settings: \
-            General, Projects, Notifications and the theme browser. Applying replaces \
-            yours, and any setting the file does not list returns to its default. \
-            Some take effect in new windows.
+            The file also carries Moo's app settings: General, Projects, \
+            Notifications and the theme browser. Applying replaces yours, and any \
+            setting the file does not list returns to its default. Some take effect \
+            in new windows. Startup, security and update settings are never taken \
+            from a file.
             """
         alert.addButton(withTitle: "Apply Settings")
         alert.addButton(withTitle: "Profile Only")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        var profileIDs: [String: String] = [:]
-        if let exportedID = embedded.profileID {
-            profileIDs[exportedID.uuidString] = importedProfileID.uuidString
+        alert.addButton(withTitle: "Cancel")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: return true
+        case .alertSecondButtonReturn: return false
+        default: return nil
         }
-        AppSettings.apply(embedded.settings, profileIDs: profileIDs)
-        SecureKeyboardEntry.shared.reloadFromDefaults()
-        // Imported settings can change key repeat too, and AppKit only sees
-        // it once it is written back into its own key.
-        KeyRepeat.applyStoredSetting()
+    }
+
+    /// Environment variables often hold tokens, and a .mooprofile is made to
+    /// be passed around, so they go into the file only when asked for.
+    /// Nil for Cancel.
+    private static func askIncludeEnvironment(count: Int) -> Bool? {
+        let alert = NSAlert()
+        alert.messageText = "Include the profile's environment variables?"
+        let variables = count == 1 ? "1 environment variable" : "\(count) environment variables"
+        alert.informativeText = """
+            This profile sets \(variables). They often hold tokens or private \
+            paths, and anyone you give the file to can read them.
+            """
+        alert.addButton(withTitle: "Leave Them Out")
+        alert.addButton(withTitle: "Include Them")
+        alert.addButton(withTitle: "Cancel")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: return false
+        case .alertSecondButtonReturn: return true
+        default: return nil
+        }
     }
 
     private func exportSelectedProfile() {
-        guard let profile = selectedProfile else { return }
+        guard var profile = selectedProfile else { return }
+        if !profile.environmentVariables.isEmpty {
+            guard let includes = Self.askIncludeEnvironment(count: profile.environmentVariables.count) else { return }
+            if !includes { profile.environmentVariables = [] }
+        }
         // Built-in themes ship with every copy of Moo; carry only a custom one
         let theme = themes.themes.first { $0.name == profile.themeName && !$0.isBuiltIn }
         do {

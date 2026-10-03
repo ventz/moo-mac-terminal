@@ -67,28 +67,22 @@ enum AppSettings {
     static let secureKeyboardEntryAtPasswordPrompts = "SecureKeyboardEntryAtPasswordPrompts"
 
     static let all: [AppSetting] = [
-        // General
-        AppSetting(key: "startupMode", kind: .string),
-        AppSetting(key: startupProfileID, kind: .string),
-        AppSetting(key: "startupWindowGroupID", kind: .string),
+        // General. What opens at launch is deliberately absent: see
+        // securitySensitiveKeys.
         AppSetting(key: "newTabsUseCurrentDirectory", kind: .bool),
         AppSetting(key: "newTabsUseCurrentProfile", kind: .bool),
         AppSetting(key: "useCommandDigitsForTabs", kind: .bool),
         AppSetting(key: "restoredRowsLimit", kind: .int),
         AppSetting(key: "useMetalRenderer", kind: .bool),
         AppSetting(key: KeyboardDefaults.keyRepeatEnabled, kind: .bool),
-        AppSetting(key: secureKeyboardEntry, kind: .bool),
-        AppSetting(key: secureKeyboardEntryAtPasswordPrompts, kind: .bool),
         AppSetting(key: WorkspaceRestoreDefaults.restoresOnLaunch, kind: .bool),
-        // LogHostOutput is deliberately absent. A profile document is shared
-        // socially, as "a theme", and applying one must not be able to start
-        // recording every pane's raw output to disk.
-        AppSetting(key: "webInspectorEnabled", kind: .bool),
+        // LogHostOutput, Secure Keyboard Entry, the web inspector, content
+        // blocking and update checking are deliberately absent: see
+        // securitySensitiveKeys.
         AppSetting(key: LinkRoutingDefaults.opensLinksInApp, kind: .bool),
         AppSetting(key: MarkdownPreviewDefaults.followsTerminalTheme, kind: .bool),
         AppSetting(key: MarkdownPreviewDefaults.opensLinksInNewTab, kind: .bool),
         AppSetting(key: WindowChromeDefaults.keepsTabStripOpaque, kind: .bool),
-        AppSetting(key: ContentBlockingDefaults.enabledKey, kind: .bool),
         // Projects
         AppSetting(key: ProjectSidebarDefaults.isVisible, kind: .bool),
         AppSetting(key: ProjectSidebarDefaults.width, kind: .double),
@@ -117,8 +111,42 @@ enum AppSettings {
         AppSetting(key: ThemeProjection3D.perceptualChromaDefaultsKey, kind: .bool),
     ]
 
+    /// Settings that a profile document never carries, in either direction:
+    /// export leaves them out and import ignores them even when a file holds
+    /// them, so they stay as this Mac has them. A .mooprofile is shared
+    /// socially, as "a theme", and applying one must not be able to weaken
+    /// the Mac it lands on:
+    /// - LogHostOutput would start recording every pane's raw output to disk.
+    /// - Secure Keyboard Entry guards typed passwords from other apps; a file
+    ///   could switch it off.
+    /// - The web inspector exposes browser tabs' pages and storage.
+    /// - Update checking: a file could stop the Mac hearing about security
+    ///   updates.
+    /// - Startup (what opens at launch, with which profile or window group):
+    ///   a file could make every launch open a profile it brought, one whose
+    ///   shell runs a command, even after that profile was imported as
+    ///   appearance only and another one picked.
+    /// - Content blocking: a file could switch off the ad and tracker blocker
+    ///   in browser tabs.
+    /// Pinned by AppSettingsTests.importNeverChangesSecuritySensitiveSettings.
+    static let securitySensitiveKeys: Set<String> = [
+        "LogHostOutput",
+        secureKeyboardEntry,
+        secureKeyboardEntryAtPasswordPrompts,
+        "webInspectorEnabled",
+        UpdateDefaults.alertMode,
+        "startupMode",
+        startupProfileID,
+        "startupWindowGroupID",
+        ContentBlockingDefaults.enabledKey,
+    ]
+
+    /// Keys a profile document never carries: state or identity, which stays
+    /// on this Mac, and the security-sensitive settings above.
+    static let excludedKeys: Set<String> = securitySensitiveKeys.union(stateKeys)
+
     /// Keys that are state or identity, not settings, and so stay on this Mac
-    static let excludedKeys: Set<String> = [
+    private static let stateKeys: Set<String> = [
         PreferenceMigrator.schemaKey,                // the defaults schema version
         "browserDataStoreIdentifier",                // names this Mac's browser cookie store
         ProjectSidebarDefaults.selectedProjectID,    // which project was last selected
@@ -128,7 +156,6 @@ enum AppSettings {
         "drawsBackground",                           // a WKWebView key-value, not a default
         KeyRepeat.pressAndHoldKey,                   // AppKit's own key, derived from
                                                      // keyboardKeyRepeatEnabled at launch
-        "LogHostOutput",                             // never travels in a profile: see `all`
     ]
 
     /// The current value of every setting that has one, defaults included, so
@@ -148,21 +175,13 @@ enum AppSettings {
     }
 
     /// Makes every setting match the document: a setting it lacks, or holds
-    /// with the wrong type, returns to its default. Keys Moo does not know are
-    /// ignored. profileIDs maps an exported profile id to the one it was
-    /// imported as, so a startup profile still points at it.
-    static func apply(
-        _ values: [String: AppSettingValue],
-        to defaults: UserDefaults = .standard,
-        profileIDs: [String: String] = [:]
-    ) {
+    /// with the wrong type, returns to its default. Keys Moo does not know,
+    /// and the security-sensitive ones, are ignored.
+    static func apply(_ values: [String: AppSettingValue], to defaults: UserDefaults = .standard) {
         for setting in all {
-            guard var stored = values[setting.key]?.storedValue(for: setting.kind) else {
+            guard let stored = values[setting.key]?.storedValue(for: setting.kind) else {
                 defaults.removeObject(forKey: setting.key)
                 continue
-            }
-            if setting.key == startupProfileID, let id = stored as? String, let mapped = profileIDs[id] {
-                stored = mapped
             }
             defaults.set(stored, forKey: setting.key)
         }

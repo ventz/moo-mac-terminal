@@ -64,12 +64,7 @@ nonisolated private struct EmbeddedThemeProbe: Decodable {
 }
 
 private struct EmbeddedSettingsProbe: Decodable {
-    struct ProfileID: Decodable {
-        var id: UUID?
-    }
-
     var settings: [String: AppSettingValue]?
-    var profile: ProfileID?
 }
 
 @MainActor
@@ -276,13 +271,15 @@ public final class ProfileStore: ObservableObject {
         }
     }
 
-    /// Imports a profile document. When the document carries a theme,
-    /// adoptTheme installs it and returns the theme name the profile should use.
-    @discardableResult
-    public func importProfile(
-        from url: URL,
-        adoptTheme: ((TerminalTheme) throws -> String)? = nil
-    ) throws -> TerminalProfile {
+    /// A profile document read, validated and clamped, but not yet added:
+    /// what it holds is reviewed first (ProfileImportReview).
+    struct ImportCandidate {
+        let profile: TerminalProfile
+        let data: Data
+    }
+
+    /// Reads a profile document without changing the store.
+    static func readImport(from url: URL) throws -> ImportCandidate {
         let data = try Data(contentsOf: url)
         let migrator = ProfileDocumentMigrator()
         let sourceVersion = try migrator.sourceVersion(in: data)
@@ -292,15 +289,39 @@ public final class ProfileStore: ObservableObject {
                 supported: migrator.currentVersion
             )
         }
-        var incoming = try migrator.decode(data, from: sourceVersion)
+        let incoming = try migrator.decode(data, from: sourceVersion)
         try migrator.validate(incoming)
-        if let adoptTheme, let theme = ProfileStore.embeddedTheme(in: data) {
+        return ImportCandidate(profile: ProfileImportReview.clamped(incoming), data: data)
+    }
+
+    /// Adds a read profile document, keeping what `scope` allows. When the
+    /// document carries a theme, adoptTheme installs it and returns the theme
+    /// name the profile should use.
+    @discardableResult
+    func importProfile(
+        _ candidate: ImportCandidate,
+        scope: ProfileImportScope,
+        adoptTheme: ((TerminalTheme) throws -> String)? = nil
+    ) throws -> TerminalProfile {
+        var incoming = ProfileImportReview.applying(scope, to: candidate.profile)
+        if let adoptTheme, let theme = ProfileStore.embeddedTheme(in: candidate.data) {
             incoming.themeName = try adoptTheme(theme)
         }
         if profile(withID: incoming.id) != nil { incoming.id = UUID() }
         if profile(named: incoming.name) != nil { incoming.name = uniqueName(basedOn: incoming.name) }
         try add(incoming)
         return incoming
+    }
+
+    /// Imports a profile document in one step. The default keeps only the
+    /// appearance, as the import alert's default button does.
+    @discardableResult
+    func importProfile(
+        from url: URL,
+        scope: ProfileImportScope = .appearanceOnly,
+        adoptTheme: ((TerminalTheme) throws -> String)? = nil
+    ) throws -> TerminalProfile {
+        try importProfile(Self.readImport(from: url), scope: scope, adoptTheme: adoptTheme)
     }
 
     /// Writes a profile document; pass the profile's theme to make the file
@@ -382,12 +403,9 @@ public final class ProfileStore: ObservableObject {
         ))
     }
 
-    /// The app settings a profile document carries, with the id the profile
-    /// had when it was exported
-    static func embeddedSettings(in data: Data) -> (settings: [String: AppSettingValue], profileID: UUID?)? {
-        guard let probe = try? JSONDecoder().decode(EmbeddedSettingsProbe.self, from: data),
-              let settings = probe.settings else { return nil }
-        return (settings, probe.profile?.id)
+    /// The app settings a profile document carries
+    static func embeddedSettings(in data: Data) -> [String: AppSettingValue]? {
+        (try? JSONDecoder().decode(EmbeddedSettingsProbe.self, from: data))?.settings
     }
 
     nonisolated static func embeddedTheme(in data: Data) -> TerminalTheme? {

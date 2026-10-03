@@ -501,7 +501,9 @@ final class ProfileStoreTests {
 
         let file = dir.appendingPathComponent ("everything.mooprofile")
         try ProfileStore.encodedProfile (profile).write (to: file)
-        let imported = try store.importProfile (from: file)
+        // Everything, as "Import Everything" does: the default keeps only
+        // the appearance (ProfileImportReviewTests).
+        let imported = try store.importProfile (from: file, scope: .everything)
         #expect (imported == profile)
     }
 
