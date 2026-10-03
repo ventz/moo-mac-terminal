@@ -36,7 +36,7 @@ enum TerminalNotificationParser {
     /// OSC 777 and OSC 9. kitty's OSC 99 arrives in pieces and goes through
     /// `KittyNotificationAssembler` instead.
     static func parse(code: Int, payload: [UInt8]) -> TerminalNotification? {
-        guard let text = String(bytes: payload, encoding: .utf8) else { return nil }
+        guard let text = text(from: payload) else { return nil }
         switch code {
         case 777: return parseNotify(text)
         case 9: return parseITerm2(text)
@@ -66,6 +66,18 @@ enum TerminalNotificationParser {
         return make(title: title, body: lines.dropFirst().joined(separator: " "))
     }
 
+    /// The most of a payload that is read. SwiftTerm accepts an OSC of tens
+    /// of megabytes, and everything past the title and body limits is thrown
+    /// away anyway; splitting all of it into lines on the main thread is not.
+    static let payloadLimit = 16_384
+
+    /// The payload as text, nil when it is not UTF-8. One cut at the limit
+    /// may split a character, so a long payload is decoded leniently.
+    static func text(from payload: [UInt8]) -> String? {
+        guard payload.count > payloadLimit else { return String(bytes: payload, encoding: .utf8) }
+        return String(decoding: payload.prefix(payloadLimit), as: UTF8.self)
+    }
+
     private static func isConEmuSubcommand(_ text: String) -> Bool {
         let digits = text.prefix { $0.isASCII && $0.isNumber }
         guard !digits.isEmpty else { return false }
@@ -81,23 +93,50 @@ enum TerminalNotificationParser {
         return TerminalNotification(title: title, body: body)
     }
 
-    /// Control characters and bidirectional overrides become spaces, runs of
-    /// whitespace collapse, and the result is capped with an ellipsis. The
-    /// overrides matter because this text lands in menus and banners, where a
-    /// right-to-left override could disguise what a line says.
+    /// Combining marks kept on one character. Real text needs two or three;
+    /// thousands stacked on one letter ("Zalgo") draw over the lines around
+    /// it and make every layout of the string slow.
+    static let combiningMarkLimit = 4
+
+    /// Control characters and bidirectional overrides become spaces,
+    /// invisible format characters are dropped, runs of whitespace collapse,
+    /// and the result is capped with an ellipsis. The overrides matter
+    /// because this text lands in menus and banners, where a right-to-left
+    /// override could disguise what a line says.
+    ///
+    /// Only the first `limit * 4` scalars are read, so the cost is bounded
+    /// by the limit, not by the input: an OSC 2 title can be 65 MiB, and
+    /// cleaning all of one took over a second on the main thread.
     static func clean(_ text: String, limit: Int) -> String {
+        let scalarBudget = limit * 4
         var scalars = String.UnicodeScalarView()
+        var read = 0
+        var truncated = false
+        var marks = 0
         for scalar in text.unicodeScalars {
-            if scalar.properties.generalCategory == .control || isBidiControl(scalar) {
+            guard read < scalarBudget else {
+                truncated = true
+                break
+            }
+            read += 1
+            let category = scalar.properties.generalCategory
+            if category == .control || isBidiControl(scalar) {
                 scalars.append(" ")
+                marks = 0
+            } else if category == .nonspacingMark || category == .enclosingMark {
+                marks += 1
+                if marks <= combiningMarkLimit { scalars.append(scalar) }
+            } else if isInvisible(scalar) {
+                continue
             } else {
                 scalars.append(scalar)
+                marks = 0
             }
         }
         let collapsed = String(scalars)
             .split(whereSeparator: \.isWhitespace)
             .joined(separator: " ")
-        guard collapsed.count > limit else { return collapsed }
+        guard truncated || collapsed.count > limit else { return collapsed }
         return String(collapsed.prefix(limit - 1)) + "…"
     }
 
@@ -105,6 +144,20 @@ enum TerminalNotificationParser {
         switch scalar.value {
         case 0x202A...0x202E, 0x2066...0x2069, 0x200E, 0x200F, 0x061C: return true
         default: return false
+        }
+    }
+
+    /// Characters that draw nothing: zero-width spaces and joiners, the
+    /// soft hyphen, tag characters, and the Hangul fillers that render as
+    /// blank letters. They can hide text inside a name ("Moo" and "M\u{200B}oo"
+    /// look alike) or make one look empty. The zero-width joiner and
+    /// non-joiner stay (emoji such as 👩‍💻 and Persian words need them), and
+    /// variation selectors are marks, not format characters, so ❤️ survives.
+    private static func isInvisible(_ scalar: Unicode.Scalar) -> Bool {
+        switch scalar.value {
+        case 0x200C, 0x200D: return false
+        case 0x115F, 0x1160, 0x3164, 0xFFA0: return true
+        default: return scalar.properties.generalCategory == .format
         }
     }
 }
@@ -119,14 +172,15 @@ struct KittyNotificationAssembler {
         var body = ""
     }
 
-    /// Bounds on what a program can make Moo hold while it never sends `d=1`.
+    /// Bounds on what a program can make Moo hold while it never sends `d=1`:
+    /// identifiers, and UTF-8 bytes per title or body.
     private static let pendingLimit = 16
-    private static let partLimit = 4_096
+    static let partLimit = 4_096
 
     private var pending: [String: Pending] = [:]
 
     mutating func consume(_ payload: [UInt8]) -> TerminalNotification? {
-        guard let text = String(bytes: payload, encoding: .utf8) else { return nil }
+        guard let text = TerminalNotificationParser.text(from: payload) else { return nil }
         let metadata: Substring
         var value: String
         if let separator = text.firstIndex(of: ";") {
@@ -162,8 +216,8 @@ struct KittyNotificationAssembler {
 
         var entry = pending[identifier] ?? Pending()
         switch part {
-        case "title": entry.title = String((entry.title + value).prefix(Self.partLimit))
-        case "body": entry.body = String((entry.body + value).prefix(Self.partLimit))
+        case "title": entry.title = Self.appending(value, to: entry.title)
+        case "body": entry.body = Self.appending(value, to: entry.body)
         default: break
         }
 
@@ -176,5 +230,19 @@ struct KittyNotificationAssembler {
         }
         pending[identifier] = nil
         return TerminalNotificationParser.make(title: entry.title, body: entry.body)
+    }
+
+    /// `part` followed by as much of `value` as fits in `partLimit` bytes,
+    /// cut between scalars. Only what fits is ever copied.
+    private static func appending(_ value: String, to part: String) -> String {
+        var room = partLimit - part.utf8.count
+        guard room > 0 else { return part }
+        var kept = String.UnicodeScalarView()
+        for scalar in value.unicodeScalars {
+            room -= UTF8.width(scalar)
+            guard room >= 0 else { break }
+            kept.append(scalar)
+        }
+        return part + String(kept)
     }
 }

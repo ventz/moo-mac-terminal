@@ -354,10 +354,10 @@ struct ProjectRowView: View {
         case 0:
             break
         case 1:
-            lines.append(directories[0])
+            lines.append(TerminalTitleComposer.displayable(directories[0]))
         default:
             lines.append("Tabs:")
-            lines.append(contentsOf: directories.map { "  \($0)" })
+            lines.append(contentsOf: directories.map { "  \(TerminalTitleComposer.displayable($0))" })
         }
         return lines.joined(separator: "\n")
     }

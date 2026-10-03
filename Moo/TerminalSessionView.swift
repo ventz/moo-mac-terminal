@@ -56,6 +56,8 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     /// system calls entirely.
     @ObservationIgnored private var processPollsRemaining = TerminalSessionController.processPollsAfterActivity
     static let processPollsAfterActivity = 4
+    /// The longest OSC 7 report taken as a directory, in UTF-8 bytes
+    static let directoryReportLimit = 4_096
     @ObservationIgnored private var lastForegroundGroup: pid_t?
     /// The foreground leader's name, read once per change of group
     @ObservationIgnored private var foregroundLeaderName: String?
@@ -410,7 +412,10 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     }
 
     func setTerminalTitle(source: LocalProcessTerminalView, title: String) {
-        postedTitle = title
+        // Cleaned here, once, so the tab strip, the window title and the
+        // notification list all get the same safe, bounded text. SwiftTerm
+        // allows an OSC 2 title of tens of megabytes.
+        postedTitle = TerminalTitleComposer.displayable(title)
         postedTitleGroup = source.process.flatMap {
             TerminalProcessInspector.foregroundProcessGroup(ptyDescriptor: $0.childfd)
         }
@@ -424,6 +429,11 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     /// Records the directory the shell reported via OSC 7. Split out from the
     /// delegate hook so callers that are not SwiftTerm can drive it.
     func updateCurrentDirectory(_ directory: String?) {
+        // No real path is this long (PATH_MAX is 1024 bytes, 3x that once
+        // percent-encoded). A longer report is output, not a directory, and
+        // cutting it short would only name some other directory.
+        // utf8.count, not a scalar count: it costs nothing on a huge string.
+        if let directory, directory.utf8.count > Self.directoryReportLimit { return }
         guard postedDirectory != directory else { return }
         postedDirectory = directory
         updateWindowTitle()
@@ -1226,7 +1236,10 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     /// The program's own title, or else the name of the program running in
     /// the foreground. Empty at a prompt, where the tab shows the directory.
     private func updateTabTitle() {
-        let title = displayedTerminalTitle.isEmpty ? (foregroundLeaderName ?? "") : displayedTerminalTitle
+        // A process can name itself anything, so its name is cleaned too.
+        let title = displayedTerminalTitle.isEmpty
+            ? TerminalTitleComposer.displayable(foregroundLeaderName ?? "")
+            : displayedTerminalTitle
         if tabTitle != title {
             tabTitle = title
         }
@@ -1263,12 +1276,12 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
             return
         }
         guard let terminal, let window = terminal.window else { return }
-        let newTitle = TerminalTitleComposer.title(
+        let newTitle = TerminalTitleComposer.displayable(TerminalTitleComposer.title(
             for: profile.titleComponents,
             inputs: titleInputs(for: terminal)
-        )
+        ))
         let document = window.windowController?.document as? NSDocument
-        let documentName = document?.displayName ?? ""
+        let documentName = TerminalTitleComposer.displayable(document?.displayName ?? "")
         let title = newTitle.isEmpty ? documentName : newTitle
         let hasPaneActivity = workspace?.controllers.contains(where: \.hasActivity)
             ?? hasActivity

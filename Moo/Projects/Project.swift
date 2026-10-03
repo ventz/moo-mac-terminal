@@ -86,9 +86,12 @@ struct Project: Identifiable, Codable, Equatable, Sendable {
 
     /// What the sidebar shows. An auto-named project follows its terminal's
     /// directory; once renamed, the chosen name wins and stops moving.
+    /// The directory comes from OSC 7, which any output can forge — a leaf
+    /// that decodes to quotes and newlines once wrote its own lines into the
+    /// close-project dialog — so it is cleaned before anything shows it.
     func displayName(directory: String?) -> String {
         guard isAutoNamed, let directory, !directory.isEmpty else { return name }
-        let leaf = (directory as NSString).lastPathComponent
+        let leaf = TerminalTitleComposer.displayable((directory as NSString).lastPathComponent)
         return leaf.isEmpty ? name : leaf
     }
 
@@ -101,8 +104,9 @@ struct Project: Identifiable, Codable, Equatable, Sendable {
 }
 
 extension String {
-    /// "/Users/you/code/app" -> "~/code/app", for sidebar subtitles.
+    /// "/Users/you/code/app" -> "~/code/app", for sidebar subtitles. Cleaned
+    /// like a title: the path is an OSC 7 report, and display is all this is for.
     var abbreviatedPath: String {
-        (self as NSString).abbreviatingWithTildeInPath
+        TerminalTitleComposer.displayable((self as NSString).abbreviatingWithTildeInPath)
     }
 }

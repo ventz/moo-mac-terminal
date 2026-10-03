@@ -74,8 +74,14 @@ final class WorkspaceTab: Identifiable {
     }
 
     /// What the tab strip shows: the terminal's own title when it has posted
-    /// one, exactly as the native tab bar displayed it.
+    /// one, exactly as the native tab bar displayed it. Every source is
+    /// written by something else (a program, a web page, an OSC 7 path), so
+    /// the result is cleaned like a window title.
     var displayTitle: String {
+        TerminalTitleComposer.displayable(rawDisplayTitle)
+    }
+
+    private var rawDisplayTitle: String {
         switch content {
         case .web(let web):
             let trimmed = web.displayTitle.trimmingCharacters(in: .whitespaces)

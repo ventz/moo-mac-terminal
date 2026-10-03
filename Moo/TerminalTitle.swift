@@ -39,6 +39,17 @@ enum TerminalTitleComposer {
     static let processSeparator = " ◂ "
     /// Longer argument lists are cut; the title bar truncates well before this
     static let argumentLimit = 200
+    /// The most of a title the window ever shows.
+    static let displayLimit = 512
+
+    /// A title made safe to show: every part of it can come from a program
+    /// (an OSC 0/2 title, an OSC 7 path that percent-decodes to a newline,
+    /// process arguments), including one on a remote host. Controls, line
+    /// separators and bidi overrides become spaces, so the title stays on
+    /// one line and reads in the order it was written; it is also capped.
+    static func displayable(_ title: String) -> String {
+        TerminalNotificationParser.clean(title, limit: displayLimit)
+    }
 
     static func title(for components: Set<TerminalTitleComponent>, inputs: TerminalTitleInputs) -> String {
         var parts: [String] = []
