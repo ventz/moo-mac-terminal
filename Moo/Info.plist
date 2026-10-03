@@ -11,6 +11,10 @@ Based on Tecolot, copyright © 2026 Miguel de Icaza. MIT licensed.</string>
 	<true/>
 	<key>SUPublicEDKey</key>
 	<string>/TBnRuJXtpadzuo0AbwbkF7fEYIfuQNAbA/CnL2fGTk=</string>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
+	<key>SURequireSignedFeed</key>
+	<true/>
 	<key>CFBundleIconFile</key>
 	<string>Moo</string>
 	<key>NSAppTransportSecurity</key>

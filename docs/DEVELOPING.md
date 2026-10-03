@@ -373,6 +373,18 @@ Two independent signatures protect an update, and both are required:
 - The **EdDSA signature** in the appcast is what proves Sparkle downloaded the
   archive you actually published, and not something substituted in transit.
 
+**The feed itself is signed too, since 0.1.9.** `SURequireSignedFeed` and
+`SUVerifyUpdateBeforeExtraction` are on in `Moo/Info.plist`, so the appcast
+and the release notes embedded in it must carry a valid EdDSA signature, and
+an update is verified before it is unpacked. `generate_appcast` signs the feed
+on its own once the new build asks for it. Any edit to `appcast.xml` after
+that breaks the signature, so never hand-edit a published feed: re-run
+`generate_appcast`. An unsigned or broken feed strands every 0.1.9+ copy
+until a correctly signed feed is republished: they keep running, but see no
+update. So `scripts/release.sh` refuses to publish one (see the release
+checks below). Tardy has used the same setup
+since its 1.0.1.
+
 ### Back up the Sparkle private key
 
 Sparkle validates every update against `SUPublicEDKey`, which is baked into
@@ -420,14 +432,49 @@ scripts/release.sh --notes notes.md
 scripts/release.sh --dry-run
 ```
 
-It publishes three objects, the feed last so nothing is ever advertised
-before it is downloadable:
+It publishes in this order: every file the feed references (the versioned
+DMG and any delta updates), then the feed, so nothing is ever advertised
+before it is downloadable, then the `Moo.dmg` share copy, so it is never
+newer than what the feed offers:
 
 | Object | Purpose |
 |---|---|
 | `Moo-<VERSION>.dmg` | what the appcast points at — **never overwrite one**, Sparkle re-downloads by that URL and checks the signature recorded for that exact file |
+| `*.delta` | delta updates `generate_appcast` made against earlier builds; one already published is left alone |
+| `appcast.xml` | the feed, signed |
 | `Moo.dmg` | a copy of the newest release, so a link you hand someone does not go stale. Nothing in the update path reads it |
-| `appcast.xml` | the feed |
+
+### Release checks on the signed feed
+
+Since 0.1.9 every installed copy refuses a feed that does not verify against
+the `SUPublicEDKey` built into it, so `release.sh` checks the feed at each
+step rather than trusting `generate_appcast`:
+
+- **Keys match, before notarizing.** The keychain's public key
+  (`generate_keys -p`) must equal `SUPublicEDKey` in the built app.
+  `sign_update --verify` checks with the keychain's key, so on its own it
+  would pass a feed that every copy then refuses.
+- **The live feed is checked before it is built on.** `generate_appcast`
+  keeps the entries of the feed it is given and signs the result, so a
+  replaced feed would come back out validly signed. A signed live feed must
+  pass `sign_update --verify`. An unsigned one is accepted only while its
+  newest build is at most 10 (0.1.8, the last unsigned release): the
+  one-time move to signed feeds. A 404 means no feed yet; any other failure
+  to download stops the release rather than building on a stale local copy.
+- **The generated feed** must be signed, verify, and list the new build.
+- **The versioned DMG is never overwritten.** If `Moo-<VERSION>.dmg` is
+  already published (a re-run after a failure), it is downloaded and
+  compared: identical is skipped, different stops the release. If no
+  published feed lists that file yet, delete it from the bucket by hand and
+  re-run; otherwise bump the version.
+- **The published feed is read back** with a cache-busting query and must
+  verify and list the new build before `Moo.dmg` and the GitHub release go
+  out. If this fails, the feed is live and broken: republish
+  `~/moo-releases/appcast.xml` once it verifies.
+
+Every existence check asks with a `?cb=<time>` query, never the plain URL:
+Cloudflare caches a 404 for hours, which on 0.1.7 pinned a 404 in front of
+the release's own DMG.
 
 Installed copies pick the update up on their next check; `Moo → Check for
 Updates…` forces one.

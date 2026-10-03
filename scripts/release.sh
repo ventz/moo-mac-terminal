@@ -25,6 +25,10 @@ readonly IDENTITY="Developer ID Application: Ventzislav Petkov (8J9W3ZG4ZN)"
 readonly NOTARY_PROFILE="moo-notary"
 readonly BUCKET="moo-mac-terminal-autoupdate"
 readonly FEED_HOST="https://moo.vpetkov.net"
+# The last build published with an unsigned feed (0.1.8). A live feed without a
+# signature is only accepted while it lists nothing newer: that is the one-time
+# move to signed feeds, and after it an unsigned feed means it was replaced.
+readonly LAST_UNSIGNED_BUILD=10
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$repo_root"
@@ -46,6 +50,19 @@ while [[ $# -gt 0 ]]; do
 done
 
 say() { printf '\n==> %s\n' "$*"; }
+
+# The highest <sparkle:version> in a feed's text, or nothing. `sort -n` reads
+# all of its input before `tail` sees any, so no reader exits early (see the
+# pipefail note in CLAUDE.md); `|| true` covers a feed with no versions, where
+# grep's exit 1 would otherwise end the script through pipefail.
+highest_build_in() {
+    printf '%s' "$1" | grep -oE '<sparkle:version>[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1 || true
+}
+
+# A URL that has not been published yet must never be requested plainly:
+# Cloudflare caches the 404 for hours, and the release then serves it (0.1.7).
+# A unique query string gets its own cache entry and reaches R2.
+fresh() { printf '%s?cb=%s' "$1" "$(date +%s)"; }
 
 # --- Preflight ---------------------------------------------------------------
 # Every check here fails a release hours earlier than it otherwise would.
@@ -153,11 +170,8 @@ fi
 # Sparkle orders updates by CFBundleVersion, not by the marketing version. A
 # release that bumps only MARKETING_VERSION goes out end to end and is never
 # offered to anyone, so the build number is compared against the live feed.
-# `sort -n` reads all of its input before `tail` sees any, so this pipeline has
-# no early-exiting reader (see the pipefail note in CLAUDE.md).
 published_feed=$(curl -fsS "$FEED_HOST/appcast.xml" 2>/dev/null || true)
-highest_build=$(printf '%s' "$published_feed" \
-    | grep -oE '<sparkle:version>[0-9]+' | grep -oE '[0-9]+' | sort -n | tail -1)
+highest_build=$(highest_build_in "$published_feed")
 if [[ -n "$highest_build" ]] && (( build_number <= highest_build )); then
     echo "build $build_number is not above the published build $highest_build --" \
         "bump CURRENT_PROJECT_VERSION, or Sparkle will never offer this release" >&2
@@ -165,6 +179,21 @@ if [[ -n "$highest_build" ]] && (( build_number <= highest_build )); then
 fi
 
 say "Version $version (build $build_number), architectures: $(lipo -archs "$app/Contents/MacOS/Moo")"
+
+# Every copy checks the feed and the update with the SUPublicEDKey built into
+# it. sign_update --verify, used below, checks with the key in this keychain
+# instead, so it cannot catch the two differing: a feed would verify here and
+# be refused by every installed copy. Compared now, before hours of notarizing.
+plist_key=$(/usr/libexec/PlistBuddy -c "Print :SUPublicEDKey" "$app/Contents/Info.plist" 2>/dev/null || true)
+keychain_key=$("$sparkle_bin/generate_keys" -p 2>/dev/null || true)
+keychain_key=${keychain_key//[[:space:]]/}
+if [[ -z "$plist_key" || -z "$keychain_key" || "$plist_key" != "$keychain_key" ]]; then
+    echo "the Sparkle key in the keychain does not match SUPublicEDKey in the app --" \
+        "updates signed with it would be refused by every installed copy" >&2
+    echo "  app:      ${plist_key:-<none>}" >&2
+    echo "  keychain: ${keychain_key:-<none>}" >&2
+    exit 1
+fi
 
 # --- Sign --------------------------------------------------------------------
 # Inside-out: nested code first, the bundle last. Signing the outer bundle
@@ -265,11 +294,38 @@ spctl --assess --type open --context context:primary-signature -vv "$dmg"
 # a machine that has never cut one.
 
 say "Generating appcast"
-if curl -fsS "$FEED_HOST/appcast.xml" -o "$release_dir/appcast.xml.remote" 2>/dev/null; then
-    mv "$release_dir/appcast.xml.remote" "$release_dir/appcast.xml"
-else
-    rm -f "$release_dir/appcast.xml.remote"
-fi
+# generate_appcast keeps the entries of whatever feed it is given and signs the
+# result, so a tampered live feed would come back out with a valid signature.
+# It is checked first: a signed one must verify; an unsigned one is accepted
+# only as the last unsigned feed (see LAST_UNSIGNED_BUILD). A 404 means there
+# is no feed yet; any other failure stops, rather than building on a stale
+# local copy that would drop newer entries.
+# Named .xml: sign_update recognizes a feed by its extension.
+remote_dir=$(mktemp -d "${TMPDIR:-/tmp}/moo-remote-feed.XXXXXX")
+remote_feed="$remote_dir/appcast.xml"
+feed_status=$(curl -s -o "$remote_feed" -w '%{http_code}' "$(fresh "$FEED_HOST/appcast.xml")" || true)
+case "$feed_status" in
+    200)
+        remote_text=$(cat "$remote_feed")
+        if [[ "$remote_text" == *"sparkle-signatures:"* ]]; then
+            "$sparkle_bin/sign_update" --verify "$remote_feed" \
+                || { echo "the published feed's signature does not verify -- it changed after it" \
+                          "was signed; not building on it" >&2; exit 1; }
+        else
+            remote_highest=$(highest_build_in "$remote_text")
+            if [[ -z "$remote_highest" ]] || (( remote_highest > LAST_UNSIGNED_BUILD )); then
+                echo "the published feed is unsigned but lists build ${remote_highest:-?}, newer than" \
+                    "the last unsigned release ($LAST_UNSIGNED_BUILD) -- it was replaced; not building on it" >&2
+                exit 1
+            fi
+        fi
+        command mv -f "$remote_feed" "$release_dir/appcast.xml"
+        ;;
+    404) ;;
+    *) echo "could not download the published feed (HTTP $feed_status) -- not building on a local copy" >&2
+       exit 1 ;;
+esac
+rm -rf "$remote_dir"
 
 "$sparkle_bin/generate_appcast" \
     --download-url-prefix "$FEED_HOST/" \
@@ -282,6 +338,22 @@ if [[ "$feed" == *"<sparkle:releaseNotesLink>"* ]]; then
     echo "the generated feed links release notes that are never uploaded:" >&2
     grep -o "<sparkle:releaseNotesLink>[^<]*" "$release_dir/appcast.xml" >&2
     echo "write the notes as .html so they are embedded instead" >&2
+    exit 1
+fi
+
+# The app sets SURequireSignedFeed (since 0.1.9), so an unsigned feed strands
+# every copy until a correctly signed one is republished: they see no update.
+# A feed edited after generate_appcast is just as bad, since that breaks the
+# signature. Same guard as Tardy's release.sh.
+if [[ "$feed" != *"sparkle-signatures:"* ]]; then
+    echo "generate_appcast did not sign the feed -- not publishing" >&2
+    exit 1
+fi
+"$sparkle_bin/sign_update" --verify "$release_dir/appcast.xml" \
+    || { echo "the feed's signature does not verify -- not publishing" >&2; exit 1; }
+# A signed feed that leaves out this build verifies just as well.
+if [[ "$feed" != *"<sparkle:version>$build_number</sparkle:version>"* ]]; then
+    echo "the generated feed does not list build $build_number -- not publishing" >&2
     exit 1
 fi
 
@@ -309,36 +381,76 @@ say "Publishing to R2 ($BUCKET)"
 
 # The versioned name is what the appcast points at, and it must never be
 # overwritten: Sparkle re-downloads by that URL and checks the signature it
-# recorded for that exact file.
-wrangler r2 object put "$BUCKET/$(basename "$dmg")" \
-    --file "$dmg" --content-type application/x-apple-diskimage --remote
+# recorded for that exact file, and R2 replaces an object without a word. One
+# already there (a re-run after a failure) is left alone if it is this exact
+# file and refused otherwise. Every check asks with fresh(), never the plain
+# URL, so a 404 is not cached in front of the upload.
+dmg_name=$(basename "$dmg")
+dmg_status=$(curl -s -o /dev/null -I -w '%{http_code}' "$(fresh "$FEED_HOST/$dmg_name")" || true)
+case "$dmg_status" in
+    404)
+        wrangler r2 object put "$BUCKET/$dmg_name" \
+            --file "$dmg" --content-type application/x-apple-diskimage --remote ;;
+    200)
+        published_dir=$(mktemp -d "${TMPDIR:-/tmp}/moo-published-dmg.XXXXXX")
+        curl -fsS -o "$published_dir/$dmg_name" "$(fresh "$FEED_HOST/$dmg_name")"
+        published_sum=$(shasum -a 256 "$published_dir/$dmg_name")
+        local_sum=$(shasum -a 256 "$dmg")
+        rm -rf "$published_dir"
+        if [[ "${published_sum%% *}" != "${local_sum%% *}" ]]; then
+            echo "$FEED_HOST/$dmg_name is already published with different contents --" \
+                "refusing to overwrite it. If no published feed lists it yet, delete it from" \
+                "the bucket by hand and re-run; otherwise bump the version." >&2
+            exit 1
+        fi
+        echo "$dmg_name is already published, byte for byte -- not uploading it again" ;;
+    *)
+        echo "could not tell whether $dmg_name is already published (HTTP $dmg_status)" >&2
+        exit 1 ;;
+esac
 
 # Everything else the feed references -- delta updates, chiefly. They are
 # named by version pair and never change once made, so one that is already
 # published is left alone rather than put again.
 for name in "${feed_files[@]}"; do
-    [[ "$name" == "$(basename "$dmg")" ]] && continue
+    [[ "$name" == "$dmg_name" ]] && continue
     # The status is compared explicitly. `curl -fsSI` looks like the obvious
     # existence check and is not one: with -I, --fail does not turn a 404 into
     # a failing exit, so every missing file reads as already published and is
     # skipped -- which is how this loop would have quietly kept every delta a
     # 404 while appearing to fix it.
-    http_status=$(curl -s -o /dev/null -I -w '%{http_code}' "$FEED_HOST/$name" || true)
+    http_status=$(curl -s -o /dev/null -I -w '%{http_code}' "$(fresh "$FEED_HOST/$name")" || true)
     [[ "$http_status" == "200" ]] && continue
     wrangler r2 object put "$BUCKET/$name" \
         --file "$release_dir/$name" --content-type application/octet-stream --remote
 done
 
-# Moo.dmg is a plain copy of the newest release, for handing someone a link
-# that does not go stale. Nothing in the update path reads it, so it is short
-# lived in cache and safe to replace on every release.
-wrangler r2 object put "$BUCKET/Moo.dmg" \
-    --file "$dmg" --content-type application/x-apple-diskimage \
-    --cache-control "max-age=300" --remote
-
-# The feed goes last: nothing should advertise a build that is not downloadable.
+# The feed goes after everything it references: nothing should advertise a
+# build that is not downloadable.
 wrangler r2 object put "$BUCKET/appcast.xml" \
     --file "$release_dir/appcast.xml" --content-type application/xml \
+    --cache-control "max-age=300" --remote
+
+# Read back what the host now serves, not the local file: a feed altered or
+# truncated on the way strands every copy, so it must verify as published.
+say "Verifying the published feed"
+live_dir=$(mktemp -d "${TMPDIR:-/tmp}/moo-live-feed.XXXXXX")
+curl -fsS -o "$live_dir/appcast.xml" "$(fresh "$FEED_HOST/appcast.xml")" \
+    || { echo "could not download the feed just published -- CHECK $FEED_HOST/appcast.xml NOW" >&2; exit 1; }
+"$sparkle_bin/sign_update" --verify "$live_dir/appcast.xml" \
+    || { echo "THE PUBLISHED FEED DOES NOT VERIFY -- installed copies will refuse it." \
+              "Republish a correctly signed feed: $release_dir/appcast.xml" >&2; exit 1; }
+live_feed=$(cat "$live_dir/appcast.xml")
+rm -rf "$live_dir"
+[[ "$live_feed" == *"<sparkle:version>$build_number</sparkle:version>"* ]] \
+    || { echo "the published feed does not list build $build_number -- check $FEED_HOST/appcast.xml" >&2; exit 1; }
+
+# Moo.dmg is a plain copy of the newest release, for handing someone a link
+# that does not go stale. Nothing in the update path reads it, so it is short
+# lived in cache, safe to replace on every release, and goes last: it should
+# never be newer than what the feed offers.
+wrangler r2 object put "$BUCKET/Moo.dmg" \
+    --file "$dmg" --content-type application/x-apple-diskimage \
     --cache-control "max-age=300" --remote
 
 say "Published"
