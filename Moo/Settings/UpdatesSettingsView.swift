@@ -2,9 +2,10 @@
 //  UpdatesSettingsView.swift
 //  Moo
 //
-//  Settings → Updates: Sparkle's automatic checks, when it last looked, and a
-//  manual check. Sparkle keeps its own settings in UserDefaults, so they are
-//  read from and written to the updater rather than through @AppStorage.
+//  Settings → Updates: how a new version is announced (window, dot only, or
+//  no checks), automatic installs, when Moo last looked, and a manual check.
+//  Sparkle keeps its own settings in UserDefaults, so they are read from and
+//  written to the updater rather than through @AppStorage.
 //
 
 import Sparkle
@@ -12,22 +13,39 @@ import SwiftUI
 
 struct UpdatesSettingsView: View {
     @ObservedObject private var model = UpdaterModel.shared
-    @State private var checksAutomatically = false
+    @State private var alertMode = UpdateAlertMode.window
     @State private var downloadsAutomatically = false
 
     var body: some View {
         Form {
             if model.updatesEnabled {
                 Section {
-                    Toggle("Automatically check for updates", isOn: $checksAutomatically)
-                        .onChange(of: checksAutomatically) { _, enabled in
-                            model.updater.automaticallyChecksForUpdates = enabled
+                    Picker("When a new version is out:", selection: $alertMode) {
+                        ForEach(UpdateAlertMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
                         }
+                    }
+                    .settingsAnchor(.updates, "When a new version is out:")
+                    .pickerStyle(.radioGroup)
+                    .onChange(of: alertMode) { _, mode in
+                        // onAppear loading the stored mode fires this too;
+                        // only a real choice is written, or a Mac that never
+                        // picked one would have "off" stored for it.
+                        guard mode != model.alertMode else { return }
+                        model.setAlertMode(mode)
+                        if mode == .window {
+                            // Sparkle reports false while checks are off, so
+                            // the real value is only readable now.
+                            downloadsAutomatically = model.updater.automaticallyDownloadsUpdates
+                        }
+                    }
                     Toggle("Download and install updates automatically", isOn: $downloadsAutomatically)
                         .onChange(of: downloadsAutomatically) { _, enabled in
+                            guard enabled != model.updater.automaticallyDownloadsUpdates else { return }
                             model.updater.automaticallyDownloadsUpdates = enabled
                         }
-                        .disabled(!checksAutomatically)
+                        .disabled(alertMode != .window)
+                        .settingsAnchor(.updates, "Download and install updates automatically")
                     LabeledContent("Last checked") {
                         Text(Self.lastCheckedText(model.lastUpdateCheckDate))
                             .foregroundStyle(.secondary)
@@ -35,9 +53,10 @@ struct UpdatesSettingsView: View {
                     Button("Check for Updates Now") {
                         model.checkForUpdates()
                     }
+                    .settingsAnchor(.updates, "Check for Updates Now")
                     .disabled(!model.canCheckForUpdates)
                 } footer: {
-                    Text("Updates are signed, notarized and verified before they install. A downloaded update installs when you quit Moo.")
+                    Text("Either way, a purple dot in the title bar marks a waiting update; click it for details. \u{201C}Only show the purple dot\u{201D} still checks once a day, quietly. Updates are signed, notarized and verified before they install; a downloaded update installs when you quit Moo.")
                 }
             } else {
                 Section {
@@ -50,7 +69,7 @@ struct UpdatesSettingsView: View {
         .padding()
         .onAppear {
             guard model.updatesEnabled else { return }
-            checksAutomatically = model.updater.automaticallyChecksForUpdates
+            alertMode = model.alertMode
             downloadsAutomatically = model.updater.automaticallyDownloadsUpdates
         }
     }

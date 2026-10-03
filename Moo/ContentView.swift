@@ -582,6 +582,7 @@ struct WindowTabbingConfigurator: NSViewRepresentable {
             scope?.window = window
             window.tabbingIdentifier = "TerminalDocument"
             WindowTitleAccessory.install(in: window)
+            UpdateBadgeAccessory.install(in: window)
             window.tabbingMode = .preferred
             // A normal titlebar. macOS Terminal keeps its title row and puts
             // tabs in a row of their own below it, so Moo does the same.
