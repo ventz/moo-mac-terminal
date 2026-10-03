@@ -379,6 +379,16 @@ final class ProjectRuntime {
         sessions[projectID]
     }
 
+    /// The workspace and tab showing some web content, in any workspace.
+    func workspaceTab(holding web: AnyObject) -> (UUID, WorkspaceSession, WorkspaceTab)? {
+        for (projectID, session) in sessions {
+            if let tab = session.tabs.first(where: { $0.web === web }) {
+                return (projectID, session, tab)
+            }
+        }
+        return nil
+    }
+
     var selectedSession: WorkspaceSession? {
         keyScope.session
     }

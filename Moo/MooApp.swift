@@ -366,6 +366,7 @@ struct NewItemCommands: Commands {
 
 struct TabSelectionCommands: Commands {
     @State private var commandState = TerminalCommandState()
+    @State private var runtime = ProjectRuntime.shared
 
     var body: some Commands {
         CommandGroup(after: .windowArrangement) {
@@ -406,18 +407,45 @@ struct TabSelectionCommands: Commands {
 
             Divider()
 
-            Button("Select Previous Split") {
-                commandState.controller?.workspace?.selectPreviousSplit()
+            // Markdown previews and browser tabs have no splits, so there
+            // ⌘[ and ⌘] go back and forward, as in Safari. ⇧⌘[ and ⇧⌘]
+            // above stay tab switching everywhere.
+            Button(webHistory == nil ? "Select Previous Split" : "Back") {
+                if let preview = MarkdownPreviewOpener.selectedPreview {
+                    preview.goBack()
+                } else if let browser = BrowserOpener.selectedBrowser {
+                    browser.goBack()
+                } else {
+                    commandState.controller?.workspace?.selectPreviousSplit()
+                }
             }
             .keyboardShortcut("[", modifiers: [.command])
-            .disabled(!hasMultipleSplits)
+            .disabled(webHistory.map { !$0.canGoBack } ?? !hasMultipleSplits)
 
-            Button("Select Next Split") {
-                commandState.controller?.workspace?.selectNextSplit()
+            Button(webHistory == nil ? "Select Next Split" : "Forward") {
+                if let preview = MarkdownPreviewOpener.selectedPreview {
+                    preview.goForward()
+                } else if let browser = BrowserOpener.selectedBrowser {
+                    browser.goForward()
+                } else {
+                    commandState.controller?.workspace?.selectNextSplit()
+                }
             }
             .keyboardShortcut("]", modifiers: [.command])
-            .disabled(!hasMultipleSplits)
+            .disabled(webHistory.map { !$0.canGoForward } ?? !hasMultipleSplits)
         }
+    }
+
+    /// Back/Forward state of the selected web tab, nil on a terminal tab.
+    private var webHistory: (canGoBack: Bool, canGoForward: Bool)? {
+        _ = runtime.revision
+        if let preview = MarkdownPreviewOpener.selectedPreview {
+            return (preview.canGoBack, preview.canGoForward)
+        }
+        if let browser = BrowserOpener.selectedBrowser {
+            return (browser.canGoBack, browser.canGoForward)
+        }
+        return nil
     }
 
     private var hasMultipleSplits: Bool {
@@ -901,6 +929,7 @@ struct MooApp: App {
         ]
         registered.merge(ProjectSidebarDefaults.registrationValues) { current, _ in current }
         registered.merge(LinkRoutingDefaults.registrationValues) { current, _ in current }
+        registered.merge(MarkdownPreviewDefaults.registrationValues) { current, _ in current }
         registered.merge(ContentBlockingDefaults.registrationValues) { current, _ in current }
         registered.merge(WindowChromeDefaults.registrationValues) { current, _ in current }
         registered.merge(KeyboardDefaults.registrationValues) { current, _ in current }

@@ -79,19 +79,20 @@ async function loadMermaid() {
 }
 
 /// Draws the diagrams of render `serial`, and stops as soon as a newer
-/// render has replaced the content it was drawing into.
+/// render has replaced the content it was drawing into. True when it drew
+/// into the current render, which changed the page's height.
 async function drawMermaid(serial) {
   const blocks = content.querySelectorAll('pre.mermaid-source')
-  if (blocks.length === 0) return
+  if (blocks.length === 0) return false
   const mermaid = await loadMermaid()
-  if (serial !== renderSerial) return
+  if (serial !== renderSerial) return false
   let index = 0
   for (const block of blocks) {
     const source = block.textContent
     const id = `mermaid-${serial}-${index++}`
     try {
       const {svg} = await mermaid.render(id, source)
-      if (serial !== renderSerial) return
+      if (serial !== renderSerial) return false
       // Import only the SVG element, parsed as XML, rather than trusting
       // the string wholesale into innerHTML.
       const parsed = new DOMParser().parseFromString(svg, 'image/svg+xml')
@@ -106,6 +107,7 @@ async function drawMermaid(serial) {
       block.title = String(error?.message || error)
     }
   }
+  return serial === renderSerial
 }
 
 const SHELL_LANGUAGES = new Set(['sh', 'bash', 'zsh', 'shell', 'console', 'shellsession'])
@@ -163,8 +165,12 @@ async function render(markdown) {
   decorateCodeBlocks()
   restoreAnchor(anchor)
   post({type: 'rendered'})
-  drawMermaid(serial).then(() => {
-    if (serial === renderSerial) restoreAnchor(anchor)
+  drawMermaid(serial).then((drew) => {
+    if (serial !== renderSerial) return
+    restoreAnchor(anchor)
+    // The diagrams changed the page's height: the app re-applies a scroll
+    // position it restored (Back) before they were drawn.
+    if (drew) post({type: 'diagramsDrawn'})
   })
 }
 
@@ -195,7 +201,9 @@ document.addEventListener('click', (event) => {
     if (target) target.scrollIntoView({block: 'start'})
     return
   }
-  post({type: 'openLink', href: anchor.href})
+  // The modifiers travel with the click: by the time the app reads the
+  // keyboard itself, the user may have let go of Command.
+  post({type: 'openLink', href: anchor.href, metaKey: event.metaKey, altKey: event.altKey})
 })
 
 // Task-list checkboxes are rendered disabled, as on GitHub. A stray form

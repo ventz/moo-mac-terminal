@@ -26,21 +26,52 @@ enum MarkdownPreviewOpener {
     /// workspace to put a tab in, so the caller can fall back to the system.
     @discardableResult
     static func open(fileURL: URL, from controller: TerminalSessionController?) -> Bool {
+        preview(fileURL: fileURL) != nil
+    }
+
+    /// A link in `source` that opens in a tab: Back in that tab returns to
+    /// `source`, and Forward in `source` comes back here.
+    static func open(fileURL: URL, linkedFrom source: MarkdownPreviewSession) {
+        preview(fileURL: fileURL)?.linked(from: source)
+    }
+
+    @discardableResult
+    private static func preview(fileURL: URL) -> MarkdownPreviewSession? {
         let runtime = ProjectRuntime.shared
-        guard let session = runtime.selectedSession else { return false }
+        guard let session = runtime.selectedSession else { return nil }
         let standardized = fileURL.standardizedFileURL
 
         if let existing = session.tabs.first(where: { tab in
             (tab.web as? MarkdownPreviewSession)?.fileURL == standardized
-        }) {
+        }), let preview = existing.web as? MarkdownPreviewSession {
             session.select(existing)
             runtime.invalidate()
-            return true
+            return preview
         }
 
-        session.addTab(web: MarkdownPreviewSession(fileURL: standardized))
+        let preview = MarkdownPreviewSession(fileURL: standardized)
+        session.addTab(web: preview)
         runtime.invalidate()
-        return true
+        return preview
+    }
+
+    /// Brings a preview's tab to the front, if it is still in the selected
+    /// workspace.
+    /// Shows a preview tab wherever it is. The tab a link came from can be in
+    /// another workspace by now (the reader switched while it was open), so
+    /// every workspace is searched, not just the selected one; that
+    /// workspace is selected, or its window raised if another shows it.
+    static func reveal(_ preview: MarkdownPreviewSession) {
+        let runtime = ProjectRuntime.shared
+        guard let (projectID, session, tab) = runtime.workspaceTab(holding: preview) else {
+            NSSound.beep()
+            return
+        }
+        if runtime.selectedSession !== session {
+            runtime.select(projectID: projectID)
+        }
+        session.select(tab)
+        runtime.invalidate()
     }
 
     /// The menu command: pick a file, then preview it.

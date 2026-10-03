@@ -168,6 +168,111 @@ final class MarkdownPreviewSessionTests {
         session.terminate()
         window.close()
     }
+
+    /// A link followed within the tab: the page really loads the other file
+    /// (a subdirectory, so the path under the root matters), and Back and
+    /// Forward walk the history.
+    @Test func followsLinksWithinTheTabAndGoesBack() async throws {
+        let readme = makeDocument("# Readme\n")
+        let guide = readme.deletingLastPathComponent().appendingPathComponent("docs/guide.md")
+        try FileManager.default.createDirectory(at: guide.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try "# Guide\n".write(to: guide, atomically: true, encoding: .utf8)
+
+        let session = MarkdownPreviewSession(fileURL: readme)
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        window.contentView = session.hostedView
+        await waitUntil(15) { session.state == .ready }
+        #expect(!session.canGoBack)
+        #expect(!session.canGoForward)
+
+        #expect(session.navigate(to: guide))
+        await waitUntil(15) { session.fileURL == guide && session.state == .ready }
+        #expect(session.fileURL == guide)
+        #expect(session.state == .ready, "the linked file never loaded: \(session.state)")
+        #expect(session.canGoBack)
+        #expect(!session.canGoForward)
+
+        session.goBack()
+        await waitUntil(15) { session.fileURL == readme && session.state == .ready }
+        #expect(session.fileURL == readme)
+        #expect(session.state == .ready, "going back never loaded: \(session.state)")
+        #expect(!session.canGoBack)
+        #expect(session.canGoForward)
+
+        session.goForward()
+        await waitUntil(15) { session.fileURL == guide && session.state == .ready }
+        #expect(session.fileURL == guide)
+
+        session.terminate()
+        window.close()
+    }
+
+    @Test func followingALinkAfterGoingBackDropsForwardHistory() throws {
+        let readme = makeDocument("# Readme\n")
+        let directory = readme.deletingLastPathComponent()
+        let one = directory.appendingPathComponent("one.md")
+        let two = directory.appendingPathComponent("two.md")
+        try "1".write(to: one, atomically: true, encoding: .utf8)
+        try "2".write(to: two, atomically: true, encoding: .utf8)
+
+        // Never displayed: navigation only moves the history.
+        let session = MarkdownPreviewSession(fileURL: readme)
+        session.navigate(to: one)
+        session.goBack()
+        #expect(session.canGoForward)
+        session.navigate(to: two)
+        #expect(session.fileURL == two)
+        #expect(!session.canGoForward)
+        session.goBack()
+        #expect(session.fileURL == readme)
+        session.terminate()
+    }
+
+    /// The scheme handler serves only the first file's directory, so a file
+    /// outside it cannot be shown in place.
+    @Test func refusesToNavigateOutsideTheRoot() {
+        let readme = makeDocument("# Readme\n")
+        let elsewhere = makeDocument("# Elsewhere\n")
+        let session = MarkdownPreviewSession(fileURL: readme)
+        #expect(!session.navigate(to: elsewhere))
+        #expect(session.fileURL == readme)
+        #expect(!session.canGoBack)
+        session.terminate()
+    }
+
+    /// A link opened in a new tab: Back returns to the tab it was clicked
+    /// in, Forward from there comes back, and neither outlives a closed tab.
+    @Test func linkedTabsGoBackAndForwardToEachOther() {
+        let source = MarkdownPreviewSession(fileURL: makeDocument("# Source\n"))
+        let target = MarkdownPreviewSession(fileURL: makeDocument("# Target\n"))
+        target.linked(from: source)
+        #expect(target.canGoBack)
+        #expect(!target.canGoForward)
+        #expect(source.canGoForward)
+        #expect(!source.canGoBack)
+
+        source.terminate()
+        #expect(!target.canGoBack)
+        target.terminate()
+    }
+
+    @Test func commandClickInvertsTheNewTabSetting() throws {
+        let suite = "MarkdownPreviewSessionTests-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.register(defaults: MarkdownPreviewDefaults.registrationValues)
+
+        #expect(MarkdownPreviewDefaults.linksOpenInNewTab(inverted: false, defaults: defaults))
+        #expect(!MarkdownPreviewDefaults.linksOpenInNewTab(inverted: true, defaults: defaults))
+        defaults.set(false, forKey: MarkdownPreviewDefaults.opensLinksInNewTab)
+        #expect(!MarkdownPreviewDefaults.linksOpenInNewTab(inverted: false, defaults: defaults))
+        #expect(MarkdownPreviewDefaults.linksOpenInNewTab(inverted: true, defaults: defaults))
+    }
 }
 
 @MainActor

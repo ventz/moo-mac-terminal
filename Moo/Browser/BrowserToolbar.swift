@@ -22,10 +22,10 @@ struct BrowserToolbar: View {
             HStack(spacing: 6) {
                 Button { session.goBack() } label: { Image(systemName: "chevron.left") }
                     .disabled(!session.canGoBack)
-                    .help("Back")
+                    .help("Back (⌘[)")
                 Button { session.goForward() } label: { Image(systemName: "chevron.right") }
                     .disabled(!session.canGoForward)
-                    .help("Forward")
+                    .help("Forward (⌘])")
                 Button {
                     if session.isLoading { session.stop() } else { session.reload() }
                 } label: {

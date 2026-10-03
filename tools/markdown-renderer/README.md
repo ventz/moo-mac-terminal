@@ -38,8 +38,10 @@ frontend too, so the Markdown itself is treated identically).
 ## Page ↔ app bridge
 
 The app calls `window.moo.render(markdown)`. The page posts to
-`webkit.messageHandlers.moo`: `ready`, `rendered`, `error`, `openLink`,
-`copy`, `runCommand`. Links never navigate the page; the app decides.
+`webkit.messageHandlers.moo`: `ready`, `rendered`, `diagramsDrawn` (Mermaid
+finished and the page changed height), `error`, `openLink` (with the click's
+`metaKey`/`altKey`), `copy`, `runCommand`. Links never navigate the page; the
+app decides.
 
 ## Layout of the output
 

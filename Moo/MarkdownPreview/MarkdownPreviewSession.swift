@@ -9,6 +9,10 @@
 //  first display and kept until the tab closes, so switching tabs neither
 //  reloads the page nor loses the reader's place.
 //
+//  Back and Forward (⌘[ / ⌘]) cover both ways a link can open: within the
+//  tab, through its own history, and in a new tab, by returning to the
+//  preview the link was clicked in.
+//
 
 import AppKit
 import Observation
@@ -25,7 +29,8 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
         case failed(String)
     }
 
-    let fileURL: URL
+    /// The file on screen. Changes when a link is followed within the tab.
+    private(set) var fileURL: URL
     private(set) var state: State = .loading
     private(set) var lastRenderedAt: Date?
 
@@ -35,6 +40,27 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
     var currentDirectory: String? { fileURL.deletingLastPathComponent().path }
 
     @ObservationIgnored private let token: String
+    /// The directory the first file was opened from. Every file the tab can
+    /// reach lies under it: the scheme handler serves nothing else.
+    @ObservationIgnored private let root: URL
+
+    /// Files shown in this tab, oldest first, and where the reader was in
+    /// each. Back and Forward move `historyIndex`; following a link drops
+    /// everything after it, as a browser does.
+    private var history: [HistoryEntry]
+    private(set) var historyIndex = 0
+    @ObservationIgnored private var pendingScrollY: Double?
+    /// The restored position, kept until the page's diagrams are drawn
+    @ObservationIgnored private var diagramScrollY: Double?
+
+    /// The preview a link opened this tab from, and the last tab a link here
+    /// opened: what Back and Forward return to once the tab's own history
+    /// runs out. Weak, so a closed tab is not kept alive by a neighbor.
+    @ObservationIgnored private(set) weak var opener: MarkdownPreviewSession?
+    @ObservationIgnored private(set) weak var openedFromHere: MarkdownPreviewSession?
+    /// Bumped when either link above changes, which observation cannot see.
+    private var linkRevision = 0
+    private(set) var isClosed = false
     @ObservationIgnored private var watcher: MarkdownFileWatcher?
     @ObservationIgnored private var container: MarkdownPreviewHostView?
     @ObservationIgnored private var webView: WKWebView?
@@ -47,8 +73,11 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
     @ObservationIgnored private var appearanceObserver: NSObjectProtocol?
 
     init(fileURL: URL) {
-        self.fileURL = fileURL.standardizedFileURL
-        token = MarkdownDocumentRegistry.register(root: self.fileURL.deletingLastPathComponent())
+        let fileURL = fileURL.standardizedFileURL
+        self.fileURL = fileURL
+        root = fileURL.deletingLastPathComponent()
+        history = [HistoryEntry(fileURL: fileURL)]
+        token = MarkdownDocumentRegistry.register(root: root)
         super.init()
     }
 
@@ -64,10 +93,7 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
         self.container = container
         self.webView = webView
         startWatching()
-        webView.load(URLRequest(url: MarkdownSchemeHandler.documentURL(
-            token: token,
-            relativePath: fileURL.lastPathComponent
-        )))
+        startLoading(in: webView)
         return container
     }
 
@@ -79,6 +105,7 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
     }
 
     func terminate() {
+        isClosed = true
         if let appearanceObserver {
             NotificationCenter.default.removeObserver(appearanceObserver)
         }
@@ -102,12 +129,118 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
         watcher?.reload(force: true)
     }
 
+    /// Through the router, not NSWorkspace directly: a `README.md` can be a
+    /// symlink to something that runs, which is then only revealed.
     func openInEditor() {
-        NSWorkspace.shared.open(fileURL)
+        LinkRouter.openFile(fileURL)
     }
 
     func revealInFinder() {
         NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+    }
+
+    // MARK: History
+
+    var canGoBack: Bool {
+        _ = linkRevision
+        return historyIndex > 0 || opener?.isClosed == false
+    }
+
+    var canGoForward: Bool {
+        _ = linkRevision
+        return historyIndex < history.count - 1 || openedFromHere?.isClosed == false
+    }
+
+    func goBack() {
+        if historyIndex > 0 {
+            show(historyIndex: historyIndex - 1)
+        } else if let opener, !opener.isClosed {
+            MarkdownPreviewOpener.reveal(opener)
+        }
+    }
+
+    func goForward() {
+        if historyIndex < history.count - 1 {
+            show(historyIndex: historyIndex + 1)
+        } else if let openedFromHere, !openedFromHere.isClosed {
+            MarkdownPreviewOpener.reveal(openedFromHere)
+        }
+    }
+
+    /// Shows another markdown file in this tab, as a new history entry.
+    /// Returns false for a file outside the tab's root, which this tab's
+    /// scheme handler cannot serve.
+    @discardableResult
+    func navigate(to file: URL) -> Bool {
+        let file = file.standardizedFileURL
+        guard relativePath(of: file) != nil else { return false }
+        guard file != fileURL else { return true }
+        history.removeSubrange((historyIndex + 1)..<history.count)
+        history.append(HistoryEntry(fileURL: file))
+        show(historyIndex: history.count - 1)
+        return true
+    }
+
+    /// Records that a link in `source` brought the reader here.
+    func linked(from source: MarkdownPreviewSession) {
+        guard source !== self else { return }
+        opener = source
+        linkRevision += 1
+        source.openedFromHere = self
+        source.linkRevision += 1
+    }
+
+    private func show(historyIndex index: Int) {
+        let leaving = historyIndex
+        historyIndex = index
+        let entry = history[index]
+        guard let webView, pageIsReady else {
+            load(entry)
+            return
+        }
+        // Remember where the reader was before the page goes away.
+        webView.evaluateJavaScript("window.scrollY") { [weak self] value, _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if let y = value as? Double, self.history.indices.contains(leaving) {
+                    self.history[leaving].scrollY = y
+                }
+                guard self.historyIndex == index else { return }
+                self.load(entry)
+            }
+        }
+    }
+
+    private func load(_ entry: HistoryEntry) {
+        fileURL = entry.fileURL
+        pendingScrollY = entry.scrollY > 0 ? entry.scrollY : nil
+        diagramScrollY = nil
+        watcher?.stop()
+        watcher = nil
+        pendingMarkdown = nil
+        lastMarkdown = nil
+        pageIsReady = false
+        state = .loading
+        // Not displayed yet: hostedView loads whatever file is current.
+        guard let webView else { return }
+        startWatching()
+        startLoading(in: webView)
+    }
+
+    private func startLoading(in webView: WKWebView) {
+        webView.load(URLRequest(url: MarkdownSchemeHandler.documentURL(
+            token: token,
+            relativePath: relativePath(of: fileURL) ?? fileURL.lastPathComponent
+        )))
+    }
+
+    /// The file's path under the root, as the scheme handler addresses it.
+    private func relativePath(of file: URL) -> String? {
+        let rootPath = MarkdownSchemeHandler.canonicalPath(root.path)
+        let filePath = MarkdownSchemeHandler.canonicalPath(file.path)
+        let prefix = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
+        guard filePath.hasPrefix(prefix) else { return nil }
+        return String(filePath.dropFirst(prefix.count))
     }
 
     // MARK: Web view
@@ -157,8 +290,10 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
     }
 
     private func startWatching() {
-        let watcher = MarkdownFileWatcher(fileURL: fileURL) { [weak self] event in
-            guard let self else { return }
+        let file = fileURL
+        let watcher = MarkdownFileWatcher(fileURL: file) { [weak self] event in
+            // A late event from a file the tab has since navigated away from.
+            guard let self, self.fileURL == file else { return }
             switch event {
             case .changed(let markdown):
                 self.pendingMarkdown = markdown
@@ -200,11 +335,31 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
         case "rendered":
             state = .ready
             lastRenderedAt = Date()
+            // Only the render that restored a position re-applies it; a
+            // later live reload keeps the reader's own scrolling.
+            diagramScrollY = pendingScrollY
+            if let y = pendingScrollY {
+                pendingScrollY = nil
+                webView?.evaluateJavaScript("window.scrollTo(0, \(y))")
+            }
+        case "diagramsDrawn":
+            // Diagrams are drawn after "rendered" and change the page's
+            // height, so a restored position is applied again.
+            if let y = diagramScrollY {
+                diagramScrollY = nil
+                webView?.evaluateJavaScript("window.scrollTo(0, \(y))")
+            }
         case "error":
             state = .failed(message["message"] as? String ?? "Unknown error")
         case "openLink":
             if let href = message["href"] as? String {
-                open(link: href)
+                // The page sends the click's modifiers; reading the keyboard
+                // now could miss a Command already released.
+                open(
+                    link: href,
+                    command: message["metaKey"] as? Bool ?? false,
+                    option: message["altKey"] as? Bool ?? false
+                )
             }
         case "copy":
             if let text = message["text"] as? String {
@@ -221,21 +376,32 @@ final class MarkdownPreviewSession: NSObject, WebTabContent {
     }
 
     /// A link inside the page. Another markdown file under the document's
-    /// root becomes a preview tab; anything else goes through the router,
-    /// with a same-root file opened by the system.
-    private func open(link href: String) {
+    /// root opens in a new preview tab or in this one, per the setting, with
+    /// ⌘-click doing the other; anything else goes through the router, with
+    /// a same-root file opened by the system.
+    private func open(link href: String, command: Bool, option: Bool) {
         guard let url = URL(string: href) else { return }
         if let file = MarkdownSchemeHandler.fileURL(for: url) {
             if LinkRouter.isMarkdown(file.path) {
-                _ = MarkdownPreviewOpener.open(fileURL: file, from: nil)
+                let newTab = MarkdownPreviewDefaults.linksOpenInNewTab(
+                    inverted: command
+                )
+                if newTab || !navigate(to: file) {
+                    MarkdownPreviewOpener.open(fileURL: file, linkedFrom: self)
+                }
             } else {
                 // Never launch something a repository shipped beside its README.
                 LinkRouter.openFile(file)
             }
             return
         }
-        LinkRouter.open(href, from: nil, forcesExternal: NSEvent.modifierFlags.contains(.option))
+        LinkRouter.open(href, from: nil, forcesExternal: option)
     }
+}
+
+private struct HistoryEntry {
+    let fileURL: URL
+    var scrollY: Double = 0
 }
 
 // MARK: - Navigation policy
@@ -264,7 +430,12 @@ extension MarkdownPreviewSession: WKNavigationDelegate {
         } else {
             decisionHandler(.cancel)
             if navigationAction.navigationType == .linkActivated {
-                open(link: url.absoluteString)
+                // The action carries the click's own modifiers.
+                open(
+                    link: url.absoluteString,
+                    command: navigationAction.modifierFlags.contains(.command),
+                    option: navigationAction.modifierFlags.contains(.option)
+                )
             }
         }
     }
@@ -355,6 +526,20 @@ struct MarkdownPreviewToolbar: View {
             statusLabel
             Spacer()
             Button {
+                session.goBack()
+            } label: {
+                Image(systemName: "chevron.left")
+            }
+            .disabled(!session.canGoBack)
+            .help("Back (⌘[)")
+            Button {
+                session.goForward()
+            } label: {
+                Image(systemName: "chevron.right")
+            }
+            .disabled(!session.canGoForward)
+            .help("Forward (⌘])")
+            Button {
                 session.reload()
             } label: {
                 Image(systemName: "arrow.clockwise")
@@ -403,4 +588,16 @@ enum MarkdownPreviewDefaults {
     /// Whether previews take the terminal theme's light or dark look. Off by
     /// default: a preview reads like a document, light with dark text.
     static let followsTerminalTheme = "markdownPreviewFollowsTerminalTheme"
+    /// Whether a link to another markdown file opens a new preview tab (the
+    /// default) or replaces the page in the tab it was clicked in.
+    static let opensLinksInNewTab = "markdownPreviewOpensLinksInNewTab"
+
+    static let registrationValues: [String: Any] = [
+        opensLinksInNewTab: true
+    ]
+
+    /// The setting, flipped when the click carried ⌘.
+    static func linksOpenInNewTab(inverted: Bool, defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: opensLinksInNewTab) != inverted
+    }
 }
