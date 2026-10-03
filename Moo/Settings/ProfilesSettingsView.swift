@@ -701,6 +701,7 @@ struct ProfileSettingsPage: View {
             Section("Key Mappings"){
                 TerminalKeyBindingsEditor(profile: profile, update: updateIgnoringResult)
             }
+            KeyboardShortcutList()
         }
     }
 
@@ -1324,5 +1325,31 @@ private struct ProfileSettingsPagePreview: View {
     private func apply(_ mutate: (inout TerminalProfile) -> Void) -> Bool {
         mutate(&profile)
         return true
+    }
+}
+
+/// Settings → Keyboard → Shortcuts: what Moo already binds, so a key
+/// mapping can avoid it. App-wide, unlike the rest of the page.
+private struct KeyboardShortcutList: View {
+    var body: some View {
+        Section {
+            EmptyView()
+        } header: {
+            Text("Shortcuts")
+        } footer: {
+            Text("Built into Moo and the same in every profile. ⇧⌘[ and ⇧⌘] always switch tabs; ⌘[ and ⌘] go back and forward in Markdown and browser tabs, and switch splits in a terminal.")
+        }
+        ForEach(KeyboardShortcutCatalog.groups) { group in
+            Section(group.title) {
+                ForEach(group.shortcuts) { shortcut in
+                    LabeledContent(shortcut.action) {
+                        Text(shortcut.displayKeys)
+                            .monospaced()
+                            .textSelection(.enabled)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
     }
 }

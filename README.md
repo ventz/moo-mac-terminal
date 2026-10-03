@@ -207,10 +207,15 @@ pane's last directory; scrollback, commands and environment are never saved.
 | ⌘D / ⇧⌘D | Split side by side / stacked |
 | ⇧⌘↩ | Zoom pane |
 | ⌥⌘ arrows | Move between splits |
+| ⇧⌘[ / ⇧⌘] | Previous / next tab |
+| ⌘[ / ⌘] | Back / forward in Markdown and browser tabs; previous / next split in a terminal |
 | ⌘↑ / ⌘↓ | Jump to the previous / next prompt |
 | ⌘B | Show or hide the sidebar |
 | ⇧⌘U | Newest unread notification |
 | ⇧⌘M | Open a Markdown preview |
+
+Every shortcut, grouped by component: [docs/SHORTCUTS.md](docs/SHORTCUTS.md),
+also listed in **Settings → Keyboard → Shortcuts**.
 
 ## How Moo Came Out of Tecolot
 
@@ -276,6 +281,10 @@ arm64-only. Release packaging, signing and notarization are in
 **[docs/DEVELOPING.md](docs/DEVELOPING.md)**: the developer guide, covering
 build prerequisites, code signing and why the certificate type matters,
 notarization, cutting a release, tracking upstream, and troubleshooting.
+
+**[docs/SHORTCUTS.md](docs/SHORTCUTS.md)**: every keyboard and mouse
+shortcut, grouped by windows, tabs, splits, terminal, Markdown previews and
+browser tabs.
 
 **[docs/PERFORMANCE.md](docs/PERFORMANCE.md)**: how Moo compares with Ghostty
 on throughput, keystroke latency and idle CPU, where the latency goes, the
