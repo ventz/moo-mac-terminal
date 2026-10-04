@@ -93,6 +93,37 @@ struct SettingsSearchTests {
         #expect(unanchored.isEmpty, "No .settingsAnchor for: \(unanchored)")
     }
 
+    /// Each page's help button opens its section of docs/SETTINGS.md; the
+    /// anchor must be GitHub's slug of a real heading, or the link lands at
+    /// the top of the doc. Slugs follow GitHub: lowercase, punctuation other
+    /// than hyphens dropped, spaces to hyphens, repeats suffixed -1, -2, ….
+    @Test func everyPageHelpLinkPointsAtAHeading() throws {
+        let doc = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("docs/SETTINGS.md")
+        let text = try String(contentsOf: doc, encoding: .utf8)
+        var seen: [String: Int] = [:]
+        var anchors: Set<String> = []
+        for line in text.split(separator: "\n") where line.hasPrefix("#") {
+            let heading = line.drop(while: { $0 == "#" }).trimmingCharacters(in: .whitespaces)
+            var slug = String(heading.lowercased().compactMap { character -> Character? in
+                if character == " " { return "-" }
+                if character == "-" || character.isLetter || character.isNumber { return character }
+                return nil
+            })
+            if let count = seen[slug] {
+                seen[slug] = count + 1
+                slug += "-\(count + 1)"
+            } else {
+                seen[slug] = 0
+            }
+            anchors.insert(slug)
+        }
+        for destination in SettingsDestination.allCases {
+            #expect(anchors.contains(destination.documentationAnchor), "\(destination.title): #\(destination.documentationAnchor)")
+        }
+    }
+
     @Test func aResultFlashesOnlyWhileItsRequestIsFresh() {
         let highlight = SettingsHighlight()
         let id = SettingsSearch.Entry.anchorID(.links, "Follow the terminal theme")

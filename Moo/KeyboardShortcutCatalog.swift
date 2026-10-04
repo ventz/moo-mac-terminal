@@ -78,7 +78,7 @@ enum KeyboardShortcutCatalog {
             Shortcut("⇧⌘M", action: "Open a Markdown file in a preview"),
             Shortcut("⌘[", "⌘]", action: "Back / forward through followed links"),
             Shortcut("⌘R", action: "Reload"),
-            Shortcut("⌘-click", action: "Follow a link the other way: same tab or new tab (Settings → Links & Markdown)")
+            Shortcut("⌘-click", action: "Open a Markdown link in the same tab instead of a new one, or the reverse when new tabs are off (Settings → Links & Markdown)")
         ]),
         Group(title: "Browser Tabs", shortcuts: [
             Shortcut("⇧⌘B", action: "New browser tab"),

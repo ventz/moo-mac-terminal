@@ -29,7 +29,10 @@ struct ProjectsSettingsView: View {
     var body: some View {
         Form {
             Section("Row Contents") {
-                Text("The project name is always shown. A project can override any of these for itself.")
+                Text("""
+                    The project name is always shown.
+                    A project can override any of these for itself.
+                    """)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Status", isOn: $showsStatus)
@@ -48,7 +51,10 @@ struct ProjectsSettingsView: View {
             } header: {
                 Text("Sidebar")
             } footer: {
-                Text("⌘B shows or hides the sidebar. Turn the divider off for a seamless window, where only the sidebar's shading sets it apart.")
+                Text("""
+                    ⌘B shows or hides the sidebar.
+                    Divider off: a seamless window, where only the sidebar's shading sets it apart.
+                    """)
             }
 
             Section("Projects") {

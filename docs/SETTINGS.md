@@ -42,6 +42,9 @@ its label and by related words. *transparency* finds Background opacity, and
 it sits in. Clicking one opens the page, scrolls to the setting and outlines
 it for a moment.
 
+**Help.** The round **?** button in the toolbar opens this document at the
+section for the page you are on.
+
 **Defaults** in this document are the values a fresh install starts with.
 For profile pages, they are the values of the built-in **Default** profile
 and of any new profile.
@@ -110,7 +113,7 @@ look and behave, and browser tabs.
 | Setting | Options | Default | What it does |
 |---|---|---|---|
 | **Follow the terminal theme** | On · Off | Off | Off: previews are always light, with dark text. On: a dark terminal theme gives a dark preview. |
-| **Open links to other Markdown files in new tabs** | On · Off | **On** | Clicking a link in a preview opens that file in a new tab. Off: it replaces the page in the same tab. ⌘-click does the opposite of this setting. Back and Forward (⌘[ / ⌘], or the ‹ › buttons) work either way: within the tab's history, or back to the preview the link was clicked in. |
+| **Open links to other Markdown files in new tabs** | On · Off | **On** | On: a link in a preview opens that file in a new tab, and ⌘-click keeps it in the same tab. Off: it opens in the same tab, and ⌘-click opens a new tab. Back and Forward (⌘[ / ⌘], or the ‹ › buttons) work either way: within the tab's history, or back to the preview the link was clicked in. |
 
 ### Browser tabs
 

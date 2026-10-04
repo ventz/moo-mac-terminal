@@ -85,7 +85,7 @@ Two pairs are easy to mix up:
 | ⇧⌘M | Open a Markdown file in a preview |
 | ⌘[ / ⌘] | Back / forward through followed links |
 | ⌘R | Reload |
-| ⌘-click | Follow a link the other way: same tab or new tab (Settings → Links & Markdown) |
+| ⌘-click | Open a Markdown link in the same tab instead of a new one, or the reverse when new tabs are off (Settings → Links & Markdown) |
 
 ## Browser Tabs
 

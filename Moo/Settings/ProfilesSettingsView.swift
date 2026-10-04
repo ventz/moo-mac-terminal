@@ -561,7 +561,12 @@ struct ProfileSettingsPage: View {
             } header: {
                 Text("Window colors")
             } footer: {
-                Text("The theme colors the title bar, tabs and sidebar; off, they follow the system's light or dark appearance. The system title bar works like Terminal.app's: light in Light Mode, dark in Dark Mode, always opaque, so it stands apart as the place to drag the window. The sidebar and tab strip otherwise take the background opacity above.")
+                Text("""
+                    On: the theme colors the title bar, tabs and sidebar.
+                    Off: they follow the system's light or dark appearance.
+                    The system title bar works like Terminal.app's: light in Light Mode, dark in Dark Mode, always opaque.
+                    The sidebar and tab strip otherwise take the background opacity above.
+                    """)
             }
             Section {
                 ThemeSectionView(
@@ -608,7 +613,11 @@ struct ProfileSettingsPage: View {
             } header: {
                 Text("Title")
             } footer: {
-                Text("Pieces appear in this order, left column first. Hover a checkbox for what it shows.\nExample: \(titlePreview)")
+                Text("""
+                    Pieces appear in this order, left column first.
+                    Hover a checkbox for what it shows.
+                    Example: \(titlePreview)
+                    """)
             }
             Section("Window Size") {
                 HStack(spacing: 32) {
@@ -813,7 +822,11 @@ struct ProfileSettingsPage: View {
                 Text("Environment")
                     .settingsAnchor(.advanced, "Environment")
             } footer: {
-                Text("Unset removes an inherited value. An empty value is passed as an empty string. Later entries with the same name win.")
+                Text("""
+                    Unset removes an inherited value.
+                    An empty value is passed as an empty string.
+                    Later entries with the same name win.
+                    """)
             }
         }
     }
@@ -1448,7 +1461,11 @@ private struct KeyboardShortcutList: View {
             Text("Shortcuts")
                 .settingsAnchor(.keyboard, "Shortcuts")
         } footer: {
-            Text("Built into Moo and the same in every profile. ⇧⌘[ and ⇧⌘] always switch tabs; ⌘[ and ⌘] go back and forward in Markdown and browser tabs, and switch splits in a terminal.")
+            Text("""
+                Built into Moo and the same in every profile.
+                ⇧⌘[ and ⇧⌘] always switch tabs.
+                ⌘[ and ⌘] go back and forward in Markdown and browser tabs, and switch splits in a terminal.
+                """)
         }
         ForEach(KeyboardShortcutCatalog.groups) { group in
             Section(group.title) {

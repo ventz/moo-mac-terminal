@@ -34,14 +34,6 @@ struct NotificationsSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Text("Programs such as Claude Code can tell Moo they are waiting for you. "
-                     + "Moo always lists these in Window → Notifications; choose what else happens "
-                     + "when one arrives. Nothing fires for the pane you are already looking at.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("Visual") {
                 Toggle("Show system banners", isOn: $showsBanners)
                     .settingsAnchor(.notifications, "Show system banners")
                 if showsBanners, bannersDenied {
@@ -65,6 +57,21 @@ struct NotificationsSettingsView: View {
                 .settingsAnchor(.notifications, "Bounce the Dock icon")
                 Toggle("Mark waiting tabs and projects", isOn: $marksWaiting)
                     .settingsAnchor(.notifications, "Mark waiting tabs and projects")
+            } header: {
+                // The page's introduction sits above the first heading as plain
+                // text; a Section of its own would draw it in a box.
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("""
+                        Programs such as Claude Code can tell Moo they are waiting for you.
+                        Moo always lists these in Window → Notifications; choose what else happens when one arrives.
+                        Nothing fires for the pane you are already looking at.
+                        """)
+                        .font(.caption)
+                        .fontWeight(.regular)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text("Visual")
+                }
             }
 
             Section {
@@ -80,9 +87,10 @@ struct NotificationsSettingsView: View {
             } header: {
                 Text("Commands")
             } footer: {
-                Text("Needs Moo's shell integration for zsh, bash, fish or elvish, which reports "
-                     + "each command's start and exit status. A long command also counts as "
-                     + "waiting for you, so the alerts above apply.")
+                Text("""
+                    Needs Moo's shell integration (zsh, bash, fish or elvish), which reports each command's start and exit status.
+                    A long command also counts as waiting for you, so the alerts above apply.
+                    """)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

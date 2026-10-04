@@ -82,6 +82,14 @@ struct SettingsView: View {
                     profileMenu
                 }
             }
+            // The standard round help button: opens this page's section of
+            // docs/SETTINGS.md, which documents every setting with examples.
+            ToolbarItem(placement: .automatic) {
+                HelpLink {
+                    NSWorkspace.shared.open(currentDestination.documentationURL)
+                }
+                .help("Open the documentation for \(currentDestination.title)")
+            }
         }
         .frame(minWidth: 800, minHeight: 560)
         .background(SettingsEscapeKeyHandler())
@@ -398,6 +406,30 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
         }
     }
 
+    /// Where docs/SETTINGS.md documents this page on GitHub. The anchor is
+    /// GitHub's slug for the page's heading; SettingsSearchTests checks that
+    /// every page's anchor matches a heading in the doc.
+    var documentationURL: URL {
+        URL(string: "https://github.com/ventz/moo-mac-terminal/blob/main/docs/SETTINGS.md#\(documentationAnchor)")!
+    }
+
+    var documentationAnchor: String {
+        switch self {
+        case .general: return "general"
+        case .links: return "links--markdown"
+        case .projects: return "projects"
+        case .notifications: return "notifications"
+        case .profiles: return "profiles"
+        case .text: return "appearance"
+        case .window: return "window"
+        case .shell: return "shell"
+        case .keyboard: return "keyboard"
+        case .advanced: return "advanced"
+        case .updates: return "updates"
+        case .data: return "data"
+        }
+    }
+
     var group: Group {
         switch self {
         case .general, .links, .projects, .notifications: return .app
@@ -551,7 +583,11 @@ struct GeneralSettingsView: View {
             } header: {
                 Text("Keyboard")
             } footer: {
-                Text("Projects are numbered in sidebar order, and ⌘9 always selects the last. Turning key repeat off brings back macOS's accent picker, but \u{2018}hjkl\u{2019} then stop repeating in vim. Per-profile keys, and a list of every shortcut, are under Profiles → Keyboard.")
+                Text("""
+                    Projects are numbered in sidebar order; ⌘9 always selects the last.
+                    Key repeat off: macOS's accent picker returns, but \u{2018}hjkl\u{2019} stop repeating in vim.
+                    Per-profile keys, and a list of every shortcut, are under Profiles → Keyboard.
+                    """)
             }
 
             Section {
@@ -562,7 +598,10 @@ struct GeneralSettingsView: View {
             } header: {
                 Text("Window")
             } footer: {
-                Text("Off, each profile decides whether its tab strip is opaque. Colors, fonts and the title bar are set per profile, under Profiles → Appearance.")
+                Text("""
+                    Off: each profile decides whether its tab strip is opaque.
+                    Colors, fonts and the title bar are set per profile, under Profiles → Appearance.
+                    """)
             }
         }
         .formStyle(.grouped)
@@ -635,35 +674,64 @@ struct LinksSettingsView: View {
     var body: some View {
         Form {
             Section("From the terminal") {
-                Toggle("⌘-click opens links and Markdown files in Moo tabs", isOn: $opensLinksInApp)
-                    .settingsAnchor(.links, "⌘-click opens links and Markdown files in Moo tabs")
-                note("⌘-click a web address or a .md file in the terminal and it opens as a tab beside it. Off: it opens in your default browser or editor. ⌥⌘-click always uses the default app.")
+                Toggle(isOn: $opensLinksInApp) {
+                    labeled("⌘-click opens links and Markdown files in Moo tabs", notes: [
+                        "On: ⌘-click a web address or a .md file to open it as a tab beside the terminal.",
+                        "Off: it opens in your default browser or editor.",
+                        "⌥⌘-click always uses the default app."
+                    ])
+                }
+                .settingsAnchor(.links, "⌘-click opens links and Markdown files in Moo tabs")
             }
             Section("Markdown previews") {
-                Toggle("Follow the terminal theme", isOn: $markdownFollowsTheme)
-                    .settingsAnchor(.links, "Follow the terminal theme")
-                note("Off: previews are always light, with dark text. On: a dark terminal theme gives a dark preview.")
-                Toggle("Open links to other Markdown files in new tabs", isOn: $markdownLinksOpenTabs)
-                    .settingsAnchor(.links, "Open links to other Markdown files in new tabs")
-                note("Clicking a link in a preview opens that file in a new tab. Off: it replaces the page instead. ⌘-click does the opposite of this setting. ⌘[ and ⌘] go back and forward either way.")
+                Toggle(isOn: $markdownFollowsTheme) {
+                    labeled("Follow the terminal theme", notes: [
+                        "On: a dark terminal theme gives a dark preview.",
+                        "Off: previews are always light, with dark text."
+                    ])
+                }
+                .settingsAnchor(.links, "Follow the terminal theme")
+                Toggle(isOn: $markdownLinksOpenTabs) {
+                    labeled("Open links to other Markdown files in new tabs", notes: [
+                        "On: a link in a preview opens that file in a new tab; ⌘-click keeps it in the same tab.",
+                        "Off: it opens in the same tab; ⌘-click opens a new tab.",
+                        "⌘[ and ⌘] go back and forward either way."
+                    ])
+                }
+                .settingsAnchor(.links, "Open links to other Markdown files in new tabs")
             }
             Section("Browser tabs") {
-                Toggle("Block ads and trackers", isOn: $blocksAds)
-                    .onChange(of: blocksAds) { _, enabled in
-                        BrowserContentBlocking.shared.setEnabled(enabled)
-                    }
-                    .settingsAnchor(.links, "Block ads and trackers")
-                note("Uses uBlock Origin Lite's filter lists through WebKit's content blocker. Applies to open tabs on their next page load. ⇧⌘B opens a browser tab; ⌘L, ⌘[ / ⌘], ⌘R and ⌘F work as in Safari.")
+                Toggle(isOn: $blocksAds) {
+                    labeled("Block ads and trackers", notes: [
+                        "Uses uBlock Origin Lite's filter lists, through WebKit's content blocker.",
+                        "Applies to open tabs on their next page load.",
+                        "⇧⌘B opens a browser tab; ⌘L, ⌘[ / ⌘], ⌘R and ⌘F work as in Safari."
+                    ])
+                }
+                .onChange(of: blocksAds) { _, enabled in
+                    BrowserContentBlocking.shared.setEnabled(enabled)
+                }
+                .settingsAnchor(.links, "Block ads and trackers")
             }
         }
         .formStyle(.grouped)
     }
 
-    /// A note under the toggle it explains, so each one reads on its own.
-    private func note(_ text: String) -> some View {
-        Text(text)
+    /// A toggle's title with its explanation beneath, in the same row, so the
+    /// form draws one line between settings and none inside a setting. One
+    /// sentence per line, On before Off, so a note can be read at a glance.
+    private func labeled(_ title: String, notes: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+            VStack(alignment: .leading, spacing: 1) {
+                ForEach(notes, id: \.self) { line in
+                    Text(line)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             .font(.caption)
             .foregroundStyle(.secondary)
+        }
     }
 }
 

@@ -39,7 +39,19 @@ struct UpdatesSettingsView: View {
                             downloadsAutomatically = model.updater.automaticallyDownloadsUpdates
                         }
                     }
-                    Toggle("Download and install updates automatically", isOn: $downloadsAutomatically)
+                    // A disabled macOS switch looks almost the same as an off
+                    // one, so the label dims too and says why it is unavailable.
+                    Toggle(isOn: $downloadsAutomatically) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Download and install updates automatically")
+                                .foregroundStyle(alertMode == .window ? .primary : .secondary)
+                            if alertMode != .window {
+                                Text("Available with \u{201C}Show the update window automatically\u{201D}.")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
                         .onChange(of: downloadsAutomatically) { _, enabled in
                             guard enabled != model.updater.automaticallyDownloadsUpdates else { return }
                             model.updater.automaticallyDownloadsUpdates = enabled
@@ -56,7 +68,12 @@ struct UpdatesSettingsView: View {
                     .settingsAnchor(.updates, "Check for Updates Now")
                     .disabled(!model.canCheckForUpdates)
                 } footer: {
-                    Text("Either way, a purple dot in the title bar marks a waiting update; click it for details. \u{201C}Only show the purple dot\u{201D} still checks once a day, quietly. Updates are signed, notarized and verified before they install; a downloaded update installs when you quit Moo.")
+                    Text("""
+                        A purple dot in the title bar marks a waiting update; click it for details.
+                        \u{201C}Only show the purple dot\u{201D} still checks once a day, quietly.
+                        Updates are signed, notarized and verified before they install.
+                        A downloaded update installs when you quit Moo.
+                        """)
                 }
             } else {
                 Section {
