@@ -127,15 +127,16 @@ Updates…**. To build it yourself, see [Building from Source](#building-from-so
 
 ## Speed
 
-Measured on 2026-09-13, M3 MacBook Pro at 120 Hz, against Ghostty 1.3.1:
+Moo 0.1.9 against Ghostty 1.3.1, measured on 2026-10-03 on an M3 MacBook Pro at 120 Hz:
 
 | | Moo | Ghostty | |
 |---|---|---|---|
-| 100 MB plain text through a pty | 0.33 s | 1.12 s | 3.4× faster |
-| 60 MB 256-color text | 0.31 s | 0.79 s | 2.5× faster |
-| 5,000 full-screen redraws | 0.15 s | 0.74 s | 5.0× faster |
-| Keystroke to screen, p50 / p99 | 21 / 27 ms | 28.6 / 39 ms | 7.5 / 12 ms sooner |
-| Idle CPU, one window, per minute | 0.01–0.02 s | < 0.01 s | Ghostty lower |
+| 100 MB plain text through a pty | 0.36 s | 1.21 s | 3.3× faster |
+| 60 MB 256-color text | 0.47 s | 0.70 s | 1.5× faster |
+| 40 MB CJK and emoji | 0.19 s | 0.34 s | 1.8× faster |
+| 5,000 full-screen redraws | 0.03 s | 0.13 s | 4.0× faster |
+| Keystroke to screen, p50 / p99 | 23 / 34–38 ms | 37–40 / 48 ms | about 15 / 12 ms sooner |
+| Idle CPU, one focused window, per minute | 0.54 s | < 0.01 s | Ghostty lower (the cursor blink) |
 
 Plain text is already at the limit of a macOS pty, so the gains that matter are
 colored output, redraws and latency. How each number was taken, what was tried

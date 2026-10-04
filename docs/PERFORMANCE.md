@@ -1,8 +1,9 @@
 # Performance
 
 How fast Moo is, how that was measured, and what has already been tried.
-Measured on 2026-09-13 on an M3 MacBook Pro (built-in 120 Hz display) against
-Ghostty 1.3.1. Moo builds SwiftTerm from the `perf/moo` branch of
+Latest measurement: Moo 0.1.9 against Ghostty 1.3.1 (still Ghostty's newest
+release) on 2026-10-03, on an M3 MacBook Pro (built-in 120 Hz display). The
+first measurement, on 2026-09-13, is kept below where it explains a decision. Moo builds SwiftTerm from the `perf/moo` branch of
 [ventz/SwiftTerm](https://github.com/ventz/SwiftTerm), which carries the
 attribute intern cache merged upstream as
 [migueldeicaza/SwiftTerm#694](https://github.com/migueldeicaza/SwiftTerm/pull/694).
@@ -23,59 +24,71 @@ The fork stays in use because it keeps pointer storage for that cache — see
 
 ## Summary
 
+Moo 0.1.9 against Ghostty 1.3.1, 2026-10-03:
+
 | | Moo | Ghostty 1.3.1 | |
 |---|---|---|---|
-| 100 MB plain text through a pty | 0.33 s | 1.12 s | Moo 3.4× faster |
-| 60 MB 256-color text | 0.31 s | 0.79 s | Moo 2.5× faster |
-| 40 MB CJK and emoji | 0.25 s | 0.32 s | Moo 1.3× faster |
-| 5,000 full-screen redraws | 0.15 s | 0.74 s | Moo 5.0× faster |
-| Keystroke to screen, p50 | 21 ms | 28.6 ms | 7.5 ms sooner |
-| Keystroke to screen, p99 | 27 ms | 39 ms | 12 ms sooner |
-| Idle CPU, one window, per minute | 0.01–0.02 s | < 0.01 s | Ghostty lower |
+| 100 MB plain text through a pty | 0.36 s | 1.21 s | Moo 3.3× faster |
+| 60 MB 256-color text | 0.47 s | 0.70 s | Moo 1.5× faster |
+| 40 MB CJK and emoji | 0.19 s | 0.34 s | Moo 1.8× faster |
+| 5,000 full-screen redraws | 0.03 s | 0.13 s | Moo 4.0× faster |
+| Keystroke to screen, p50 | 22.7 ms | 37.2–40.3 ms | about 15 ms sooner |
+| Keystroke to screen, p99 | 34–38 ms | 48 ms | about 12 ms sooner |
+| Idle CPU, one focused window, per minute | 0.54 s (0.11 s with a steady cursor) | < 0.01 s | Ghostty lower |
 
 These are throughput and latency numbers. They do not measure how many frames
-each app shows during a flood.
+each app shows during a flood. Figures from different measurement days are not
+directly comparable: the workload files and the latency tool changed between
+2026-09-13 and 2026-10-03 (see each section). Plain text, the one workload with
+the same shape both times, gave the same ratio: 3.4× then, 3.3× now.
 
 ## Throughput
 
-Each app runs the same script inside its own 80×24, 12 pt window and `cat`s a
-file. The clock stops on the reply to a DSR 6 cursor-position request, which a
-terminal can only send after it has parsed everything before it, so this times
-processing and not just `cat` returning. Five rounds, app order rotated, medians;
-every repetition was within ±3%.
+Each app runs the same script inside its own window at default size (Moo 80×25,
+Ghostty 80×24) and 12 pt, and writes a file to the tty. The clock stops on the
+reply to a DSR 6 cursor-position request, which a terminal can only send after
+it has parsed everything before it, so this times processing and not just the
+write returning. Five rounds, app order alternated, medians; every repetition
+was within ±4%.
 
-| Workload | Moo before the cache | Moo | Ghostty |
-|---|---|---|---|
-| 100 MB ASCII lines | 0.327 s | 0.331 s | 1.122 s |
-| 60 MB 256-color SGR | 0.396 s | **0.313 s** | 0.789 s |
-| 40 MB CJK and emoji | 0.255 s | 0.254 s | 0.322 s |
-| 5,000 redraw frames | 0.150 s | 0.149 s | 0.740 s |
+| Workload | Moo 0.1.9 | Ghostty 1.3.1 |
+|---|---|---|
+| 100 MB ASCII lines | **0.364 s** | 1.207 s |
+| 60 MB 256-color SGR, a new color every character | **0.465 s** | 0.703 s |
+| 40 MB CJK, kana, Hangul and emoji | **0.188 s** | 0.338 s |
+| 5,000 redraws of an 80×24 screen (10 MB) | **0.032 s** | 0.129 s |
 
 - **Plain text is at the pty's limit.** A Darwin pty returns about 1 KiB per
   read and tops out near 290 MiB/s; Moo already runs there, so ASCII cannot
   get faster in any terminal.
-- **Colored output is where the engine matters.** The intern cache took it
-  from 0.396 s to 0.313 s (+26.5%).
+- **Colored output is where the engine matters.** The intern cache took the
+  2026-09-13 color workload from 0.396 s to 0.313 s (+26.5%). That workload
+  was lighter on escape sequences than the 2026-10-03 one, which changes color
+  on every character; its 2.5× lead over Ghostty is not comparable with the
+  1.5× above.
 
 ## Keystroke latency
 
-A key event is posted and the first displayed frame that shows the change is
-timed. Each app runs `cat > /dev/null` after `clear`, so the kernel's tty echo
-answers and no shell redraw is involved. 80×24, 12 pt, 200 keystrokes per app
-over two rounds with the order alternated, no timeouts.
+A key event is posted with CGEvent and the first displayed frame that shows the
+change is timed, from ScreenCaptureKit's `displayTime` for a stream of only the
+top-left of the window. Each app runs `cat > /dev/null` after `clear` with a
+steady block cursor, so the kernel's tty echo answers and neither a shell redraw
+nor a cursor blink is involved. 100 keystrokes per app per round, two rounds,
+order alternated, no timeouts.
 
-| | p50 | p90 | p99 | max |
-|---|---|---|---|---|
-| Moo | **20.7–21.2 ms** | 24.9–25.4 ms | 26.4–27.2 ms | 27.9–30.2 ms |
-| Ghostty 1.3.1 | 28.5–28.6 ms | 31.9–32.2 ms | 38.2–39.8 ms | 40.0–42.0 ms |
+| | p50 | p90 | p99 |
+|---|---|---|---|
+| Moo 0.1.9 | **22.6–22.7 ms** | 31.5–31.9 ms | 33.9–38.3 ms |
+| Ghostty 1.3.1 | 37.2–40.3 ms | 45.7 ms | 47.7–48.5 ms |
 
 Deleting the character (the glyph disappearing) matches within 1 ms. The
-absolute numbers include the screen-capture pipeline's own delay, so compare
-the two apps rather than against figures from other tools.
+absolute numbers include the capture pipeline's own delay, and the 2026-10-03
+tool reads higher for both apps than the 2026-09-13 one (Moo 21 ms, Ghostty
+28.6 ms then), so compare the two apps within one day, not across days.
 
 ## Where the latency goes
 
-From SwiftTerm's signposts (`SWIFTTERM_PROFILE=1`), 200 keystrokes in Moo:
+From SwiftTerm's signposts (`SWIFTTERM_PROFILE=1`), 200 keystrokes in Moo (2026-09-13):
 
 | Stage | p50 |
 |---|---|
@@ -98,17 +111,24 @@ From SwiftTerm's signposts (`SWIFTTERM_PROFILE=1`), 200 keystrokes in Moo:
 
 ## Idle CPU
 
-One window at a prompt, CPU time over 60 seconds:
+One focused window at a prompt, CPU time over 60 seconds after a 45-second
+settle, display kept awake, 2026-10-03:
 
 | | CPU per minute |
 |---|---|
-| Moo, before process-poll gating | 0.08–0.17 s |
-| Moo, now | 0.01–0.02 s |
-| Ghostty | < 0.01 s |
+| Moo 0.1.9, blinking cursor (the default) | 0.54 s |
+| Moo 0.1.9, steady cursor | 0.11 s |
+| Ghostty 1.3.1 | < 0.01 s |
 
-Each pane used to ask the system for its foreground process every half second
-even when idle. It now does so only for about two seconds after output or a
-keystroke; a foreground program cannot start or exit without one of those.
+- **The cursor blink is most of it.** Each blink redraws the window through
+  Metal; Ghostty blinks for almost nothing. A cheaper blink is open work.
+- **Process-poll gating still holds.** Each pane used to ask the system for its
+  foreground process every half second even when idle (0.08–0.17 s per minute
+  on 2026-09-13). It now does so only for about two seconds after output or a
+  keystroke; a foreground program cannot start or exit without one of those.
+- The 2026-09-13 figure (0.01–0.02 s) was taken in a setup that was not
+  recorded. Moo 0.1.0, 0.1.8 and 0.1.9 idle the same in today's setup, so the
+  difference is the method, not a change in Moo.
 
 ## SwiftTerm engine work
 
