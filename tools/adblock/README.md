@@ -35,7 +35,7 @@ GPL library is never linked into the app. Commit the regenerated files.
 Content blockers cannot run scriptlets or extended CSS, so sites that need
 uBlock Origin's anti-adblock scriptlets are not covered. Cosmetic hiding is
 limited to what Safari supports. Blocking is on by default and can be
-turned off under Settings › General › Browser tabs.
+turned off under Settings › Links & Markdown › Browser tabs.
 
 ## Licenses
 

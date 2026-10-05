@@ -119,7 +119,7 @@ look and behave, and browser tabs.
 
 | Setting | Options | Default | What it does |
 |---|---|---|---|
-| **Block ads and trackers** | On · Off | **On** | Filters browser tabs with uBlock Origin Lite's lists, through WebKit's content blocker. Open tabs pick up a change on their next page load. |
+| **Block ads and trackers** | On · Off | **On** | Filters browser tabs with EasyList and AdGuard's base and tracking-protection lists, through WebKit's content blocker. Open tabs pick up a change on their next page load. |
 
 ---
 

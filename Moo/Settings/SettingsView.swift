@@ -703,7 +703,7 @@ struct LinksSettingsView: View {
             Section("Browser tabs") {
                 Toggle(isOn: $blocksAds) {
                     labeled("Block ads and trackers", notes: [
-                        "Uses uBlock Origin Lite's filter lists, through WebKit's content blocker.",
+                        "Uses EasyList and AdGuard's base and tracking-protection lists, through WebKit's content blocker.",
                         "Applies to open tabs on their next page load.",
                         "⇧⌘B opens a browser tab; ⌘L, ⌘[ / ⌘], ⌘R and ⌘F work as in Safari."
                     ])

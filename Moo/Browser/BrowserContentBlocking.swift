@@ -4,9 +4,8 @@
 //
 //  Ad and tracker blocking for browser tabs, using WebKit's own mechanism:
 //  WKContentRuleList, the declarative rule format Safari content blockers
-//  use. A WKWebView cannot load browser extensions, so uBlock Origin Lite
-//  itself is out of reach — but its Safari port ships its filter lists in
-//  exactly this format, and those rulesets are what the app bundles.
+//  use. A WKWebView cannot load browser extensions, so uBlock Origin is out
+//  of reach, and its scriptlets have no equivalent in this format.
 //
 //  The rulesets come from AdGuard's Safari-optimized lists (EasyList plus
 //  AdGuard's own, and AdGuard Tracking Protection), converted at build time
