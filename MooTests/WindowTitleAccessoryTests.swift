@@ -54,9 +54,9 @@ struct WindowTitleAccessoryTests {
         #expect(view.mouseDownCanMoveWindow)
     }
 
-    /// The title is centered on the window, not on the space after the
-    /// traffic lights; a title too long to center slides over instead.
-    @Test func titleIsCenteredOnTheWindow() throws {
+    /// The title sits at the leading edge, after the traffic lights, not
+    /// centered; a long title truncates instead of running past the edge.
+    @Test func titleIsLeftAligned() throws {
         let window = makeWindow()
         defer { window.close() }
         window.title = "short"
@@ -64,13 +64,15 @@ struct WindowTitleAccessoryTests {
         let accessory = try #require(window.titlebarAccessoryViewControllers.first { $0 is WindowTitleAccessory })
         let label = try #require(titleLabel(in: window))
         accessory.view.layoutSubtreeIfNeeded()
-        accessory.view.layoutSubtreeIfNeeded()
-        let labelCenter = label.convert(NSPoint(x: label.bounds.midX, y: 0), to: nil).x
-        #expect(abs(labelCenter - window.frame.width / 2) < 2)
+        // Auto Layout places the alignment rect; a text field's frame sits
+        // 2 pt outside it.
+        var placed = label.alignmentRect(forFrame: label.frame)
+        #expect(abs(placed.minX - 6) < 1)
+        #expect(placed.midX < accessory.view.bounds.midX)
 
         window.title = String(repeating: "long title ", count: 40)
         accessory.view.layoutSubtreeIfNeeded()
-        let leading = label.convert(NSPoint.zero, to: nil).x
-        #expect(leading >= accessory.view.convert(NSPoint.zero, to: nil).x)
+        placed = label.alignmentRect(forFrame: label.frame)
+        #expect(placed.maxX <= accessory.view.bounds.maxX + 0.5)
     }
 }

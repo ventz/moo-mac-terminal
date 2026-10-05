@@ -60,15 +60,11 @@ final class WindowTitleAccessory: NSTitlebarAccessoryViewController {
         label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         label.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(label)
-        // Centered on the window, as AppKit and Terminal.app center it; the
-        // centering gives way first, so a long title slides over rather than
-        // running under the traffic lights or the update dot.
-        let centering = label.centerXAnchor.constraint(equalTo: container.leadingAnchor)
-        centering.priority = .defaultHigh
-        container.centering = centering
+        // Left-aligned after the traffic lights, where AppKit and Terminal.app
+        // center it (user's choice, 2026-10-05). A long title truncates
+        // before the update dot.
         NSLayoutConstraint.activate([
-            centering,
-            label.leadingAnchor.constraint(greaterThanOrEqualTo: container.leadingAnchor, constant: 6),
+            label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 6),
             label.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor),
             label.centerYAnchor.constraint(equalTo: container.centerYAnchor)
         ])
@@ -138,22 +134,7 @@ final class WindowTitleAccessory: NSTitlebarAccessoryViewController {
     /// Lets a click or drag on the title move the window, as the system
     /// title does.
     final class TitleContainerView: NSView {
-        /// Puts the label's center at the window's center, measured from
-        /// where AppKit actually placed this accessory.
-        var centering: NSLayoutConstraint?
-
         override var mouseDownCanMoveWindow: Bool { true }
-
-        override func layout() {
-            if let window, let centering {
-                let origin = convert(NSPoint.zero, to: nil).x
-                let target = window.frame.width / 2 - origin
-                if centering.constant != target {
-                    centering.constant = target
-                }
-            }
-            super.layout()
-        }
 
         override func hitTest(_ point: NSPoint) -> NSView? {
             nil
