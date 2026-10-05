@@ -72,6 +72,7 @@ enum SettingsSearch {
         Entry("Open new tabs with the current window's profile", .general, section: "New tabs and windows"),
         Entry("⌘1–9 selects:", .general, section: "Keyboard", keywords: "command digits numbers shortcut projects tabs switch"),
         Entry("Repeat keys when held", .general, section: "Keyboard", keywords: "key repeat accent press and hold vim hjkl"),
+        Entry("Let programs show images from local files and shared memory", .general, section: "Images", keywords: "kitty graphics protocol pictures shm intermission security"),
         Entry("Keep the tab strip opaque in every profile", .general, section: "Window", keywords: "transparency translucent"),
         Entry("Draw with Metal", .general, section: "Window", keywords: "rendering gpu performance"),
 

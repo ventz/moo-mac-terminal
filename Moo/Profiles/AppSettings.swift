@@ -77,8 +77,8 @@ enum AppSettings {
         AppSetting(key: KeyboardDefaults.keyRepeatEnabled, kind: .bool),
         AppSetting(key: WorkspaceRestoreDefaults.restoresOnLaunch, kind: .bool),
         // LogHostOutput, Secure Keyboard Entry, the web inspector, content
-        // blocking and update checking are deliberately absent: see
-        // securitySensitiveKeys.
+        // blocking, update checking and images from local sources are
+        // deliberately absent: see securitySensitiveKeys.
         AppSetting(key: LinkRoutingDefaults.opensLinksInApp, kind: .bool),
         AppSetting(key: MarkdownPreviewDefaults.followsTerminalTheme, kind: .bool),
         AppSetting(key: MarkdownPreviewDefaults.opensLinksInNewTab, kind: .bool),
@@ -135,6 +135,9 @@ enum AppSettings {
     /// - herdr: "Show herdr agents" is consent for Moo to read other
     ///   processes' arguments and connect to local sockets; a file must not
     ///   give it on the user's behalf.
+    /// - Images from local files and shared memory let terminal output probe
+    ///   the Mac's files and delete shared memory objects; a file must not
+    ///   switch them on.
     /// Pinned by AppSettingsTests.importNeverChangesSecuritySensitiveSettings.
     static let securitySensitiveKeys: Set<String> = [
         "LogHostOutput",
@@ -147,6 +150,7 @@ enum AppSettings {
         "startupWindowGroupID",
         ContentBlockingDefaults.enabledKey,
         HerdrDefaults.showsAgents,
+        TerminalImageDefaults.allowsLocalSources,
     ]
 
     /// Keys a profile document never carries: state or identity, which stays

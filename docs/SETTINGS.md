@@ -85,6 +85,12 @@ keyboard and window options that cannot differ per profile.
 | **⌘1–9 selects:** | Projects · Tabs · Nothing | **Projects** | What ⌘1 through ⌘8 jump to; ⌘9 always picks the last one. *Projects* follows the sidebar order, so dragging a project changes its number. *Nothing* turns the shortcuts off and removes their menu. |
 | **Repeat keys when held** | On · Off | **On** | Holding a letter repeats it, as terminals expect: `j` held in vim scrolls. Off brings back macOS's accent picker (hold `e` for é), but letters stop repeating. Affects Moo only, never other apps. |
 
+### Images (every profile)
+
+| Setting | Options | Default | What it does |
+|---|---|---|---|
+| **Let programs show images from local files and shared memory** | On · Off | Off | Lets a program display an image by naming a file on this Mac or a shared memory object, instead of sending the pixels. Claude Code plugins that draw through shared memory, such as intermission, need it on. Off by default because terminal output is untrusted: a file you `cat`, or a host you `ssh` to, could otherwise check whether a file exists and how big it is, or delete shared memory other apps use. Images sent inline always work. Applies to new tabs and splits. Never shared in a `.mooprofile`. |
+
 ### Window (every profile)
 
 | Setting | Options | Default | What it does |
@@ -482,4 +488,5 @@ exactly as this Mac has them:
 | **Open:**, **Profile:** and **Window group:** (General → Startup) | A shared file could make every launch open a profile it brought, one whose shell runs a command, even after you imported its appearance only. |
 | **Block ads and trackers** (Links & Markdown) | A shared file could switch off tracker blocking in browser tabs. |
 | **Show herdr agents** (Notifications → herdr) | Turning it on lets Moo read other programs' arguments and connect to herdr's socket. That consent is yours to give, not a shared file's. |
+| **Let programs show images from local files and shared memory** (General → Images) | Turning it on lets terminal output check your files and delete shared memory. A shared file must not switch it on for you. |
 

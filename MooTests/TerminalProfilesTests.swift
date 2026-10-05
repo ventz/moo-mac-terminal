@@ -1004,7 +1004,22 @@ final class LaunchParametersTests {
         #expect (options.cursorStyle == .steadyBar)
         #expect (options.termName == "xterm-256color")
         #expect (options.kittyGraphics.storageLimitBytesPerScreen == 320_000_000)
-        #expect (options.kittyGraphics.localMediaPolicy == [.regularFiles])
+        #expect (options.kittyGraphics.localMediaPolicy == TerminalImageDefaults.localMediaPolicy())
+    }
+
+    /// Local files and shared memory let terminal output reach outside the
+    /// pane, so programs only get them once the user turns them on.
+    @Test func imagesFromLocalSourcesAreOffUntilAllowed() throws {
+        let suite = "moo.imagesFromLocalSources.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        #expect(TerminalImageDefaults.localMediaPolicy(defaults: defaults).isEmpty)
+        defaults.set(true, forKey: TerminalImageDefaults.allowsLocalSources)
+        #expect(TerminalImageDefaults.localMediaPolicy(defaults: defaults) == [.regularFiles, .sharedMemory])
+        defaults.set(false, forKey: TerminalImageDefaults.allowsLocalSources)
+        #expect(TerminalImageDefaults.localMediaPolicy(defaults: defaults).isEmpty)
+        #expect(AppSettings.securitySensitiveKeys.contains(TerminalImageDefaults.allowsLocalSources))
     }
 
     @Test func shellIntegrationDoesNotOverrideProfileCursor() {

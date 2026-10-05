@@ -28,6 +28,31 @@ public struct LaunchParameters: Sendable {
     public var currentDirectory: String?
 }
 
+/// Whether programs may send kitty graphics by naming a local file (t=f)
+/// or a POSIX shared memory object (t=s) instead of sending the pixels.
+///
+/// Off by default. Terminal output is untrusted, and both media let it
+/// reach outside the pane: a crafted file you `cat`, or a host you ssh
+/// to, can check whether a local path exists and how large it is, and
+/// can delete any of your shared memory objects it can name (the
+/// terminal unlinks an object once it opens it, as the kitty protocol
+/// requires). Programs that need it, such as Claude Code plugins that
+/// draw through shared memory, work once it is on. Images sent inline
+/// (t=d) never need it.
+///
+/// A security setting: a .mooprofile never carries it (see
+/// AppSettings.securitySensitiveKeys). Read when a pane is created, so a
+/// change applies to new tabs and splits.
+enum TerminalImageDefaults {
+    static let allowsLocalSources = "terminalImagesFromLocalSources"
+    static let allowsLocalSourcesByDefault = false
+
+    static func localMediaPolicy(defaults: UserDefaults = .standard) -> KittyGraphicsConfiguration.LocalMediaPolicy {
+        let allowed = defaults.object(forKey: allowsLocalSources) as? Bool ?? allowsLocalSourcesByDefault
+        return allowed ? [.regularFiles, .sharedMemory] : []
+    }
+}
+
 public enum ProfileApplier {
     // MARK: Phase 1: creation
 
@@ -43,9 +68,11 @@ public enum ProfileApplier {
         // both directions. The session controller serves the standard
         // clipboard and asks the user before each read or write.
         options.kittyClipboardPolicy = .all
+        // Images a program names by local file (t=f) or shared memory
+        // (t=s) only when the user allowed them: see TerminalImageDefaults.
         options.kittyGraphics = KittyGraphicsConfiguration(
             storageLimitBytesPerScreen: 320_000_000,
-            localMediaPolicy: [.regularFiles]
+            localMediaPolicy: TerminalImageDefaults.localMediaPolicy()
         )
         if let lines = profile.scrollbackLines {
             options.scrollback = lines

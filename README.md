@@ -187,7 +187,9 @@ and rejected, and the traps in measuring terminals are in
   Tab Here, New Moo Window Here or New Moo Workspace Here.
 - **Safe by default.** Secure Keyboard Entry turns on by itself at password
   prompts. Links in terminal output open only the web and mail without asking,
-  and files that would run are revealed in Finder instead.
+  and files that would run are revealed in Finder instead. Images that name a
+  local file or shared memory stay off until you allow them (Settings →
+  General → Images), which Claude Code plugins such as intermission need.
 
 ## Usage
 

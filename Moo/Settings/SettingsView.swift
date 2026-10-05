@@ -503,6 +503,8 @@ struct GeneralSettingsView: View {
     /// Read from defaults rather than held in @State, so an Import that
     /// applies settings while this window is open shows up here.
     @AppStorage(KeyboardDefaults.keyRepeatEnabled) private var keyRepeat = KeyboardDefaults.keyRepeatEnabledByDefault
+    @AppStorage(TerminalImageDefaults.allowsLocalSources) private var imagesFromLocalSources =
+        TerminalImageDefaults.allowsLocalSourcesByDefault
     @State private var errorMessage: String?
 
     @MainActor
@@ -587,6 +589,19 @@ struct GeneralSettingsView: View {
                     Projects are numbered in sidebar order; ⌘9 always selects the last.
                     Key repeat off: macOS's accent picker returns, but \u{2018}hjkl\u{2019} stop repeating in vim.
                     Per-profile keys, and a list of every shortcut, are under Profiles → Keyboard.
+                    """)
+            }
+
+            Section {
+                Toggle("Let programs show images from local files and shared memory", isOn: $imagesFromLocalSources)
+                    .settingsAnchor(.general, "Let programs show images from local files and shared memory")
+            } header: {
+                Text("Images")
+            } footer: {
+                Text("""
+                    On: programs can name a file or shared memory for an image, which Claude Code plugins such as intermission need.
+                    Off: a file you cat or a host you ssh to cannot use that to check your files or delete shared memory.
+                    Images sent inline always work. Applies to new tabs and splits.
                     """)
             }
 
