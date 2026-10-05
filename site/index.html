@@ -494,14 +494,19 @@
     align-items: start;
   }
 
-  .feature.secure { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
-  .feature.secure .feature-text .rows { margin-top: 8px; }
-  .feature.secure .feature-lead { max-width: 36ch; }
+  /* Heading and lead beside the four tiles, then one list across the
+     whole width, so its rows never stagger against a second list. */
+  .feature.secure { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: center; }
+  .feature.secure .feature-lead { max-width: 36ch; margin-bottom: 0; }
+  .feature.secure > .rows { grid-column: 1 / -1; }
+  .feature.secure .rows dd { max-width: 36em; }
+  .feature.secure .rows > div { grid-template-columns: minmax(0, 11em) minmax(0, 1fr); }
   .highlights {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
-    margin: 0 0 28px;
+    grid-auto-rows: 1fr;
+    margin: 0;
     padding: 0;
     list-style: none;
   }
@@ -660,7 +665,7 @@
     .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .gallery-7 > .fig, .gallery-7 > .fig:nth-child(n+4) { grid-column: 1 / -1; }
     .feature-figs { grid-template-columns: minmax(0, 1fr); }
-    .rows > div, .feature .rows > div, .feature-more .rows > div { grid-template-columns: minmax(0, 1fr); }
+    .rows > div, .feature .rows > div, .feature-more .rows > div, .feature.secure .rows > div { grid-template-columns: minmax(0, 1fr); }
     .bench thead {
       position: absolute; width: 1px; height: 1px; overflow: hidden;
       clip-path: inset(50%); white-space: nowrap;
@@ -937,13 +942,7 @@
       <div class="feature-text">
         <h2 id="native">Secure by default</h2>
         <p class="feature-lead">A terminal shows whatever a program, a downloaded file or a remote host prints, and that text can try to read your clipboard, fake a prompt or launch something. Moo treats all of it as untrusted, so the safe choice is the one you get without changing a setting.</p>
-        <dl class="rows">
-          <div><dt>Security-reviewed</dt><dd>Features that touch the clipboard, links, shared files or other processes go through a dedicated security review before they ship, and the fixes are pinned by tests. The clipboard protection below came out of one of those reviews.</dd></div>
-          <div><dt>Native</dt><dd>SwiftUI and AppKit on <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a>, drawn with Metal. Universal, signed and notarized.</dd></div>
-          <div><dt>Signed updates</dt><dd>Updates arrive through a signed feed, and each one is verified before it is installed.</dd></div>
-        </dl>
       </div>
-      <div class="secure-main">
       <ul class="highlights">
         <li><b>Clipboard</b><span>Reads refused, writes asked</span></li>
         <li><b>Passwords</b><span>Secure Keyboard Entry at password prompts</span></li>
@@ -954,11 +953,13 @@
         <div><dt>Clipboard</dt><dd>Programs cannot read your clipboard, so a <code>cat</code> of a crafted file or a remote host cannot pull back a password you just pasted. Before a program writes to it, Moo asks, naming the pane and showing the text.</dd></div>
         <div><dt>Secure Keyboard Entry</dt><dd>Turns on by itself at a password prompt, so other apps cannot watch what you type there, and off again when the prompt is gone.</dd></div>
         <div><dt>Links</dt><dd>Web and mail links open directly; other kinds ask first. A link to anything that would run, such as an app or a script, is revealed in Finder, never launched.</dd></div>
+        <div><dt>Signed updates</dt><dd>Updates arrive through a signed feed, and each one is verified before it is installed.</dd></div>
         <div><dt>Clean titles</dt><dd>Window titles, directories and names a program sets are cleaned of control and direction-changing characters, so output cannot write its own lines into a Moo dialog.</dd></div>
         <div><dt>Shared profiles</dt><dd>Importing a <code>.mooprofile</code> keeps only its appearance unless you choose otherwise, after listing any shell, environment variables and key mappings it carries. It can never turn off a security setting.</dd></div>
         <div><dt>Contained tabs</dt><dd>Markdown previews are hardened against hostile files, and browser tabs run sandboxed.</dd></div>
+        <div><dt>Security-reviewed</dt><dd>Features that touch the clipboard, links, shared files or other processes go through a dedicated security review before they ship, and the fixes are pinned by tests. The clipboard protection above came out of one of those reviews.</dd></div>
+        <div><dt>Native</dt><dd>SwiftUI and AppKit on <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a>, drawn with Metal. Universal, signed and notarized.</dd></div>
       </dl>
-      </div>
     </section>
 
     <section class="spec" aria-labelledby="look">
