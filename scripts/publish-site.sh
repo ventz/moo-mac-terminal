@@ -50,6 +50,15 @@ icon="docs/moo-icon.png"
 # Content types are passed bare, with no charset parameter -- wrangler hangs
 # rather than erroring when given one.
 echo "==> Publishing site to $BUCKET"
+# Fonts go up before the page that loads them. Only the .woff2 files are
+# served; the OFL license text stays in the repo beside them.
+for font in site/fonts/*.woff2; do
+    [[ -f "$font" ]] || continue
+    wrangler r2 object put "$BUCKET/fonts/$(basename "$font")" \
+        --file "$font" --content-type "font/woff2" \
+        --cache-control "max-age=86400" --remote
+    published+=("$SITE_HOST/fonts/$(basename "$font")")
+done
 wrangler r2 object put "$BUCKET/index.html" \
     --file site/index.html --content-type "text/html" \
     --cache-control "max-age=300" --remote

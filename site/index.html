@@ -4,437 +4,988 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Moo Terminal</title>
-<meta name="description" content="A native, open-source macOS terminal with Ghostty-class speed and the workspace features that make cmux good for running agents.">
+<meta name="description" content="A native, open-source macOS terminal with advanced, modern features. Measured faster than Ghostty, it groups your shells and agents into workspaces and tells you which one needs you.">
 <link rel="icon" href="/icon.png" type="image/png">
+<link rel="preload" href="/fonts/archivo-latin-wdth.woff2" as="font" type="font/woff2" crossorigin>
+<meta name="theme-color" content="#ececea">
 <meta property="og:title" content="Moo Terminal">
-<meta property="og:description" content="A native, open-source macOS terminal with Ghostty-class speed and the workspace features that make cmux good for running agents.">
+<meta property="og:description" content="A native, open-source macOS terminal with advanced, modern features. Measured faster than Ghostty, it groups your shells and agents into workspaces and tells you which one needs you.">
 <meta property="og:image" content="https://moo.vpetkov.net/icon.png">
 <meta property="og:type" content="website">
 <style>
+  /* Archivo (SIL OFL 1.1, Omnibus-Type), self-hosted: one variable file
+     carrying both the weight and the width axis. */
+  @font-face {
+    font-family: "Archivo";
+    src: url("/fonts/archivo-latin-wdth.woff2") format("woff2-variations"),
+         url("/fonts/archivo-latin-wdth.woff2") format("woff2");
+    font-weight: 100 900;
+    font-stretch: 62% 125%;
+    font-display: swap;
+  }
+
   :root {
-    color-scheme: dark;
-    --bg: #0c1210;
-    --panel: #131c18;
-    --line: #23342b;
-    --ink: #e9f1ec;
-    --muted: #93a89c;
-    --green: #3FA34D;
-    --green-deep: #1E7A2F;
-    --green-lift: #56c266;
+    color-scheme: light;
+    /* Light gray sheet, graphite ink; green is Moo's alone. */
+    --bg: #ececea;
+    --panel: #f5f5f3;
+    --panel-hi: #fbfbfa;
+    --line: #d2d2ce;
+    --line-hi: #9d9e99;
+    --ink: #1c1e1c;
+    --ink-2: #393c39;
+    --muted: #4a4d4a;
+    --green-lift: #2a7a36;
+    --green-ink-deep: #1f6b2c;
+    --bar-other: #c3c5c1;
+    --data: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --text: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    --sans: "Archivo", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    --ease-out: cubic-bezier(.16, 1, .3, 1);
+    --gutter: clamp(16px, 4vw, 40px);
   }
 
   * { box-sizing: border-box; }
 
-  html { -webkit-text-size-adjust: 100%; }
+  html {
+    -webkit-text-size-adjust: 100%;
+    scrollbar-color: var(--line-hi) var(--bg);
+  }
 
   body {
     margin: 0;
-    padding: 0 20px;
     background: var(--bg);
     color: var(--ink);
-    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font: 17px/1.6 var(--text);
+    font-stretch: 100%;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
   }
 
-  /* A soft pool of green behind the icon, so the tile reads as lit rather
-     than pasted onto the page. */
-  body::before {
-    content: "";
-    position: fixed;
-    top: -280px;
-    left: 50%;
-    width: 900px;
-    height: 900px;
-    margin-left: -450px;
-    background: radial-gradient(circle, rgba(63,163,77,.20) 0%, rgba(63,163,77,.06) 42%, transparent 68%);
-    pointer-events: none;
-    z-index: 0;
+  h1, h2, .bench-title, .btn, .cards b, .highlights b, .rows dt, .fig figcaption b,
+  .stats .n, .bench thead th, .bench .group th, .bar-row .who {
+    font-family: var(--sans);
   }
 
-  main {
+  ::selection { background: var(--green-ink-deep); color: #fff; }
+
+  a {
+    color: var(--green-lift);
+    text-decoration-thickness: 1px;
+    text-underline-offset: .2em;
+  }
+  a:hover { color: var(--green-ink-deep); text-decoration-thickness: 2px; }
+  a:focus-visible, .btn:focus-visible {
+    outline: 2px solid var(--green-lift);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  .sheet {
     position: relative;
-    z-index: 1;
-    max-width: 760px;
+    max-width: 1160px;
     margin: 0 auto;
-    padding-block: clamp(56px, 12vw, 104px) 64px;
+    padding: 0 var(--gutter);
   }
 
-  header { text-align: center; }
+  /* ---------- First viewport: the offer beside the measurement ---------- */
+
+  .top {
+    display: grid;
+    grid-template-columns: minmax(0, 5.4fr) minmax(0, 6.6fr);
+    gap: clamp(36px, 5vw, 72px);
+    align-items: start;
+    min-height: min(100svh, 880px);
+    padding-block: clamp(48px, 9vh, 96px) clamp(40px, 6vh, 72px);
+  }
 
   .icon {
-    width: 132px;
-    height: 132px;
     display: block;
-    margin: 0 auto 26px;
-    border-radius: 27%;
-    filter: drop-shadow(0 18px 38px rgba(0,0,0,.55));
+    width: 96px;
+    height: 96px;
+    margin: 4px 0 28px -6px;
+    filter: drop-shadow(0 6px 10px rgba(29, 38, 28, .22));
   }
 
   h1 {
     margin: 0;
-    font-size: clamp(38px, 8vw, 54px);
-    line-height: 1.08;
-    letter-spacing: -.022em;
-    font-weight: 700;
+    font-size: clamp(44px, 6.2vw, 76px);
+    line-height: .98;
+    font-weight: 800;
+    font-stretch: 88%;
+    letter-spacing: -.03em;
+    text-wrap: balance;
   }
 
-  .tagline {
-    margin: 18px auto 0;
-    max-width: 30em;
-    font-size: clamp(16px, 2.4vw, 18.5px);
-    color: var(--muted);
-  }
+  .pitch strong { color: var(--ink); font-weight: 600; }
 
-  .tagline strong { color: var(--ink); font-weight: 600; }
+  .pitch {
+    margin: 22px 0 0;
+    max-width: 30ch;
+    font-size: clamp(19px, 1.8vw, 22px);
+    line-height: 1.45;
+    color: var(--ink-2);
+    text-wrap: pretty;
+  }
 
   .actions {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
     gap: 12px;
-    margin-top: 34px;
+    margin-top: 32px;
   }
 
   .btn {
     display: inline-flex;
     align-items: center;
     gap: 9px;
-    padding: 13px 24px;
-    border-radius: 11px;
+    padding: 13px 20px;
+    border-radius: 4px;
     border: 1px solid transparent;
-    font-size: 15.5px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 650;
     text-decoration: none;
-    transition: transform .12s ease, background-color .12s ease, border-color .12s ease;
+    transition: transform .14s var(--ease-out), background-color .14s, border-color .14s, box-shadow .14s;
   }
-
   .btn:hover { transform: translateY(-1px); }
   .btn:active { transform: translateY(0); }
-
-  .btn-primary {
-    background: linear-gradient(180deg, var(--green-lift), var(--green-deep));
-    color: #fff;
-    box-shadow: 0 8px 22px rgba(30,122,47,.38);
-  }
-
-  .btn-primary:hover { background: linear-gradient(180deg, #62d073, #228c36); }
-
-  .btn-ghost {
-    background: var(--panel);
-    border-color: var(--line);
-    color: var(--ink);
-  }
-
-  .btn-ghost:hover { border-color: #3a5748; background: #18231e; }
-
   .btn svg { width: 17px; height: 17px; flex: none; }
 
+  .btn-primary {
+    background: var(--green-ink-deep);
+    color: #fff;
+    /* Boxed twice, like the final answer on a worked sheet. */
+    box-shadow: 0 0 0 3px var(--bg), 0 0 0 4.5px var(--ink);
+  }
+  .btn-primary:hover { color: #fff; background: #185a24; }
+
+  .btn-ghost {
+    background: var(--panel-hi);
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+  .btn-ghost:hover { color: var(--ink); background: #fff; }
+
   .meta {
-    margin-top: 18px;
+    margin: 16px 0 0;
+    max-width: 44ch;
+    text-wrap: balance;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+
+  /* ---------- The benchmark table ---------- */
+
+  .bench-wrap {
+    border-top: 2px solid var(--ink);
+    padding-top: 16px;
+  }
+
+  .bench-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px 20px;
+    margin-bottom: 6px;
+  }
+
+  .bench-title {
+    margin: 0;
+    padding-top: 0;
+    border-top: 0;
+    font-size: clamp(19px, 1.8vw, 23px);
+    font-weight: 700;
+    font-stretch: 90%;
+    letter-spacing: -.01em;
+  }
+
+  .dir {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--muted);
+  }
+
+  table.bench {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bench th, .bench td {
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+    text-align: left;
+    font-weight: 400;
+  }
+
+  .bench thead th {
+    padding: 8px 0 7px;
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    color: var(--muted);
+  }
+
+  .bench .group th {
+    padding: 16px 0 6px;
+    font-size: 14.5px;
+    font-weight: 650;
+    color: var(--ink);
+    border-bottom-color: var(--line-hi);
+  }
+
+  .bench tbody th[scope="row"] {
+    width: 25%;
+    padding-right: 12px;
+    font-size: 15px;
+    line-height: 1.3;
+    color: var(--ink);
+  }
+  .bench tbody th small {
+    display: block;
     font-size: 13.5px;
     color: var(--muted);
   }
 
-  .meta code {
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-    font-size: .95em;
-    color: #b9cfc2;
-  }
+  .bench td.bars { padding-right: 12px; }
 
-  .rule {
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--line) 22%, var(--line) 78%, transparent);
-    margin: 60px 0 46px;
-    border: 0;
-  }
+  .pair { display: grid; gap: 4px; }
 
-  h2 {
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: .14em;
-    color: var(--muted);
-    font-weight: 600;
-    margin: 0 0 22px;
-    text-align: center;
-  }
-
-  .features {
+  .bar-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-    gap: 14px;
-    list-style: none;
-    padding: 0;
-    margin: 0;
+    grid-template-columns: 4.2em minmax(0, 1fr) 5.4em;
+    align-items: center;
+    gap: 10px;
   }
 
-  .features li {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 13px;
-    padding: 18px 19px;
+  .bar-row .who {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--muted);
   }
+  .bar-row.moo .who { color: var(--green-lift); font-weight: 650; }
 
-  .features b {
+  .bar {
     display: block;
-    font-size: 15px;
-    margin-bottom: 5px;
+    height: 9px;
+    width: calc(var(--w) * 100%);
+    min-width: 2px;
+    border-radius: 2px;
+    background: var(--bar-other);
+    transform-origin: left center;
   }
+  .bar-row:not(.moo) .bar { height: 6px; }
+  .bar-row.moo .bar { background: var(--green-lift); }
 
-  .features span {
+  .bar-row .v {
+    font-family: var(--data);
     font-size: 14px;
     color: var(--muted);
-    line-height: 1.55;
+    white-space: nowrap;
+  }
+  .bar-row.moo .v { color: var(--ink); font-weight: 600; }
+
+  .bench td.res {
+    width: 6.4em;
+    text-align: right;
+    font-family: var(--data);
+    font-size: 15px;
+    font-weight: 650;
+    color: var(--green-lift);
+    white-space: nowrap;
+  }
+  .bench td.res.other { color: var(--muted); font-weight: 500; }
+
+  .bench tbody tr:not(.group):hover th,
+  .bench tbody tr:not(.group):hover td { background: rgba(42, 122, 54, .06); }
+
+  .bench-note {
+    margin: 12px 0 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--muted);
   }
 
-  .speed {
-    margin: 46px 0 0;
+  /* ---------- Figures ---------- */
+
+  figure { margin: 0; }
+
+  .fig a { display: block; }
+  .fig img { display: block; width: 100%; height: auto; }
+
+  .fig figcaption {
+    display: flex;
+    gap: 12px;
+    align-items: baseline;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    font-size: 15.5px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+  .fig figcaption b {
+    flex: none;
+    font-weight: 650;
+    font-stretch: 85%;
+    color: var(--ink);
+  }
+
+  .intro-shot { margin-top: clamp(32px, 4vw, 48px); }
+  .intro-shot figcaption { font-size: 14px; }
+
+  /* ---------- At a glance ---------- */
+
+  .glance { padding: clamp(24px, 4vw, 48px) 0 0; }
+  .glance h2 { margin-bottom: 28px; }
+
+  .cards, .stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
     gap: 14px;
-    text-align: center;
+    margin: 0;
+    padding: 0;
+    list-style: none;
   }
+  .cards { grid-template-columns: repeat(12, minmax(0, 1fr)); gap: clamp(28px, 4vw, 56px); }
+  .cards li { grid-column: span 4; }
+  .cards li.lead { grid-column: span 4; }
+  .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
 
-  .speed div {
+  .cards a {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 20px 20px 22px;
     background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 13px;
-    padding: 20px 14px;
+    border: 1px solid var(--line-hi);
+    border-radius: 4px;
+    color: inherit;
+    text-decoration: none;
+    transition: border-color .14s, background-color .14s, transform .14s var(--ease-out);
   }
-
-  .speed .n {
+  .cards a:hover { border-color: var(--ink); background: var(--panel-hi); color: inherit; transform: translateY(-2px); }
+  .cards a:focus-visible { border-radius: 4px; }
+  .cards b {
     display: block;
-    font-size: 27px;
-    font-weight: 700;
-    letter-spacing: -.02em;
+    margin-bottom: 8px;
+    font-size: 19px;
+    line-height: 1.25;
+    font-weight: 650;
+    font-stretch: 92%;
+  }
+  .cards .desc { display: block; font-size: 16px; line-height: 1.55; color: var(--ink-2); }
+  .cards code { font: inherit; font-weight: 600; color: var(--ink); }
+
+  /* The three headline features open with a crop of their own screenshot. */
+  .cards .lead a { padding: 0 0 22px; overflow: hidden; border-color: var(--ink); }
+  .cards .lead b, .cards .lead .desc, .cards .lead .more { margin-inline: 22px; }
+  .cards .lead b { margin-top: 20px; font-size: 23px; letter-spacing: -.01em; }
+  .thumb {
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: #1d1f1d;
+    border-bottom: 1px solid var(--ink);
+  }
+  .thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    transform: scale(1.12);
+    transform-origin: center 8%;
+    transition: transform .4s var(--ease-out);
+  }
+  .cards .lead a:hover .thumb img { transform: scale(1.17); }
+  .more svg { width: 15px; height: 15px; vertical-align: -2px; margin-left: 2px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transition: transform .14s var(--ease-out); }
+  .cards a:hover .more svg { transform: translateX(3px); }
+  .more {
+    display: block;
+    margin-top: auto;
+    padding-top: 16px;
+    font-style: normal;
+    font-size: 15px;
+    font-weight: 600;
     color: var(--green-lift);
   }
 
-  .speed .l {
-    display: block;
-    margin-top: 4px;
-    font-size: 13px;
-    color: var(--muted);
+  /* The two wide cards: screenshot on one side, text on the other. */
+  .cards .lead.wide { grid-column: span 6; }
+  .cards .wide a { flex-direction: row; padding: 0; }
+  .cards .wide .thumb {
+    flex: 0 0 46%;
+    aspect-ratio: auto;
+    min-height: 220px;
+    border-bottom: 0;
+    border-right: 1px solid var(--ink);
   }
+  .cards .wide .body { display: flex; flex-direction: column; padding: 22px 0 22px; }
 
-  .note {
-    margin-top: 16px;
+  .stats li {
+    padding: 16px 10px 14px;
+    background: var(--panel);
+    border: 1px solid var(--line-hi);
+    border-radius: 4px;
     text-align: center;
-    font-size: 13px;
-    color: var(--muted);
   }
-
-  .shot { margin: 0; }
-  .shot img {
+  .stats .n {
     display: block;
-    width: 100%;
-    height: auto;
+    font-size: clamp(24px, 2.3vw, 32px);
+    line-height: 1.1;
+    font-weight: 750;
+    font-stretch: 90%;
+    letter-spacing: -.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--green-lift);
   }
-  .shot a { display: block; border-radius: 12px; }
-  .shot a:focus-visible { outline: 2px solid var(--green-lift); outline-offset: 4px; }
+  .stats .l { display: block; margin-top: 4px; font-size: 14px; line-height: 1.35; color: var(--muted); }
 
-  /* A little wider than the text column, like the gallery below. */
-  .hero {
-    width: min(860px, calc(100vw - 40px));
-    margin: 44px 0 0 50%;
-    transform: translateX(-50%);
-  }
-  /* The framed images carry their own margin, so stacked heroes need no gap. */
-  .hero + .hero { margin-top: 0; }
-  /* ...except after a caption, which would otherwise run into the next label. */
-  .hero + .hero.after-caption { margin-top: 40px; }
 
-  /* The gallery runs wider than the text column; two screenshots side by side
-     are unreadable at 370px each. */
-  .gallery {
-    width: min(1080px, calc(100vw - 40px));
-    margin-left: 50%;
-    transform: translateX(-50%);
+  /* ---------- Feature showcases ---------- */
+
+  .feature {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 34px 26px;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 32px clamp(32px, 5vw, 72px);
+    align-items: start;
+    padding-top: clamp(72px, 11vw, 132px);
   }
-  /* The last row holds three: notifications, and what herdr adds to them. */
-  .shot-row {
+  .feature.flip { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+  .feature.flip .feature-shot { order: 2; }
+  .feature-lead {
+    margin: 16px 0 22px;
+    max-width: 40ch;
+    font-size: clamp(18px, 1.6vw, 21px);
+    line-height: 1.5;
+    color: var(--ink-2);
+    text-wrap: pretty;
+  }
+  .feature-lead code, .feature-lead strong { font: inherit; font-weight: 600; color: var(--ink); }
+  .feature .rows > div { grid-template-columns: minmax(0, 8em) minmax(0, 1fr); }
+  .feature-text code { font: inherit; font-weight: 600; color: var(--ink); }
+
+  /* The agents showcase runs on: more rows beside two more screenshots. */
+  .feature-more {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 34px 26px;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: 32px clamp(32px, 5vw, 72px);
+    align-items: start;
+  }
+  .feature-more > .rows { grid-column: 1 / -1; }
+  .feature-more .rows > div { grid-template-columns: minmax(0, 9em) minmax(0, 1fr); }
+  .feature-figs figcaption, .feature-figs figcaption b { display: block; }
+  .fig.plate a { padding: 22px; background: #1d1f1d; border-radius: 4px; }
+  .feature-figs {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+    gap: 24px;
     align-items: start;
   }
 
-  .shot-label {
-    margin: 0 0 10px;
-    text-align: center;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--ink);
+  .feature.secure { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+  .feature.secure .feature-text .rows { margin-top: 8px; }
+  .feature.secure .feature-lead { max-width: 36ch; }
+  .highlights {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin: 0 0 28px;
+    padding: 0;
+    list-style: none;
+  }
+  .highlights li {
+    padding: 18px 20px;
+    background: var(--panel);
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+  }
+  .highlights b {
+    display: block;
+    font-size: 21px;
+    line-height: 1.2;
+    font-weight: 700;
+    font-stretch: 90%;
+    color: var(--green-lift);
+  }
+  .highlights span { display: block; margin-top: 4px; font-size: 15.5px; color: var(--ink-2); }
+
+  /* ---------- Spec sections ---------- */
+
+  .spec {
+    display: grid;
+    grid-template-columns: minmax(0, 4fr) minmax(0, 8fr);
+    gap: 24px clamp(32px, 6vw, 88px);
+    padding-top: clamp(72px, 11vw, 132px);
   }
 
-  .shot figcaption {
-    margin-top: 6px;
-    text-align: center;
-    font-size: 13.5px;
-    color: var(--muted);
+  .spec-intro { align-self: start; }
+
+  h2 {
+    margin: 0;
+    padding-top: 16px;
+    border-top: 2px solid var(--ink);
+    font-size: clamp(28px, 3.2vw, 40px);
+    line-height: 1.05;
+    font-weight: 750;
+    font-stretch: 88%;
+    letter-spacing: -.02em;
+    text-wrap: balance;
   }
+
+  .spec-intro p {
+    margin: 16px 0 0;
+    max-width: 34ch;
+    color: var(--ink-2);
+    text-wrap: pretty;
+  }
+
+  .rows {
+    margin: 0;
+    border-top: 2px solid var(--ink);
+  }
+
+  .rows > div {
+    display: grid;
+    grid-template-columns: minmax(0, 13em) minmax(0, 1fr);
+    gap: 4px 24px;
+    padding: 15px 0 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .rows dt {
+    font-weight: 650;
+    font-stretch: 88%;
+    font-size: 17px;
+    line-height: 1.4;
+  }
+
+  .rows dd {
+    margin: 0;
+    max-width: 62ch;
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--ink-2);
+  }
+  .rows dd b { color: var(--ink); font-weight: 600; }
+
+  code { font: inherit; color: var(--ink-2); }
+
+  .nw { white-space: nowrap; }
+
+  kbd {
+    font: 600 .9em/1 var(--sans);
+    color: var(--ink-2);
+    padding: 1px 5px 2px;
+    border: 1px solid var(--line-hi);
+    border-radius: 4px;
+    box-shadow: 0 1px 0 var(--line-hi);
+    white-space: nowrap;
+  }
+
+  .spec > .fig { grid-column: 1 / -1; margin-top: 28px; }
+
+  /* ---------- Gallery ---------- */
+
+  .gallery {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 40px 28px;
+    margin-top: 12px;
+  }
+
+  /* One frame for every shot, so captions in a row share a baseline even
+     when the screenshots do not share a shape. */
+  .gallery .fig a { aspect-ratio: 1600 / 1574; }
+  .gallery .fig img { width: 100%; height: 100%; object-fit: contain; object-position: center top; }
+  .gallery .fig figcaption { display: block; }
+  .gallery.gallery-7 { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .gallery-7 > .fig { grid-column: span 3; }
+  .gallery .fig figcaption b { display: block; margin-bottom: 2px; }
+
+  /* ---------- Footer ---------- */
 
   footer {
-    margin-top: 62px;
-    text-align: center;
-    font-size: 13.5px;
+    margin-top: clamp(80px, 11vw, 132px);
+    padding: 20px 0 48px;
+    border-top: 2px solid var(--ink);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 12px 32px;
+    font-size: 15px;
     color: var(--muted);
   }
-
-  a { color: var(--green-lift); }
-  footer a { color: var(--muted); text-decoration-color: #3a5748; }
+  footer p { margin: 0; }
+  footer a { color: var(--ink-2); text-decoration-color: var(--line-hi); }
   footer a:hover { color: var(--ink); }
+
+  /* ---------- Narrower screens ---------- */
+
+  @media (max-width: 1020px) {
+    .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .gallery-7 > .fig, .gallery-7 > .fig:nth-child(n+4) { grid-column: span 6; }
+  }
+
+  @media (max-width: 900px) {
+    .top {
+      grid-template-columns: minmax(0, 1fr);
+      min-height: 0;
+      gap: 48px;
+    }
+    .spec, .feature, .feature.flip, .feature.secure, .feature-more { grid-template-columns: minmax(0, 1fr); }
+    .feature.flip .feature-shot { order: 0; }
+    .spec-intro p { max-width: 52ch; }
+  }
+
+  @media (max-width: 600px) {
+    .icon { width: 76px; height: 76px; margin-bottom: 22px; }
+    .gallery { grid-template-columns: minmax(0, 1fr); }
+    .cards li, .cards li.lead, .cards .lead.wide, .cards li:last-child { grid-column: span 12; }
+    .cards .wide a { flex-direction: column; padding-bottom: 22px; }
+    .cards .wide .body { padding-bottom: 0; }
+    .cards .wide .thumb { flex: none; aspect-ratio: 16 / 9; min-height: 0; border-right: 0; border-bottom: 1px solid var(--ink); }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .gallery-7 > .fig, .gallery-7 > .fig:nth-child(n+4) { grid-column: 1 / -1; }
+    .rows > div, .feature .rows > div, .feature-more .rows > div { grid-template-columns: minmax(0, 1fr); }
+    .bench thead {
+      position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip-path: inset(50%); white-space: nowrap;
+    }
+    .bench tbody tr:not(.group) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: "label res" "bars bars";
+      column-gap: 12px;
+      padding: 10px 0 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .bench tbody tr:not(.group) > * { border-bottom: 0; padding: 0; }
+    .bench tbody th[scope="row"] { grid-area: label; width: auto; font-size: 15.5px; }
+    .bench tbody th[scope="row"] small { display: inline; margin-left: 6px; }
+    .bench td.res { grid-area: res; width: auto; font-size: 14px; align-self: start; }
+    .bench td.bars { grid-area: bars; padding: 8px 0 0; }
+    .bar-row { grid-template-columns: 3.9em minmax(0, 1fr) 5.6em; gap: 8px; }
+    .fig figcaption { display: block; }
+    .fig figcaption b { display: block; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn { transition: none; }
+  }
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <img class="icon" src="/icon.png" alt="" width="132" height="132">
-    <h1>Moo Terminal</h1>
-    <p class="tagline">
-      A native, open-source macOS terminal with <strong>Ghostty-class speed</strong> and the
-      workspace features that make <strong>cmux</strong> good for running agents.
-    </p>
+<div class="sheet">
+  <header class="top">
+    <div class="intro">
+      <img class="icon" src="/icon.png" alt="" width="96" height="96">
+      <h1>Moo Terminal</h1>
+      <p class="pitch">
+        A native, open-source macOS terminal with <strong>advanced, modern features</strong>:
+        a built-in <strong>Markdown viewer</strong>, <strong>browser tabs</strong>, and workspaces
+        that tell you which agent needs you. Measured faster than Ghostty.
+      </p>
 
-    <div class="actions">
-      <a class="btn btn-primary" href="/Moo.dmg">
-        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a.75.75 0 0 1 .75.75v7.19l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 0 1 1.06-1.06l2.22 2.22V1.75A.75.75 0 0 1 8 1ZM2.75 12a.75.75 0 0 1 .75.75v.75h9v-.75a.75.75 0 0 1 1.5 0v1.5a.75.75 0 0 1-.75.75h-10.5a.75.75 0 0 1-.75-.75v-1.5a.75.75 0 0 1 .75-.75Z"/></svg>
-        Download for macOS
-      </a>
-      <a class="btn btn-ghost" href="https://github.com/ventz/moo-mac-terminal">
-        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.81.06 1.24.83 1.24.83.72 1.23 1.88.87 2.34.67.07-.52.28-.88.51-1.08-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
-        View on GitHub
-      </a>
+      <div class="actions">
+        <a class="btn btn-primary" href="/Moo.dmg">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a.75.75 0 0 1 .75.75v7.19l2.22-2.22a.75.75 0 1 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 0 1 1.06-1.06l2.22 2.22V1.75A.75.75 0 0 1 8 1ZM2.75 12a.75.75 0 0 1 .75.75v.75h9v-.75a.75.75 0 0 1 1.5 0v1.5a.75.75 0 0 1-.75.75h-10.5a.75.75 0 0 1-.75-.75v-1.5a.75.75 0 0 1 .75-.75Z"/></svg>
+          Download for macOS
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/ventz/moo-mac-terminal">
+          <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.05-.49.05-.49.81.06 1.24.83 1.24.83.72 1.23 1.88.87 2.34.67.07-.52.28-.88.51-1.08-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+
+      <p class="meta" id="release">
+        Universal (Apple&nbsp;silicon&nbsp;&amp;&nbsp;Intel)&nbsp;&middot; signed and notarized
+      </p>
+
+      <figure class="fig intro-shot">
+        <a href="/screenshots/moo-splash-gh.png">
+          <img src="/screenshots/moo-splash-gh.webp" alt="figlet &quot;Moo Mac Terminal&quot; piped through lolcat in a Moo window" width="1600" height="866">
+        </a>
+        <figcaption><b>Splash</b> figlet &ldquo;Moo Mac Terminal&rdquo; piped through lolcat, in a Moo window.</figcaption>
+      </figure>
     </div>
 
-    <p class="meta" id="release">
-      Universal (Apple silicon &amp; Intel) &middot; signed and notarized
-    </p>
+    <section class="bench-wrap" aria-labelledby="bench-title">
+      <div class="bench-head">
+        <h2 class="bench-title" id="bench-title">Measured against Ghostty 1.3.1</h2>
+        <p class="dir">Shorter bar is faster</p>
+      </div>
+      <table class="bench">
+        <thead>
+          <tr>
+            <th scope="col">Workload</th>
+            <th scope="col">Time</th>
+            <th scope="col" style="text-align:right">Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="group"><th colspan="3" scope="rowgroup">Output through a pty</th></tr>
+          <tr>
+            <th scope="row">Plain text <small>100 MB</small></th>
+            <td class="bars"><div class="pair">
+              <span class="bar-row moo"><span class="who">Moo</span><span class="bar" style="--w:.302"></span><span class="v">0.36 s</span></span>
+              <span class="bar-row"><span class="who">Ghostty</span><span class="bar" style="--w:1"></span><span class="v">1.21 s</span></span>
+            </div></td>
+            <td class="res">3.3&times; faster</td>
+          </tr>
+          <tr>
+            <th scope="row">256-color text <small>60 MB</small></th>
+            <td class="bars"><div class="pair">
+              <span class="bar-row moo"><span class="who">Moo</span><span class="bar" style="--w:.661"></span><span class="v">0.47 s</span></span>
+              <span class="bar-row"><span class="who">Ghostty</span><span class="bar" style="--w:1"></span><span class="v">0.70 s</span></span>
+            </div></td>
+            <td class="res">1.5&times; faster</td>
+          </tr>
+          <tr>
+            <th scope="row">CJK and emoji <small>40 MB</small></th>
+            <td class="bars"><div class="pair">
+              <span class="bar-row moo"><span class="who">Moo</span><span class="bar" style="--w:.556"></span><span class="v">0.19 s</span></span>
+              <span class="bar-row"><span class="who">Ghostty</span><span class="bar" style="--w:1"></span><span class="v">0.34 s</span></span>
+            </div></td>
+            <td class="res">1.8&times; faster</td>
+          </tr>
+          <tr>
+            <th scope="row">Full-screen redraws <small>5,000</small></th>
+            <td class="bars"><div class="pair">
+              <span class="bar-row moo"><span class="who">Moo</span><span class="bar" style="--w:.248"></span><span class="v">0.03 s</span></span>
+              <span class="bar-row"><span class="who">Ghostty</span><span class="bar" style="--w:1"></span><span class="v">0.13 s</span></span>
+            </div></td>
+            <td class="res">4.0&times; faster</td>
+          </tr>
+          <tr class="group"><th colspan="3" scope="rowgroup">Keystroke to screen</th></tr>
+          <tr>
+            <th scope="row">Median <small>p50</small></th>
+            <td class="bars"><div class="pair">
+              <span class="bar-row moo"><span class="who">Moo</span><span class="bar" style="--w:.610"></span><span class="v">22.7 ms</span></span>
+              <span class="bar-row"><span class="who">Ghostty</span><span class="bar" style="--w:1"></span><span class="v">37&ndash;40 ms</span></span>
+            </div></td>
+            <td class="res">~15 ms sooner</td>
+          </tr>
+          <tr>
+            <th scope="row">Slowest 1% <small>p99</small></th>
+            <td class="bars"><div class="pair">
+              <span class="bar-row moo"><span class="who">Moo</span><span class="bar" style="--w:.803"></span><span class="v">34&ndash;38 ms</span></span>
+              <span class="bar-row"><span class="who">Ghostty</span><span class="bar" style="--w:1"></span><span class="v">48 ms</span></span>
+            </div></td>
+            <td class="res">~12 ms sooner</td>
+          </tr>
+          <tr class="group"><th colspan="3" scope="rowgroup">Sitting idle</th></tr>
+          <tr>
+            <th scope="row">CPU per minute <small>blinking cursor</small></th>
+            <td class="bars"><div class="pair">
+              <span class="bar-row moo"><span class="who">Moo</span><span class="bar" style="--w:1"></span><span class="v">0.54 s</span></span>
+              <span class="bar-row"><span class="who">Ghostty</span><span class="bar" style="--w:.018"></span><span class="v">&lt; 0.01 s</span></span>
+            </div></td>
+            <td class="res other">Ghostty lower</td>
+          </tr>
+        </tbody>
+      </table>
+      <ul class="stats">
+        <li><span class="n">3.3&times;</span><span class="l">plain text throughput</span></li>
+        <li><span class="n">1.5&times;</span><span class="l">256-color output</span></li>
+        <li><span class="n">4.0&times;</span><span class="l">full-screen redraw</span></li>
+        <li><span class="n">22.7&nbsp;ms</span><span class="l">keystroke to screen (p50)</span></li>
+      </ul>
+      <p class="bench-note">
+        Moo 0.1.9 on an M3 MacBook Pro, 120&nbsp;Hz display, 2026-10-03. Medians of
+        alternating rounds; latency is timed to the first frame that shows the key.
+        <a href="https://github.com/ventz/moo-mac-terminal/blob/main/docs/PERFORMANCE.md">Method and caveats</a>
+      </p>
+    </section>
   </header>
 
-  <figure class="hero shot">
-    <a href="/screenshots/moo-splash.png">
-      <img src="/screenshots/moo-splash.webp" alt="figlet &quot;Moo Mac Terminal&quot; piped through lolcat in a Moo window" width="1600" height="898">
-    </a>
-  </figure>
+  <main>
+    <section class="glance" aria-labelledby="glance-title">
+      <h2 id="glance-title">What it does</h2>
+      <ul class="cards">
+        <li class="lead"><a href="#markdown">
+          <span class="thumb"><img src="/screenshots/moo-markdown.webp" alt="" loading="lazy" width="1600" height="1574"></span>
+          <b>Markdown viewer</b>
+          <span class="desc">&#8984;-click any <code>.md</code> file to read it rendered, beside the shell that printed it. Diagrams, links and live reload included.</span>
+          <em class="more">See how it works <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"/></svg></em></a></li>
+        <li class="lead"><a href="#browser">
+          <span class="thumb"><img src="/screenshots/moo-browser.webp" alt="" loading="lazy" width="1600" height="1574"></span>
+          <b>Browser tabs with ad blocking</b>
+          <span class="desc">&#8984;-click a link and the page opens in a tab next to your terminal. Ads and trackers are blocked, built in.</span>
+          <em class="more">See how it works <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"/></svg></em></a></li>
+        <li class="lead"><a href="#attention">
+          <span class="thumb"><img src="/screenshots/moo-herdr-gh.webp" alt="" loading="lazy" width="1600" height="1113"></span>
+          <b>Knows which terminal or agent needs you</b>
+          <span class="desc">When an agent stops to ask, its tab, workspace, the menu bar and the Dock say so. One click takes you there, herdr agents included.</span>
+          <em class="more">See how it works <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"/></svg></em></a></li>
+        <li class="lead wide"><a href="#workspaces">
+          <span class="thumb"><img src="/screenshots/moo-projects-terminal.webp" alt="" loading="lazy" width="1600" height="1574"></span>
+          <span class="body"><b>Workspaces, tabs and splits</b>
+          <span class="desc">Projects down the side, each with its own tabs and splits. &#8984;K reaches every command, and it all reopens on launch.</span>
+          <em class="more">See how it works <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"/></svg></em></span></a></li>
+        <li class="lead wide"><a href="#native">
+          <span class="thumb"><img src="/screenshots/moo-settings-appearance.webp" alt="" loading="lazy" width="1600" height="1588"></span>
+          <span class="body"><b>Native and secure</b>
+          <span class="desc">SwiftUI and AppKit, drawn with Metal. Secure by default: output is treated as untrusted, so your clipboard and passwords stay yours.</span>
+          <em class="more">See how it works <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"/></svg></em></span></a></li>
+      </ul>
+    </section>
 
-  <figure class="hero shot">
-    <p class="shot-label">Terminal</p>
-    <a href="/screenshots/moo-hero.png">
-      <img src="/screenshots/moo-hero.webp" alt="A Moo window with the workspaces sidebar, a terminal, and Markdown and browser tabs" width="1600" height="935">
-    </a>
-    <figcaption>Fast, native, and out of the way: workspaces down the side, tabs across the top.</figcaption>
-  </figure>
-
-  <figure class="hero shot after-caption">
-    <p class="shot-label">herdr agents</p>
-    <a href="/screenshots/moo-herdr.png">
-      <img src="/screenshots/moo-herdr.webp" alt="Claude Code running inside herdr in a Moo window, with herdr's spaces and agents panels" loading="lazy" width="1600" height="1115">
-    </a>
-    <figcaption>Run agents in herdr inside a Moo tab; Moo tracks each one and tells you when it needs you.</figcaption>
-  </figure>
-
-  <hr class="rule">
-
-  <h2>What it does</h2>
-  <ul class="features">
-    <li>
-      <b>Workspaces</b>
-      <span>A sidebar groups terminals into projects, each with its own tabs. Switching swaps the whole working set; the shells left behind keep running.</span>
-    </li>
-    <li>
-      <b>Waiting for you</b>
-      <span>When an agent asks for input, its tab, its workspace, the menu bar bell and the Dock say so. Click to land in that exact split.</span>
-    </li>
-    <li>
-      <b>Command status</b>
-      <span>A tab whose last command failed gets a red mark, and a long command finishing out of sight tells you it is done.</span>
-    </li>
-    <li>
-      <b>Command palette</b>
-      <span>&#8984;K lists every menu command plus the links, paths, commit hashes and IP addresses on screen.</span>
-    </li>
-    <li>
-      <b>More than shells</b>
-      <span>Markdown files open as rendered tabs and web pages as browser tabs with ad blocking, next to the terminal that printed them.</span>
-    </li>
-    <li>
-      <b>Safe by default</b>
-      <span>Secure Keyboard Entry turns on by itself at password prompts, and links that would run something are revealed in Finder instead.</span>
-    </li>
-  </ul>
-
-  <div class="speed">
-    <div><span class="n">3.4&times;</span><span class="l">plain text throughput</span></div>
-    <div><span class="n">2.5&times;</span><span class="l">256-color output</span></div>
-    <div><span class="n">5&times;</span><span class="l">full-screen redraw</span></div>
-    <div><span class="n">21 ms</span><span class="l">keystroke to screen (p50)</span></div>
-  </div>
-  <p class="note">Measured against Ghostty 1.3.1 on an M3 at 120 Hz.</p>
-
-  <hr class="rule">
-
-  <h2>A look around</h2>
-  <div class="gallery">
-    <figure class="shot">
-      <p class="shot-label">Markdown preview</p>
-      <a href="/screenshots/moo-markdown.png"><img src="/screenshots/moo-markdown.webp" alt="A rendered Markdown tab" loading="lazy" width="1600" height="1574"></a>
-      <figcaption>Markdown files open rendered, in a tab beside the shell.</figcaption>
-    </figure>
-    <figure class="shot">
-      <p class="shot-label">Browser tabs</p>
-      <a href="/screenshots/moo-browser.png"><img src="/screenshots/moo-browser.webp" alt="A web page open in a browser tab" loading="lazy" width="1600" height="1574"></a>
-      <figcaption>Web pages open as browser tabs, with ad blocking.</figcaption>
-    </figure>
-    <figure class="shot">
-      <p class="shot-label">Workspaces (Projects)</p>
-      <a href="/screenshots/moo-projects-terminal.png"><img src="/screenshots/moo-projects-terminal.webp" alt="Terminal with the projects sidebar" loading="lazy" width="1600" height="1574"></a>
-      <figcaption>Workspaces in the sidebar, each with its own tabs and status.</figcaption>
-    </figure>
-    <figure class="shot">
-      <p class="shot-label">Themes</p>
-      <a href="/screenshots/moo-settings-themes.png"><img src="/screenshots/moo-settings-themes.webp" alt="The theme picker" loading="lazy" width="1600" height="1588"></a>
-      <figcaption>Over 140 bundled themes, browsable as a list or in 2D and 3D.</figcaption>
-    </figure>
-    <figure class="shot">
-      <p class="shot-label">Appearance</p>
-      <a href="/screenshots/moo-settings-appearance.png"><img src="/screenshots/moo-settings-appearance.webp" alt="Appearance settings" loading="lazy" width="1600" height="1588"></a>
-      <figcaption>Fonts, cursor, opacity and colors, set per profile.</figcaption>
-    </figure>
-    <figure class="shot">
-      <p class="shot-label">Project settings</p>
-      <a href="/screenshots/moo-settings.png"><img src="/screenshots/moo-settings.webp" alt="Projects settings" loading="lazy" width="1600" height="1588"></a>
-      <figcaption>Choose what each project row shows, and reopen everything on launch.</figcaption>
-    </figure>
-    <div class="shot-row">
-      <figure class="shot">
-        <p class="shot-label">Notifications</p>
-        <a href="/screenshots/moo-settings-notifications.png"><img src="/screenshots/moo-settings-notifications.webp" alt="Notifications settings" loading="lazy" width="1600" height="1588"></a>
-        <figcaption>Banners, Dock badge, bounce, sound or speech when a program is waiting for you.</figcaption>
+    <section class="spec" aria-labelledby="workspaces">
+      <div class="spec-intro">
+        <h2 id="workspaces">Workspaces, tabs and splits</h2>
+        <p>Terminals live in projects down the side, each with its own tabs. Switching swaps the whole working set; the shells left behind keep running.</p>
+      </div>
+      <dl class="rows">
+        <div><dt>Workspaces</dt><dd>A sidebar groups terminals into projects and shows which are <b>busy</b>, <b>finished</b> or <b>waiting for you</b>.</dd></div>
+        <div><dt>Splits and zoom</dt><dd>Split any tab, then zoom one pane to fill it with <kbd>&#8679;&#8984;&#8617;</kbd>.</dd></div>
+        <div><dt>Command palette</dt><dd><kbd>&#8984;K</kbd> lists every menu command plus the links, paths, commit hashes and IP addresses on screen.</dd></div>
+        <div><dt>Comes back as you left it</dt><dd>Workspaces, tabs, splits and directories reopen on the next launch.</dd></div>
+      </dl>
+      <figure class="fig">
+        <a href="/screenshots/moo-hero-gh.png">
+          <img src="/screenshots/moo-hero-gh.webp" alt="A Moo window with the workspaces sidebar, a terminal, and Markdown and browser tabs" loading="lazy" width="1600" height="904">
+        </a>
+        <figcaption><b>Terminal</b> Fast, native, and out of the way: workspaces down the side, tabs across the top.</figcaption>
       </figure>
-        <figure class="shot">
-        <p class="shot-label">herdr notifications</p>
-        <a href="/screenshots/moo-herdr-notifications.png"><img src="/screenshots/moo-herdr-notifications.webp" alt="The menu bar notifications list with &quot;herdr: claude needs you&quot; entries" loading="lazy" width="748" height="838"></a>
-        <figcaption>herdr agents that need you land in the menu bar list, labeled as detected by herdr.</figcaption>
+    </section>
+
+    <section class="feature" aria-labelledby="markdown">
+      <figure class="fig feature-shot">
+        <a href="/screenshots/moo-markdown.png"><img src="/screenshots/moo-markdown.webp" alt="A rendered Markdown tab beside a terminal tab in a Moo window" loading="lazy" width="1600" height="1574"></a>
       </figure>
-      <figure class="shot">
-        <p class="shot-label">Multiple agents</p>
-        <a href="/screenshots/moo-herdr-multiple-agents.png"><img src="/screenshots/moo-herdr-multiple-agents.webp" alt="Two Claude Code agents in herdr tabs, listed in herdr's agents panel" loading="lazy" width="1600" height="1575"></a>
-        <figcaption>Each herdr agent is tracked on its own, so one answer never hides another.</figcaption>
+      <div class="feature-text">
+        <h2 id="markdown">A Markdown viewer in every tab</h2>
+        <p class="feature-lead">&#8984;-click a <code>README.md</code> in <code>ls</code> output and it opens rendered, GitHub-style, in a tab next to the shell that printed it.</p>
+        <dl class="rows">
+          <div><dt>Live</dt><dd>Reloads as the file changes, so a plan or a README an agent is writing updates while you read it.</dd></div>
+          <div><dt>Diagrams</dt><dd>Mermaid diagrams are drawn in place.</dd></div>
+          <div><dt>Linked files</dt><dd>Links to other Markdown files open in new tabs, and <span class="nw"><kbd>&#8984;[</kbd> <kbd>&#8984;]</kbd></span> go back and forward.</dd></div>
+          <div><dt>Any file</dt><dd><kbd>&#8679;&#8984;M</kbd> opens one from disk. Light by default, or matched to your terminal theme.</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="feature flip" aria-labelledby="browser">
+      <figure class="fig feature-shot">
+        <a href="/screenshots/moo-browser.png"><img src="/screenshots/moo-browser.webp" alt="A web page open in a Moo browser tab" loading="lazy" width="1600" height="1574"></a>
       </figure>
-    </div>
-  </div>
+      <div class="feature-text">
+        <h2 id="browser">Browser tabs, with ad blocking built in</h2>
+        <p class="feature-lead">&#8984;-click a link in terminal output and the page opens in a Moo tab, in the same window and workspace, instead of sending you off to another app. <strong>Ads and trackers are blocked from the first page</strong>, with nothing to install.</p>
+        <dl class="rows">
+          <div><dt>Ad blocking</dt><dd>Built in and on by default: EasyList and AdGuard's base and tracking-protection lists, applied through WebKit's own content blocker. One switch in Settings &rsaquo; Links &amp; Markdown turns it off.</dd></div>
+          <div><dt>A real browser</dt><dd><kbd>&#8679;&#8984;B</kbd> new tab, <kbd>&#8984;L</kbd> location, <kbd>&#8984;F</kbd> find, <span class="nw"><kbd>&#8984;[</kbd> <kbd>&#8984;]</kbd></span> back and forward, <kbd>&#8984;+</kbd> zoom.</dd></div>
+          <div><dt>Sandboxed</dt><dd>Pages run sandboxed and are treated as hostile.</dd></div>
+          <div><dt>Your choice</dt><dd><kbd>&#8997;&#8984;</kbd>-click opens the default browser instead.</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="feature" aria-labelledby="attention">
+      <figure class="fig feature-shot">
+        <a href="/screenshots/moo-herdr-gh.png">
+          <img src="/screenshots/moo-herdr-gh.webp" alt="Claude Code running inside herdr in a Moo window, with herdr's spaces and agents panels" loading="lazy" width="1600" height="1113">
+        </a>
+      </figure>
+      <div class="feature-text">
+        <h2 id="attention">Knows which terminal or agent needs you</h2>
+        <p class="feature-lead">Run a dozen agents across your projects and keep working. When one stops to ask, Moo says which one and where, and one click takes you to it.</p>
+        <dl class="rows">
+          <div><dt>Waiting for you</dt><dd>When an agent or any program asks for you (OSC 9, 777 or 99), its tab, its workspace, the menu bar bell and the Dock say so.</dd></div>
+          <div><dt>Straight to it</dt><dd>Click an entry in the bell or in Window &rsaquo; Notifications (<kbd>&#8679;&#8984;U</kbd>) and Moo opens the window, workspace, tab and split it came from.</dd></div>
+          <div><dt>Claude Code</dt><dd>Set Notifications to <code>ghostty</code> in Claude Code's <code>/config</code> and its requests land in Moo too.</dd></div>
+        </dl>
+      </div>
+      <div class="feature-more">
+        <dl class="rows">
+          <div><dt>herdr agents</dt><dd>Turn on Settings &rsaquo; Notifications &rsaquo; herdr, and every agent running in <a href="https://github.com/herdrdev/herdr">herdr</a> inside a Moo tab shows up under its project in the sidebar, with its own status.</dd></div>
+          <div><dt>One entry per agent</dt><dd>Each agent is tracked on its own, so answering one never hides another's &ldquo;needs you&rdquo;. Entries are labeled as detected by herdr.</dd></div>
+          <div><dt>Read-only</dt><dd>Moo only reads herdr's status and focuses its panes. It never types into them.</dd></div>
+          <div><dt>Command status</dt><dd>A tab whose last command failed gets a red mark, and a long command finishing out of sight tells you it is done.</dd></div>
+          <div><dt>Your choice of alert</dt><dd>Banners, a Dock badge, a bounce, a sound or spoken words, each one optional. The list is always there.</dd></div>
+        </dl>
+        <div class="feature-figs">
+          <figure class="fig">
+          <a href="/screenshots/moo-herdr-multiple-agents.png"><img src="/screenshots/moo-herdr-multiple-agents.webp" alt="Two Claude Code agents in herdr tabs, listed in herdr's agents panel" loading="lazy" width="1600" height="1113"></a>
+          <figcaption><b>Multiple agents</b> Each herdr agent is tracked on its own, so one answer never hides another.</figcaption>
+          </figure>
+          <figure class="fig plate">
+          <a href="/screenshots/moo-herdr-notifications.png"><img src="/screenshots/moo-herdr-notifications.webp" alt="The menu bar notifications list with &quot;herdr: claude needs you&quot; entries" loading="lazy" width="748" height="838"></a>
+          <figcaption><b>herdr notifications</b> herdr agents that need you land in the menu bar list, labeled as detected by herdr.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+
+
+    <section class="feature secure" aria-labelledby="native">
+      <div class="feature-text">
+        <h2 id="native">Secure by default</h2>
+        <p class="feature-lead">A terminal shows whatever a program, a downloaded file or a remote host prints, and that text can try to read your clipboard, fake a prompt or launch something. Moo treats all of it as untrusted, so the safe choice is the one you get without changing a setting.</p>
+        <dl class="rows">
+          <div><dt>Security-reviewed</dt><dd>Features that touch the clipboard, links, shared files or other processes go through a dedicated security review before they ship, and the fixes are pinned by tests. The clipboard protection below came out of one of those reviews.</dd></div>
+          <div><dt>Native</dt><dd>SwiftUI and AppKit on <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a>, drawn with Metal. Universal, signed and notarized.</dd></div>
+          <div><dt>Signed updates</dt><dd>Updates arrive through a signed feed, and each one is verified before it is installed.</dd></div>
+        </dl>
+      </div>
+      <div class="secure-main">
+      <ul class="highlights">
+        <li><b>Clipboard</b><span>Reads refused, writes asked</span></li>
+        <li><b>Passwords</b><span>Secure Keyboard Entry at password prompts</span></li>
+        <li><b>Links</b><span>Nothing runs from a click</span></li>
+        <li><b>Updates</b><span>Signed, notarized, verified</span></li>
+      </ul>
+      <dl class="rows">
+        <div><dt>Clipboard</dt><dd>Programs cannot read your clipboard, so a <code>cat</code> of a crafted file or a remote host cannot pull back a password you just pasted. Before a program writes to it, Moo asks, naming the pane and showing the text.</dd></div>
+        <div><dt>Secure Keyboard Entry</dt><dd>Turns on by itself at a password prompt, so other apps cannot watch what you type there, and off again when the prompt is gone.</dd></div>
+        <div><dt>Links</dt><dd>Web and mail links open directly; other kinds ask first. A link to anything that would run, such as an app or a script, is revealed in Finder, never launched.</dd></div>
+        <div><dt>Clean titles</dt><dd>Window titles, directories and names a program sets are cleaned of control and direction-changing characters, so output cannot write its own lines into a Moo dialog.</dd></div>
+        <div><dt>Shared profiles</dt><dd>Importing a <code>.mooprofile</code> keeps only its appearance unless you choose otherwise, after listing any shell, environment variables and key mappings it carries. It can never turn off a security setting.</dd></div>
+        <div><dt>Contained tabs</dt><dd>Markdown previews are hardened against hostile files, and browser tabs run sandboxed.</dd></div>
+      </dl>
+      </div>
+    </section>
+
+    <section class="spec" aria-labelledby="look">
+      <div class="spec-intro">
+        <h2 id="look">A look around</h2>
+      </div>
+      <div class="gallery gallery-7">
+        <figure class="fig">
+          <a href="/screenshots/moo-settings-themes.png"><img src="/screenshots/moo-settings-themes.webp" alt="The theme picker" loading="lazy" width="1600" height="1588"></a>
+          <figcaption><b>Themes</b> Over 140 bundled themes, browsable as a list or in 2D and 3D.</figcaption>
+        </figure>
+        <figure class="fig">
+          <a href="/screenshots/moo-settings-appearance.png"><img src="/screenshots/moo-settings-appearance.webp" alt="Appearance settings" loading="lazy" width="1600" height="1588"></a>
+          <figcaption><b>Appearance</b> Fonts, cursor, opacity and colors, set per profile.</figcaption>
+        </figure>
+        <figure class="fig">
+          <a href="/screenshots/moo-settings.png"><img src="/screenshots/moo-settings.webp" alt="Projects settings" loading="lazy" width="1600" height="1588"></a>
+          <figcaption><b>Project settings</b> Choose what each project row shows, and reopen everything on launch.</figcaption>
+        </figure>
+        <figure class="fig">
+          <a href="/screenshots/moo-settings-notifications.png"><img src="/screenshots/moo-settings-notifications.webp" alt="Notifications settings" loading="lazy" width="1600" height="1588"></a>
+          <figcaption><b>Notifications</b> Banners, Dock badge, bounce, sound or speech when a program is waiting for you.</figcaption>
+        </figure>
+      </div>
+    </section>
+  </main>
 
   <footer>
-    Built on <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a>,
-    forked from <a href="https://github.com/migueldeicaza/Tecolot">Tecolot</a> by Miguel de Icaza.<br>
-    MIT licensed &middot; &copy; Ventz Petkov
+    <p>
+      Built on <a href="https://github.com/migueldeicaza/SwiftTerm">SwiftTerm</a>,
+      forked from <a href="https://github.com/migueldeicaza/Tecolot">Tecolot</a> by Miguel de Icaza.
+    </p>
+    <p>MIT licensed &middot; &copy; Ventz Petkov</p>
   </footer>
-</main>
+</div>
 <script>
   // The version comes from the live Sparkle feed, so the page never needs
   // editing for a release. Without it, the line simply omits the version.
@@ -447,12 +998,24 @@
       const version = field("shortVersionString");
       if (!version) return;
       const minimum = field("minimumSystemVersion");
-      const parts = ["Version " + version, "universal (Apple silicon &amp; Intel)"];
-      if (minimum) parts.push("macOS " + minimum.replace(/\.0$/, "") + "+");
+      const parts = ["Version " + version, "universal (Apple&nbsp;silicon&nbsp;&amp;&nbsp;Intel)"];
+      if (minimum) parts.push("macOS&nbsp;" + minimum.replace(/\.0$/, "") + "+");
       parts.push("signed and notarized");
-      document.getElementById("release").innerHTML = parts.join(" &middot; ");
+      document.getElementById("release").innerHTML = parts.join("&nbsp;&middot; ");
     })
     .catch(() => {});
+
+  // The bars are drawn at their measured lengths by CSS. Where motion is
+  // welcome, they grow into those lengths once, row by row; if this never
+  // runs, nothing is hidden.
+  if (matchMedia("(prefers-reduced-motion: no-preference)").matches && Element.prototype.animate) {
+    document.querySelectorAll(".bench .bar").forEach((bar, i) => {
+      bar.animate(
+        [{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }],
+        { duration: 900, delay: 120 + i * 45, easing: "cubic-bezier(.16, 1, .3, 1)", fill: "backwards" }
+      );
+    });
+  }
 </script>
 </body>
 </html>
