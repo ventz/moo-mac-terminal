@@ -476,9 +476,16 @@
     align-items: start;
   }
   .feature-more > .rows { grid-column: 1 / -1; }
+  .feature-more .rows dd { max-width: 36em; }
   .feature-more .rows > div { grid-template-columns: minmax(0, 9em) minmax(0, 1fr); }
   .feature-figs figcaption, .feature-figs figcaption b { display: block; }
   .fig.plate a { padding: 22px; background: #1d1f1d; border-radius: 4px; }
+  /* Both frames share one height (column widths 1.45 : 1), so the two
+     captions start on the same line whatever shape each screenshot has. */
+  .feature-figs .fig > a { display: flex; align-items: center; justify-content: center; }
+  .feature-figs .fig:first-child > a { aspect-ratio: 1.45 / 1.1; }
+  .feature-figs .fig.plate > a { aspect-ratio: 1 / 1.1; }
+  .feature-figs .fig > a img { width: 100%; height: 100%; object-fit: contain; }
   .feature-figs {
     grid-column: 1 / -1;
     display: grid;
@@ -652,6 +659,7 @@
     .cards .wide .thumb { flex: none; aspect-ratio: 16 / 9; min-height: 0; border-right: 0; border-bottom: 1px solid var(--ink); }
     .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .gallery-7 > .fig, .gallery-7 > .fig:nth-child(n+4) { grid-column: 1 / -1; }
+    .feature-figs { grid-template-columns: minmax(0, 1fr); }
     .rows > div, .feature .rows > div, .feature-more .rows > div { grid-template-columns: minmax(0, 1fr); }
     .bench thead {
       position: absolute; width: 1px; height: 1px; overflow: hidden;
