@@ -239,6 +239,6 @@ believing a hotspot.
   it prints `window_not_visible` and records nothing.
 - **Ghostty ignores `HOME` passed through `open`**; pass its settings as
   `--key=value` arguments.
-- **SwiftTerm's test suite already fails Kitty shared-memory tests**
-  (`testKittySharedMemoryLoad`, `testSharedMemoryLoadUnlinksSource`) in this
-  environment; a change is clean if it fails only those.
+- **SwiftTerm's Kitty shared-memory tests** (`testKittySharedMemoryLoad`,
+  `testSharedMemoryLoadUnlinksSource`) once failed in this environment; they
+  pass as of 2026-10-05, so treat a failure there as real.

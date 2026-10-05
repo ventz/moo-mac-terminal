@@ -35,7 +35,7 @@
 
 Moo is my personal terminal setup: the one I use all day, tuned to how I work.
 I share it in case it is useful to someone else, but its defaults, shortcuts
-and features follow my workflow, and there is no promise of support.
+and features follow my workflow.
 
 It aims for two things at once:
 
@@ -177,17 +177,28 @@ and rejected, and the traps in measuring terminals are in
 - **Command palette.** ⌘K lists every menu command plus the links, paths,
   commit hashes and IP addresses on screen. Return runs or copies; ⌘Return
   opens.
-- **Tabs beyond shells.** Markdown files open as rendered, GitHub-style tabs;
-  web pages open as browser tabs with ad blocking, next to the terminal that
-  printed them.
+- **Tabs beyond shells.** Markdown files open as rendered, GitHub-style tabs
+  with Back and Forward through the links you follow; web pages open as
+  browser tabs with ad blocking, next to the terminal that printed them.
 - **Splits and zoom.** Split with ⌘D and ⇧⌘D; ⇧⌘↩ zooms one pane to fill the
   tab and back, keeping the dividers where you left them. Right-click a pane
-  for its split, zoom, theme, reset and font commands.
+  for its split, zoom, theme, clear, reset and font commands.
 - **Open from Finder.** Right-click a folder or file, then Services → New Moo
   Tab Here, New Moo Window Here or New Moo Workspace Here.
+- **Settings you can find.** Settings are grouped into app-wide pages and
+  per-profile pages, every setting is searchable and highlighted when you pick
+  it, and each page has a help button into [docs/SETTINGS.md](docs/SETTINGS.md).
+- **Profiles that travel.** Export a profile with its theme and your app
+  settings, and import someone else's. Imports keep only the appearance unless
+  you choose otherwise, after Moo lists any shell, environment variables or key
+  mappings the file would bring.
+- **Updates on your terms.** Moo updates itself from its own signed feed. Let
+  it open the update window, just mark the title bar with a purple dot, or
+  never check.
 - **Safe by default.** Secure Keyboard Entry turns on by itself at password
   prompts. Links in terminal output open only the web and mail without asking,
-  and files that would run are revealed in Finder instead. Images that name a
+  and files that would run are revealed in Finder instead. Programs can never
+  read your clipboard, and must ask before writing to it. Images that name a
   local file or shared memory stay off until you allow them (Settings →
   General → Images), which Claude Code plugins such as intermission need.
 
@@ -214,8 +225,18 @@ files in their default app. Anything that would run (apps, scripts) is only
 revealed in the Finder, never launched.
 
 **Markdown and web tabs**: command-click a `.md` path or a link, or use ⇧⌘M and
-the File menu. Previews reload as the file changes and are light by default;
-Settings → Links & Markdown can make them follow the terminal theme.
+the File menu; ⌥⌘-click opens it in the default app instead. Ads and trackers
+are blocked with EasyList and AdGuard's base and tracking-protection lists.
+Previews draw Mermaid diagrams, reload as the file changes and are light by
+default;
+Settings → Links & Markdown can make them follow the terminal theme. A link to
+another Markdown file opens in a new tab (⌘-click opens it in place, or the
+other way round if you change the setting), and ⌘[ / ⌘] go back and forward.
+
+**Keyboard**: holding a letter repeats it, so `j` held in vim scrolls (Settings
+→ General → Keyboard turns macOS's accent picker back on). ⌘1–9 pick projects
+or the current project's tabs. ⇧⌘K clears the screen and scrollback like
+Terminal.app's ⌘K; ⌥⌘K clears only the scrollback.
 
 **Restore** is on by default (Settings → General → Startup). Shells start fresh in each
 pane's last directory; scrollback, commands and environment are never saved.
@@ -225,17 +246,19 @@ pane's last directory; scrollback, commands and environment are never saved.
 | Keys | Action |
 |---|---|
 | ⌘K | Command palette |
-| ⌥⌘K | Clear scrollback |
-| ⌘T / ⌘W | New tab / close pane or tab |
-| ⌘D / ⇧⌘D | Split side by side / stacked |
+| ⇧⌘K &nbsp;&nbsp;/&nbsp;&nbsp; ⌥⌘K | Clear screen and scrollback / clear scrollback only |
+| ⌘1–⌘8 &nbsp;&nbsp;/&nbsp;&nbsp; ⌘9 | Select a project or tab / the last one |
+| ⌘T &nbsp;&nbsp;/&nbsp;&nbsp; ⌘W | New tab / close pane or tab |
+| ⌘D &nbsp;&nbsp;/&nbsp;&nbsp; ⇧⌘D | Split side by side / stacked |
 | ⇧⌘↩ | Zoom pane |
 | ⌥⌘ arrows | Move between splits |
-| ⇧⌘[ / ⇧⌘] | Previous / next tab |
-| ⌘[ / ⌘] | Back / forward in Markdown and browser tabs; previous / next split in a terminal |
-| ⌘↑ / ⌘↓ | Jump to the previous / next prompt |
+| ⇧⌘[ &nbsp;&nbsp;/&nbsp;&nbsp; ⇧⌘] | Previous / next tab |
+| ⌘[ &nbsp;&nbsp;/&nbsp;&nbsp; ⌘] | Back / forward in Markdown and browser tabs; previous / next split in a terminal |
+| ⌘↑ &nbsp;&nbsp;/&nbsp;&nbsp; ⌘↓ | Jump to the previous / next prompt |
 | ⌘B | Show or hide the sidebar |
 | ⇧⌘U | Newest unread notification |
 | ⇧⌘M | Open a Markdown preview |
+| Right-click / ⌃-click | Pane menu |
 
 Every shortcut, grouped by component: [docs/SHORTCUTS.md](docs/SHORTCUTS.md),
 also listed in **Settings → Keyboard → Shortcuts**.
@@ -252,25 +275,34 @@ What Moo adds on top of Tecolot:
 
 - **Workspaces**: projects in a sidebar with live status, their own tabs, and
   selection kept per window, restored with their tabs and splits on relaunch.
-- **Markdown preview tabs**, hardened against hostile files.
+- **Markdown preview tabs**, hardened against hostile files, with Back and
+  Forward through followed links.
 - **Browser tabs** with ad blocking, sandboxed against hostile pages.
 - **Waiting-for-you notifications** from OSC 9, 777 and 99, with a menu bar
   bell, Dock badge, sounds and tab marks.
 - **Failed-command marks and long-command notifications** from OSC 133.
 - **herdr agent status** in the sidebar and notifications, read-only.
 - **A ⌘K command palette** over every menu command and what is on screen.
-- **Pane zoom**, horizontal splits on ⇧⌘D, and new tabs that open where the
-  last one was.
+- **Pane zoom**, horizontal splits on ⇧⌘D, a right-click pane menu, and new
+  tabs that open where the last one was.
+- **Finder services** to open a tab, window or workspace in a folder.
+- **Settings** regrouped by scope (app-wide or per profile), searchable, with
+  a help button on every page and a catalog of every keyboard shortcut.
+- **In-app updates** from Moo's own signed Sparkle feed, with a choice of the
+  update window, a quiet purple dot in the title bar, or no checks.
 - **Engine speed**: SwiftTerm built from a branch carrying an attribute intern
   cache (+26.5% on colored output) and idle process polling cut back.
 - **Security**: automatic Secure Keyboard Entry at password prompts; links from
   output limited to web and mail unless confirmed; files that would run revealed,
   never launched; remote shells' directories never treated as local; clipboard
-  requests naming the pane and defaulting to Deny.
+  reads refused and writes asked first, naming the pane and defaulting to Deny;
+  titles and paths from programs cleaned of control characters; imported
+  profiles reviewed and limited to their appearance by default.
 - **Everyday details**: drop files onto the terminal to insert their paths,
-  command-click a bare filename, Terminal.app-style window titles, tabs named
-  after the running program, and profile files that carry their theme and app
-  settings.
+  command-click a bare filename, key repeat for held letters, Clear to Start
+  (⇧⌘K), ⌘1–9 for a project's tabs, Terminal.app-style window titles, tabs
+  named after the running program, a layout kept when the last window closes,
+  and profile files that carry their theme and app settings.
 
 ## Building from Source
 
