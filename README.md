@@ -53,72 +53,73 @@ It aims for two things at once:
   <a href="https://moo.vpetkov.net/screenshots/moo-splash-gh.png"><img src="https://moo.vpetkov.net/screenshots/moo-splash-gh.webp" alt="figlet &quot;Moo Mac Terminal&quot; piped through lolcat in a Moo window" width="860"></a>
 </p>
 
-<p align="center"><b>Terminal</b></p>
 <p align="center">
-  <a href="https://moo.vpetkov.net/screenshots/moo-hero-gh.png"><img src="https://moo.vpetkov.net/screenshots/moo-hero-gh.webp" alt="A Moo window with the workspaces sidebar, a terminal, and Markdown and browser tabs" width="860"></a>
+  <b>Terminal</b><br>
+  <a href="https://moo.vpetkov.net/screenshots/moo-hero-gh.png"><img src="https://moo.vpetkov.net/screenshots/moo-hero-gh.webp" alt="A Moo window with the workspaces sidebar, a terminal, and Markdown and browser tabs" width="860"></a><br>
+  <i>Fast, native, and out of the way: workspaces down the side, tabs across the top.</i>
 </p>
-<p align="center"><i>Fast, native, and out of the way: workspaces down the side, tabs across the top.</i></p>
 
-<p align="center"><b>herdr agents</b></p>
 <p align="center">
-  <a href="https://moo.vpetkov.net/screenshots/moo-herdr-gh.png"><img src="https://moo.vpetkov.net/screenshots/moo-herdr-gh.webp" alt="Claude Code running inside herdr in a Moo window, with herdr's spaces and agents panels" width="860"></a>
+  <b>herdr agents</b><br>
+  <a href="https://moo.vpetkov.net/screenshots/moo-herdr-gh.png"><img src="https://moo.vpetkov.net/screenshots/moo-herdr-gh.webp" alt="Claude Code running inside herdr in a Moo window, with herdr's spaces and agents panels" width="860"></a><br>
+  <i>Run agents in herdr inside a Moo tab; Moo tracks each one and tells you when it needs you.</i>
 </p>
-<p align="center"><i>Run agents in herdr inside a Moo tab; Moo tracks each one and tells you when it needs you.</i></p>
 
 <table>
   <tr>
-    <td width="50%" align="center"><b>Markdown preview</b></td>
-    <td width="50%" align="center"><b>Browser tabs</b></td>
+    <td width="50%" align="center" valign="top">
+      <b>Markdown preview</b><br>
+      <a href="https://moo.vpetkov.net/screenshots/moo-markdown.png"><img src="https://moo.vpetkov.net/screenshots/moo-markdown.webp" alt="A rendered Markdown tab"></a><br>
+      <i>Markdown files open rendered, in a tab beside the shell</i>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>Browser tabs</b><br>
+      <a href="https://moo.vpetkov.net/screenshots/moo-browser.png"><img src="https://moo.vpetkov.net/screenshots/moo-browser.webp" alt="A web page open in a browser tab"></a><br>
+      <i>Web pages open as browser tabs, with ad blocking</i>
+    </td>
   </tr>
   <tr>
-    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-markdown.png"><img src="https://moo.vpetkov.net/screenshots/moo-markdown.webp" alt="A rendered Markdown tab"></a></td>
-    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-browser.png"><img src="https://moo.vpetkov.net/screenshots/moo-browser.webp" alt="A web page open in a browser tab"></a></td>
+    <td width="50%" align="center" valign="top">
+      <b>Workspaces (Projects)</b><br>
+      <a href="https://moo.vpetkov.net/screenshots/moo-projects-terminal.png"><img src="https://moo.vpetkov.net/screenshots/moo-projects-terminal.webp" alt="Terminal with the projects sidebar"></a><br>
+      <i>Workspaces in the sidebar, each with its own tabs and status</i>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>Project settings</b><br>
+      <a href="https://moo.vpetkov.net/screenshots/moo-settings.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings.webp" alt="Projects settings"></a><br>
+      <i>Choose what each project row shows, and reopen everything on launch</i>
+    </td>
   </tr>
   <tr>
-    <td align="center"><i>Markdown files open rendered, in a tab beside the shell</i></td>
-    <td align="center"><i>Web pages open as browser tabs, with ad blocking</i></td>
+    <td width="50%" align="center" valign="top">
+      <b>Themes</b><br>
+      <a href="https://moo.vpetkov.net/screenshots/moo-settings-themes.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-themes.webp" alt="The theme picker"></a><br>
+      <i>Over 140 bundled themes, browsable as a list or in 2D and 3D</i>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>Appearance</b><br>
+      <a href="https://moo.vpetkov.net/screenshots/moo-settings-appearance.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-appearance.webp" alt="Appearance settings"></a><br>
+      <i>Fonts, cursor, opacity and colors, set per profile</i>
+    </td>
   </tr>
   <tr>
-    <td width="50%" align="center"><b>Workspaces (Projects)</b></td>
-    <td width="50%" align="center"><b>Project settings</b></td>
+    <td width="50%" align="center" valign="top">
+      <b>Notifications</b><br>
+      <a href="https://moo.vpetkov.net/screenshots/moo-settings-notifications.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-notifications.webp" alt="Notifications settings"></a><br>
+      <i>Banners, Dock badge, bounce, sound or speech when a program is waiting for you</i>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>herdr notifications</b><br>
+      <a href="https://moo.vpetkov.net/screenshots/moo-herdr-notifications.png"><img src="https://moo.vpetkov.net/screenshots/moo-herdr-notifications.webp" alt="The menu bar notifications list with &quot;herdr: claude needs you&quot; entries"></a><br>
+      <i>herdr agents that need you land in the menu bar list, labeled as detected by herdr</i>
+    </td>
   </tr>
   <tr>
-    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-projects-terminal.png"><img src="https://moo.vpetkov.net/screenshots/moo-projects-terminal.webp" alt="Terminal with the projects sidebar"></a></td>
-    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-settings.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings.webp" alt="Projects settings"></a></td>
-  </tr>
-  <tr>
-    <td align="center"><i>Workspaces in the sidebar, each with its own tabs and status</i></td>
-    <td align="center"><i>Choose what each project row shows, and reopen everything on launch</i></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><b>Themes</b></td>
-    <td width="50%" align="center"><b>Appearance</b></td>
-  </tr>
-  <tr>
-    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-settings-themes.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-themes.webp" alt="The theme picker"></a></td>
-    <td width="50%"><a href="https://moo.vpetkov.net/screenshots/moo-settings-appearance.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-appearance.webp" alt="Appearance settings"></a></td>
-  </tr>
-  <tr>
-    <td align="center"><i>Over 140 bundled themes, browsable as a list or in 2D and 3D</i></td>
-    <td align="center"><i>Fonts, cursor, opacity and colors, set per profile</i></td>
-  </tr>
-</table>
-
-<table>
-  <tr>
-    <td width="33%" align="center"><b>Notifications</b></td>
-    <td width="33%" align="center"><b>herdr notifications</b></td>
-    <td width="33%" align="center"><b>Multiple agents</b></td>
-  </tr>
-  <tr>
-    <td width="33%" valign="top"><a href="https://moo.vpetkov.net/screenshots/moo-settings-notifications.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-notifications.webp" alt="Notifications settings"></a></td>
-    <td width="33%" valign="top"><a href="https://moo.vpetkov.net/screenshots/moo-herdr-notifications.png"><img src="https://moo.vpetkov.net/screenshots/moo-herdr-notifications.webp" alt="The menu bar notifications list with &quot;herdr: claude needs you&quot; entries"></a></td>
-    <td width="33%" valign="top"><a href="https://moo.vpetkov.net/screenshots/moo-herdr-multiple-agents.png"><img src="https://moo.vpetkov.net/screenshots/moo-herdr-multiple-agents.webp" alt="Two Claude Code agents in herdr tabs, listed in herdr's agents panel"></a></td>
-  </tr>
-  <tr>
-    <td align="center"><i>Banners, Dock badge, bounce, sound or speech when a program is waiting for you</i></td>
-    <td align="center"><i>herdr agents that need you land in the menu bar list, labeled as detected by herdr</i></td>
-    <td align="center"><i>Each herdr agent is tracked on its own, so one answer never hides another</i></td>
+    <td colspan="2" align="center">
+      <b>Multiple agents</b><br>
+      <a href="https://moo.vpetkov.net/screenshots/moo-herdr-multiple-agents.png"><img src="https://moo.vpetkov.net/screenshots/moo-herdr-multiple-agents.webp" alt="Two Claude Code agents in herdr tabs, listed in herdr's agents panel" width="50%"></a><br>
+      <i>Each herdr agent is tracked on its own, so one answer never hides another</i>
+    </td>
   </tr>
 </table>
 
