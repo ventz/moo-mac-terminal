@@ -59,6 +59,12 @@ It aims for two things at once:
 </p>
 <p align="center"><i>Fast, native, and out of the way: workspaces down the side, tabs across the top.</i></p>
 
+<p align="center"><b>herdr agents</b></p>
+<p align="center">
+  <a href="https://moo.vpetkov.net/screenshots/moo-herdr-gh.png"><img src="https://moo.vpetkov.net/screenshots/moo-herdr-gh.webp" alt="Claude Code running inside herdr in a Moo window, with herdr's spaces and agents panels" width="860"></a>
+</p>
+<p align="center"><i>Run agents in herdr inside a Moo tab; Moo tracks each one and tells you when it needs you.</i></p>
+
 <table>
   <tr>
     <td width="50%" align="center"><b>Markdown preview</b></td>
@@ -96,14 +102,23 @@ It aims for two things at once:
     <td align="center"><i>Over 140 bundled themes, browsable as a list or in 2D and 3D</i></td>
     <td align="center"><i>Fonts, cursor, opacity and colors, set per profile</i></td>
   </tr>
+</table>
+
+<table>
   <tr>
-    <td colspan="2" align="center"><b>Notifications</b></td>
+    <td width="33%" align="center"><b>Notifications</b></td>
+    <td width="33%" align="center"><b>herdr notifications</b></td>
+    <td width="33%" align="center"><b>Multiple agents</b></td>
   </tr>
   <tr>
-    <td colspan="2" align="center"><a href="https://moo.vpetkov.net/screenshots/moo-settings-notifications.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-notifications.webp" alt="Notifications settings" width="50%"></a></td>
+    <td width="33%" valign="top"><a href="https://moo.vpetkov.net/screenshots/moo-settings-notifications.png"><img src="https://moo.vpetkov.net/screenshots/moo-settings-notifications.webp" alt="Notifications settings"></a></td>
+    <td width="33%" valign="top"><a href="https://moo.vpetkov.net/screenshots/moo-herdr-notifications.png"><img src="https://moo.vpetkov.net/screenshots/moo-herdr-notifications.webp" alt="The menu bar notifications list with &quot;herdr: claude needs you&quot; entries"></a></td>
+    <td width="33%" valign="top"><a href="https://moo.vpetkov.net/screenshots/moo-herdr-multiple-agents.png"><img src="https://moo.vpetkov.net/screenshots/moo-herdr-multiple-agents.webp" alt="Two Claude Code agents in herdr tabs, listed in herdr's agents panel"></a></td>
   </tr>
   <tr>
-    <td colspan="2" align="center"><i>Banners, Dock badge, bounce, sound or speech when a program is waiting for you</i></td>
+    <td align="center"><i>Banners, Dock badge, bounce, sound or speech when a program is waiting for you</i></td>
+    <td align="center"><i>herdr agents that need you land in the menu bar list, labeled as detected by herdr</i></td>
+    <td align="center"><i>Each herdr agent is tracked on its own, so one answer never hides another</i></td>
   </tr>
 </table>
 

@@ -241,6 +241,8 @@
   }
   /* The framed images carry their own margin, so stacked heroes need no gap. */
   .hero + .hero { margin-top: 0; }
+  /* ...except after a caption, which would otherwise run into the next label. */
+  .hero + .hero.after-caption { margin-top: 40px; }
 
   /* The gallery runs wider than the text column; two screenshots side by side
      are unreadable at 370px each. */
@@ -252,11 +254,13 @@
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 34px 26px;
   }
-  /* The odd one out gets its own row, centered at one column's width. */
-  .shot-last {
+  /* The last row holds three: notifications, and what herdr adds to them. */
+  .shot-row {
     grid-column: 1 / -1;
-    justify-self: center;
-    width: min(100%, 342px);
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 34px 26px;
+    align-items: start;
   }
 
   .shot-label {
@@ -324,6 +328,14 @@
       <img src="/screenshots/moo-hero.webp" alt="A Moo window with the workspaces sidebar, a terminal, and Markdown and browser tabs" width="1600" height="935">
     </a>
     <figcaption>Fast, native, and out of the way: workspaces down the side, tabs across the top.</figcaption>
+  </figure>
+
+  <figure class="hero shot after-caption">
+    <p class="shot-label">herdr agents</p>
+    <a href="/screenshots/moo-herdr.png">
+      <img src="/screenshots/moo-herdr.webp" alt="Claude Code running inside herdr in a Moo window, with herdr's spaces and agents panels" loading="lazy" width="1600" height="1115">
+    </a>
+    <figcaption>Run agents in herdr inside a Moo tab; Moo tracks each one and tells you when it needs you.</figcaption>
   </figure>
 
   <hr class="rule">
@@ -398,11 +410,23 @@
       <a href="/screenshots/moo-settings.png"><img src="/screenshots/moo-settings.webp" alt="Projects settings" loading="lazy" width="1600" height="1588"></a>
       <figcaption>Choose what each project row shows, and reopen everything on launch.</figcaption>
     </figure>
-    <figure class="shot shot-last">
-      <p class="shot-label">Notifications</p>
-      <a href="/screenshots/moo-settings-notifications.png"><img src="/screenshots/moo-settings-notifications.webp" alt="Notifications settings" loading="lazy" width="1600" height="1588"></a>
-      <figcaption>Banners, Dock badge, bounce, sound or speech when a program is waiting for you.</figcaption>
-    </figure>
+    <div class="shot-row">
+      <figure class="shot">
+        <p class="shot-label">Notifications</p>
+        <a href="/screenshots/moo-settings-notifications.png"><img src="/screenshots/moo-settings-notifications.webp" alt="Notifications settings" loading="lazy" width="1600" height="1588"></a>
+        <figcaption>Banners, Dock badge, bounce, sound or speech when a program is waiting for you.</figcaption>
+      </figure>
+        <figure class="shot">
+        <p class="shot-label">herdr notifications</p>
+        <a href="/screenshots/moo-herdr-notifications.png"><img src="/screenshots/moo-herdr-notifications.webp" alt="The menu bar notifications list with &quot;herdr: claude needs you&quot; entries" loading="lazy" width="748" height="838"></a>
+        <figcaption>herdr agents that need you land in the menu bar list, labeled as detected by herdr.</figcaption>
+      </figure>
+      <figure class="shot">
+        <p class="shot-label">Multiple agents</p>
+        <a href="/screenshots/moo-herdr-multiple-agents.png"><img src="/screenshots/moo-herdr-multiple-agents.webp" alt="Two Claude Code agents in herdr tabs, listed in herdr's agents panel" loading="lazy" width="1600" height="1575"></a>
+        <figcaption>Each herdr agent is tracked on its own, so one answer never hides another.</figcaption>
+      </figure>
+    </div>
   </div>
 
   <footer>
