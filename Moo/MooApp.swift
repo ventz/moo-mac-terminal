@@ -38,6 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AttentionStatusItem.shared.install()
         SystemTransparency.shared.startObserving()
         FinderServiceProvider.shared.install()
+        // Off by default; follows Settings → Notifications → herdr.
+        HerdrMonitor.shared.installObservers()
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {

@@ -650,7 +650,9 @@ final class ProjectRuntime {
                 status: .waiting,
                 source: .notification,
                 attentionCount: waiting.count,
-                message: newest.body.isEmpty ? newest.title : newest.body
+                // herdr's body only says where it came from; its title is
+                // the news ("herdr: claude needs you").
+                message: newest.source == .herdr || newest.body.isEmpty ? newest.title : newest.body
             )
         }
 

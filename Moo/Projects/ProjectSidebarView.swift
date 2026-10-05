@@ -90,7 +90,9 @@ struct ProjectSidebarView: View {
                             isSelected: project.id == scope.selectedProjectID,
                             shortcutNumber: shortcutNumber(for: index),
                             dropEdge: dropTargetID == project.id ? dropEdge : nil,
-                            isBeingDragged: draggingID == project.id
+                            isBeingDragged: draggingID == project.id,
+                            herdrRows: HerdrMonitor.shared.rows(for: project.id),
+                            openHerdrRow: { HerdrMonitor.shared.open($0) }
                         )
                         .background {
                             // The drop delegate needs the row's height to tell
@@ -286,6 +288,10 @@ struct ProjectRowView: View {
     var dropEdge: VerticalEdge?
     /// The row being dragged is dimmed so it reads as "in flight".
     var isBeingDragged = false
+    /// herdr agents running in this project's tabs (Settings → Notifications
+    /// → herdr), one line each under the project.
+    var herdrRows: [HerdrAgentRow] = []
+    var openHerdrRow: (HerdrAgentRow) -> Void = { _ in }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -311,6 +317,10 @@ struct ProjectRowView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
+                }
+
+                ForEach(herdrRows) { row in
+                    herdrLine(row)
                 }
             }
             Spacer(minLength: 0)
@@ -372,6 +382,40 @@ struct ProjectRowView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
+    }
+
+    /// "claude · api · needs you", indented under the project. A click
+    /// brings up the tab running herdr and that agent's pane in it.
+    private func herdrLine(_ row: HerdrAgentRow) -> some View {
+        Button {
+            openHerdrRow(row)
+        } label: {
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(herdrColor(row))
+                    .frame(width: 5, height: 5)
+                Text([row.agent, row.workspace, row.statusText].filter { !$0.isEmpty }.joined(separator: " · "))
+                    .font(.system(size: 10))
+                    .foregroundStyle(row.isDetached ? .tertiary : .secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .padding(.leading, 10)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(row.isDetached
+              ? (row.canReattach
+                 ? "herdr session detached. Click to reattach in a new tab."
+                 : "herdr session detached. Reattach it with the HERDR_SOCKET_PATH it was started with.")
+              : "Detected by herdr from the screen. herdr pane \(HerdrMonitor.clean(row.paneID))")
+    }
+
+    private func herdrColor(_ row: HerdrAgentRow) -> Color {
+        if row.isDetached { return .secondary.opacity(0.4) }
+        if row.status == .blocked { return .attentionWaiting }
+        if row.isFinished { return .orange }
+        return row.status == .working ? .blue : .secondary
     }
 
     private var statusText: String {

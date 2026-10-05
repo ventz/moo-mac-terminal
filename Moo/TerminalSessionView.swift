@@ -59,6 +59,8 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     /// The longest OSC 7 report taken as a directory, in UTF-8 bytes
     static let directoryReportLimit = 4_096
     @ObservationIgnored private var lastForegroundGroup: pid_t?
+    /// Text typed into the shell as soon as it starts; see typeWhenStarted.
+    @ObservationIgnored private var typedOnStart: String?
     /// The foreground leader's name, read once per change of group
     @ObservationIgnored private var foregroundLeaderName: String?
     /// The pty's device name, fixed once the process starts
@@ -720,6 +722,17 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         return true
     }
 
+    /// Types text into the shell, now or as soon as it starts. Moo's own
+    /// commands use it for a new tab ("Install in New Tab", reattaching to
+    /// herdr); whether a line runs is up to its trailing newline.
+    func typeWhenStarted(_ text: String) {
+        if didStartProcess, let terminal {
+            terminal.send(txt: text)
+        } else {
+            typedOnStart = (typedOnStart ?? "") + text
+        }
+    }
+
     /// Clears the screen and scrollback, as Terminal.app's Clear to Start does.
     /// At a shell prompt a form feed follows, so the shell redraws its prompt
     /// and any typed line at the top instead of leaving an empty screen. A
@@ -1176,6 +1189,11 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
                               environment: environment,
                               execName: params.execName,
                               currentDirectory: params.currentDirectory)
+        if let text = typedOnStart {
+            // The pty holds it until the shell reads its first line.
+            typedOnStart = nil
+            terminal.send(txt: text)
+        }
         updateProcessTitlePolling()
         terminal.sizeChanged(source: terminal,
                              newCols: dimensions.cols,

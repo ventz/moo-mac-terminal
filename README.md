@@ -154,6 +154,10 @@ and rejected, and the traps in measuring terminals are in
   Click an entry to land in that window, workspace, tab and split.
 - **Command status.** A tab whose last command failed gets a red mark, and a
   long command finishing in a pane you are not looking at notifies you.
+- **herdr agents in the sidebar.** Run [herdr](https://herdr.dev) in a tab and
+  turn on Settings → Notifications → herdr: each agent shows under the
+  project as working, finished or needing you, and a blocked agent notifies
+  you. Moo only reads herdr; it never types into it.
 - **Command palette.** ⌘K lists every menu command plus the links, paths,
   commit hashes and IP addresses on screen. Return runs or copies; ⌘Return
   opens.
@@ -235,6 +239,7 @@ What Moo adds on top of Tecolot:
 - **Waiting-for-you notifications** from OSC 9, 777 and 99, with a menu bar
   bell, Dock badge, sounds and tab marks.
 - **Failed-command marks and long-command notifications** from OSC 133.
+- **herdr agent status** in the sidebar and notifications, read-only.
 - **A ⌘K command palette** over every menu command and what is on screen.
 - **Pane zoom**, horizontal splits on ⇧⌘D, and new tabs that open where the
   last one was.

@@ -83,6 +83,7 @@ struct AppSettingsTests {
         defaults.set("MINE", forKey: AppSettings.startupProfileID)
         defaults.set("MINE", forKey: "startupWindowGroupID")
         defaults.set(true, forKey: ContentBlockingDefaults.enabledKey)
+        defaults.set(false, forKey: HerdrDefaults.showsAgents)
 
         AppSettings.apply([
             AppSettings.secureKeyboardEntry: .bool(false),
@@ -94,6 +95,7 @@ struct AppSettingsTests {
             AppSettings.startupProfileID: .string("THEIRS"),
             "startupWindowGroupID": .string("THEIRS"),
             ContentBlockingDefaults.enabledKey: .bool(false),
+            HerdrDefaults.showsAgents: .bool(true),
         ], to: defaults)
 
         let stored = defaults.persistentDomain(forName: suite) ?? [:]
@@ -106,6 +108,7 @@ struct AppSettingsTests {
         #expect(stored[AppSettings.startupProfileID] as? String == "MINE")
         #expect(stored["startupWindowGroupID"] as? String == "MINE")
         #expect(stored[ContentBlockingDefaults.enabledKey] as? Bool == true)
+        #expect(stored[HerdrDefaults.showsAgents] as? Bool == false)
 
         let exported = AppSettings.snapshot(from: defaults)
         #expect(exported.keys.allSatisfy { !AppSettings.securitySensitiveKeys.contains($0) })

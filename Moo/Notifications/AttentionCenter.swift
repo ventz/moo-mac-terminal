@@ -9,7 +9,10 @@
 //
 //  This is the truthful "waiting" signal ProjectRuntime refuses to guess at.
 //  Nothing here is inferred from silence or process state: an entry exists
-//  only because the program asked for one.
+//  only because the program asked for one. The one exception is herdr
+//  (`AttentionSource.herdr`, Settings → Notifications → herdr, off by
+//  default): herdr reads its agents' screens, and its entries say so
+//  wherever they appear.
 //
 //  An entry stays unread until the user looks at its pane (focuses it in the
 //  key window) or opens it from a list. A notification from the pane the user
@@ -20,6 +23,14 @@ import AppKit
 import Foundation
 import Observation
 import UserNotifications
+
+/// Who an entry speaks for. Programs ask for the user themselves; herdr's
+/// entries are its reading of an agent's screen, so they are kept apart and
+/// say where they came from.
+enum AttentionSource: String, Equatable, Sendable {
+    case program
+    case herdr
+}
 
 struct AttentionItem: Identifiable, Equatable, Sendable {
     let id: UUID
@@ -34,6 +45,11 @@ struct AttentionItem: Identifiable, Equatable, Sendable {
     /// retitled.
     var location: String
     var isRead: Bool
+    var source: AttentionSource = .program
+    /// What makes a later entry a repeat of this one. Programs repeat with
+    /// the same words; herdr entries are one per agent pane, whatever they
+    /// say, so two agents with the same name never share one.
+    var repeatKey: String? = nil
 }
 
 @Observable
@@ -55,6 +71,8 @@ final class AttentionCenter {
     @ObservationIgnored private let integratesWithSystem: Bool
     @ObservationIgnored private var bannerDelegate: AttentionBannerDelegate?
     @ObservationIgnored private var authorization: Task<Void, Never>?
+    /// Brings up the herdr agent an entry came from. Replaceable for tests.
+    @ObservationIgnored var openHerdrEntry: (UUID) -> Void = { HerdrMonitor.shared.focusPane(forEntry: $0) }
 
     /// `integratesWithSystem: false` keeps tests away from the Dock, the
     /// sidebar and Notification Center.
@@ -96,9 +114,18 @@ final class AttentionCenter {
         _ notification: TerminalNotification,
         surfaceID: UUID,
         location: String,
+        source: AttentionSource = .program,
+        repeatKey: String? = nil,
         now: Date = Date()
     ) -> AttentionItem {
-        if let index = items.firstIndex(where: { !$0.isRead && $0.surfaceID == surfaceID }),
+        let candidate: Int?
+        if let repeatKey {
+            candidate = items.firstIndex { !$0.isRead && $0.surfaceID == surfaceID && $0.repeatKey == repeatKey }
+        } else {
+            candidate = items.firstIndex { !$0.isRead && $0.surfaceID == surfaceID }
+                .flatMap { items[$0].source == source && items[$0].repeatKey == nil ? $0 : nil }
+        }
+        if let index = candidate,
            items[index].title == notification.title,
            items[index].body == notification.body {
             var repeated = items.remove(at: index)
@@ -115,7 +142,9 @@ final class AttentionCenter {
             title: notification.title,
             body: notification.body,
             location: location,
-            isRead: false
+            isRead: false,
+            source: source,
+            repeatKey: repeatKey
         )
         items.insert(item, at: 0)
         if items.count > Self.historyLimit {
@@ -144,6 +173,15 @@ final class AttentionCenter {
         }
         didChange()
         withdrawBanners(read)
+    }
+
+    /// One entry has been dealt with somewhere else, such as a herdr agent
+    /// that is no longer blocked.
+    func markRead(itemID: UUID) {
+        guard let index = items.firstIndex(where: { $0.id == itemID }), !items[index].isRead else { return }
+        items[index].isRead = true
+        didChange()
+        withdrawBanners([itemID])
     }
 
     func markAllRead() {
@@ -191,8 +229,16 @@ final class AttentionCenter {
             removeItems(from: item.surfaceID)
             return
         }
-        markRead(surfaceID: item.surfaceID)
-        AttentionNavigator.reveal(controller)
+        if item.source == .herdr {
+            // One Moo pane hosts every agent of a herdr session: only this
+            // entry has been seen, and herdr brings its agent up.
+            markRead(itemID: item.id)
+            AttentionNavigator.reveal(controller)
+            openHerdrEntry(item.id)
+        } else {
+            markRead(surfaceID: item.surfaceID)
+            AttentionNavigator.reveal(controller)
+        }
     }
 
     func openLatestUnread() {

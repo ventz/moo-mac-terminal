@@ -105,6 +105,10 @@ enum AppSettings {
         AppSetting(key: AttentionDefaults.notifiesLongCommands, kind: .bool),
         AppSetting(key: AttentionDefaults.longCommandSeconds, kind: .double),
         AppSetting(key: AttentionDefaults.marksFailedCommands, kind: .bool),
+        // HerdrDefaults.showsAgents is deliberately absent: see
+        // securitySensitiveKeys.
+        AppSetting(key: HerdrDefaults.alertsWhenBlocked, kind: .bool),
+        AppSetting(key: HerdrDefaults.alertsWhenFinished, kind: .bool),
         // Theme browser
         AppSetting(key: "themeBrowserDisplayMode", kind: .string),
         AppSetting(key: "themeBrowserPlotMode", kind: .string),
@@ -128,6 +132,9 @@ enum AppSettings {
     ///   appearance only and another one picked.
     /// - Content blocking: a file could switch off the ad and tracker blocker
     ///   in browser tabs.
+    /// - herdr: "Show herdr agents" is consent for Moo to read other
+    ///   processes' arguments and connect to local sockets; a file must not
+    ///   give it on the user's behalf.
     /// Pinned by AppSettingsTests.importNeverChangesSecuritySensitiveSettings.
     static let securitySensitiveKeys: Set<String> = [
         "LogHostOutput",
@@ -139,6 +146,7 @@ enum AppSettings {
         startupProfileID,
         "startupWindowGroupID",
         ContentBlockingDefaults.enabledKey,
+        HerdrDefaults.showsAgents,
     ]
 
     /// Keys a profile document never carries: state or identity, which stays

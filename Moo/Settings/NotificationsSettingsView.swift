@@ -129,6 +129,8 @@ struct NotificationsSettingsView: View {
                 .disabled(sound.isEmpty && !speaksMessage)
             }
 
+            HerdrSettingsSection()
+
             Section {
                 HStack {
                     Text("Fires every alert turned on above, without adding to the list.")

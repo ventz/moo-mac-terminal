@@ -103,6 +103,9 @@ enum SettingsSearch {
         Entry("Volume", .notifications, section: "Audio", keywords: "audio loud"),
         Entry("Speak the message aloud", .notifications, section: "Audio", keywords: "voice speech"),
         Entry("Play", .notifications, section: "Audio", keywords: "sound when audio"),
+        Entry("Show herdr agents", .notifications, section: "herdr", keywords: "herdr agents claude codex sidebar multiplexer socket"),
+        Entry("Alert when a herdr agent needs you", .notifications, section: "herdr", keywords: "herdr blocked waiting approval"),
+        Entry("Alert when a herdr agent finishes", .notifications, section: "herdr", keywords: "herdr done finished turn"),
 
         // Profiles
         Entry("Profiles", .profiles, section: "Profiles", keywords: "create duplicate rename delete default import export mooprofile"),

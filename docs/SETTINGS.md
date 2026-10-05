@@ -198,6 +198,49 @@ when each command starts and how it exits.
 | **Speak the message aloud** | On · Off | Off | Reads the notification out with the system voice. |
 | **Play** | Always · Only when Moo is in the background | **Always** | When the sound and speech happen. |
 
+### herdr
+
+[herdr](https://herdr.dev) runs coding agents (Claude Code, Codex and others)
+in terminals that keep running when you detach. When **Show herdr agents** is
+on and herdr runs in a Moo tab, Moo reads that herdr session's agents from
+herdr's local socket and lists them under the tab's project in the sidebar.
+Clicking one brings up the tab and focuses the agent's pane in herdr.
+
+| Setting | Options | Default | What it does |
+|---|---|---|---|
+| **Show herdr agents** | On · Off | Off | Lists herdr's agents in the sidebar ("claude · api · needs you"). Once on, the line under it says where herdr is installed and how many agents Moo sees, or how to install it. Never taken from a shared profile. |
+| **Alert when a herdr agent needs you** | On · Off | **On** | An agent that herdr reports as blocked (an approval prompt, a question) posts an entry, so the alerts above apply. The entry is marked read once the agent moves on. |
+| **Alert when a herdr agent finishes** | On · Off | Off | An agent going from working to idle posts an entry. Off by default because it happens on every turn. |
+
+- **Install.** Once the setting is on, Moo looks for herdr (it does not run
+  anything while the setting is off). When herdr is missing, the page shows
+  `brew install herdr` with **Copy** and **Install in New Tab**, which opens a
+  tab with the command typed but not run; you press Return. Moo never
+  installs anything itself.
+- **Detected by herdr.** herdr works out an agent's status from its screen.
+  Its entries say "detected by herdr", so they are never mistaken for a
+  program asking for you itself.
+- **Read-only.** Moo only reads herdr's socket and asks it to focus a pane. It
+  never types into herdr. It connects only to a socket owned by you that no
+  other user can write to, in folders no other user can change.
+- **Detached sessions.** If you detach herdr (`ctrl+b q`) while its agents keep
+  running, their rows stay until Moo quits, marked *detached*, and no longer
+  alert. Clicking one opens a new tab
+  that reattaches (not for a herdr started with `HERDR_SOCKET_PATH`, which a
+  new shell would not find).
+- **Quiet by design.** A pane alerts at most once every 30 seconds, and a
+  herdr session at most 10 times a minute.
+- **Not shown:** herdr sessions never attached in a Moo tab, and agents on
+  other machines (`herdr --remote`).
+- **herdr's own alerts** are separate from these: they need
+  `[ui.toast] delivery = "terminal"` in herdr's config, which Moo does not
+  edit.
+
+> **Example:** run `herdr` in a Moo tab and start Claude Code in a herdr pane.
+> The project row gets a "claude · 1 · working" line. When Claude asks to run
+> a command, the line reads "needs you", the Dock icon bounces, and the bell
+> lists "herdr: claude needs you".
+
 **Send Test Notification** fires every alert that is turned on, without adding
 an entry to the list.
 
@@ -438,4 +481,5 @@ exactly as this Mac has them:
 | **When a new version is out:** (Updates) | A shared file could stop the Mac from hearing about security updates. |
 | **Open:**, **Profile:** and **Window group:** (General → Startup) | A shared file could make every launch open a profile it brought, one whose shell runs a command, even after you imported its appearance only. |
 | **Block ads and trackers** (Links & Markdown) | A shared file could switch off tracker blocking in browser tabs. |
+| **Show herdr agents** (Notifications → herdr) | Turning it on lets Moo read other programs' arguments and connect to herdr's socket. That consent is yours to give, not a shared file's. |
 
