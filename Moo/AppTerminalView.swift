@@ -412,6 +412,7 @@ final class AppTerminalView: LocalProcessTerminalView {
     override func mouseUp(with event: NSEvent) {
         didOpenLinkDuringClick = false
         super.mouseUp(with: event)
+        copySelectionIfEnabled(after: event)
         guard event.modifierFlags.contains(.command),
               event.clickCount == 1,
               !didOpenLinkDuringClick,
@@ -429,6 +430,15 @@ final class AppTerminalView: LocalProcessTerminalView {
             return
         }
         LinkRouter.open(word, from: sessionController)
+    }
+
+    /// With "Copy text when selected" on, a drag, double-click or
+    /// triple-click that leaves text selected copies it. Read per click, so
+    /// the setting applies to open panes at once. A program tracking the
+    /// mouse gets the click instead and selects nothing here.
+    private func copySelectionIfEnabled(after event: NSEvent, defaults: UserDefaults = .standard) {
+        guard SelectionDefaults.copiesOnSelect(defaults: defaults), selectionActive else { return }
+        copy(self)
     }
 
     /// Mirrors SwiftTerm's own hit test against the rows it copies out under

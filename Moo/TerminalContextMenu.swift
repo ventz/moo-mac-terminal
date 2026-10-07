@@ -6,8 +6,8 @@
 import AppKit
 import SwiftTerm
 
-/// The menu a right-click on a terminal pane opens: the pane, theme, buffer,
-/// reset and font commands from the Terminal menu, acting on the pane that was
+/// The menu a right-click on a terminal pane opens: Copy and Paste, then the
+/// pane, theme, buffer, reset and font commands from the Terminal menu, acting on the pane that was
 /// clicked rather than whichever one last had focus.
 ///
 /// Built fresh for each click so titles and enabled states match the pane at
@@ -26,7 +26,17 @@ enum TerminalContextMenu {
 
         let menu = NSMenu(title: "Terminal")
         menu.autoenablesItems = false
+        // A right-click leaves the selection alone, so Copy takes what was
+        // highlighted before the click, as in Terminal.app.
+        let hasSelection = controller.selectionActive
         menu.items = [
+            Item("Copy", key: "c", isEnabled: hasSelection) { [weak controller] in
+                controller?.terminal?.copy(controller as Any)
+            },
+            Item("Paste", key: "v") { [weak controller] in
+                controller?.terminal?.paste(controller as Any)
+            },
+            .separator(),
             Item("Split Pane", key: "d") { [weak controller] in
                 guard let controller else { return }
                 controller.workspace?.split(controller, orientation: .vertical)

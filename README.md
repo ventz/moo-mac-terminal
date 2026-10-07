@@ -283,8 +283,9 @@ What Moo adds on top of Tecolot:
 - **Failed-command marks and long-command notifications** from OSC 133.
 - **herdr agent status** in the sidebar and notifications, read-only.
 - **A ⌘K command palette** over every menu command and what is on screen.
-- **Pane zoom**, horizontal splits on ⇧⌘D, a right-click pane menu, and new
-  tabs that open where the last one was.
+- **Pane zoom**, horizontal splits on ⇧⌘D, a right-click pane menu with
+  Copy and Paste, optional copy-on-select, and new tabs that open where the
+  last one was.
 - **Finder services** to open a tab, window or workspace in a folder.
 - **Settings** regrouped by scope (app-wide or per profile), searchable, with
   a help button on every page and a catalog of every keyboard shortcut.

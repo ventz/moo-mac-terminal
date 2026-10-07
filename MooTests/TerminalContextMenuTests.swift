@@ -16,6 +16,8 @@ final class TerminalContextMenuTests {
         let workspace = TerminalPaneWorkspace(startsProcesses: false)
         let menu = TerminalContextMenu.make(for: workspace.controllers[0])
         #expect(titles(menu) == [
+            "Copy", "Paste",
+            "-",
             "Split Pane", "Split Pane Horizontally", "Zoom Pane", "Close Pane",
             "-",
             "Theme…",
@@ -73,6 +75,31 @@ final class TerminalContextMenuTests {
         }
     }
 
+    @Test func copyTakesTheSelectionOfTheClickedPane() async {
+        let workspace = TerminalPaneWorkspace(startsProcesses: false)
+        let controller = workspace.controllers[0]
+        let view = controller.makeTerminalView(document: TerminalDocument())
+        #expect(item("Copy", in: TerminalContextMenu.make(for: controller))?.isEnabled == false)
+        #expect(item("Paste", in: TerminalContextMenu.make(for: controller))?.isEnabled == true)
+
+        view.feed(text: "moo copy test")
+        await withCheckedContinuation { DispatchQueue.main.async(execute: $0.resume) }
+        view.selectAll(nil)
+        let menu = TerminalContextMenu.make(for: controller)
+        #expect(item("Copy", in: menu)?.keyEquivalent == "c")
+        #expect(item("Copy", in: menu)?.isEnabled == true)
+
+        let pasteboard = NSPasteboard.general
+        let saved = pasteboard.string(forType: .string)
+        defer {
+            pasteboard.clearContents()
+            if let saved { pasteboard.setString(saved, forType: .string) }
+        }
+        menu.performActionForItem(at: menu.indexOfItem(withTitle: "Copy"))
+        #expect(pasteboard.string(forType: .string)?.contains("moo copy test") == true)
+        withExtendedLifetime(controller) {}
+    }
+
     @Test func themeOpensThePickerForThatPane() {
         let workspace = TerminalPaneWorkspace(startsProcesses: false)
         let controller = workspace.controllers[0]
@@ -94,8 +121,8 @@ final class TerminalContextMenuTests {
         let view = AppTerminalView(frame: CGRect(x: 0, y: 0, width: 400, height: 200))
         view.sessionController = controller
 
-        #expect(view.menu(for: click(.rightMouseDown))?.items.first?.title == "Split Pane")
-        #expect(view.menu(for: click(.leftMouseDown, modifiers: .control))?.items.first?.title == "Split Pane")
+        #expect(view.menu(for: click(.rightMouseDown))?.items.first?.title == "Copy")
+        #expect(view.menu(for: click(.leftMouseDown, modifiers: .control))?.items.first?.title == "Copy")
         #expect(view.menu(for: click(.leftMouseDown)) == nil)
         #expect(view.menu(for: click(.leftMouseDown, modifiers: .command)) == nil)
         withExtendedLifetime(controller) {}
@@ -140,5 +167,15 @@ struct TerminalClearToStartTests {
         let text = String(decoding: view.getBufferAsData(), as: UTF8.self)
         #expect(!text.contains("line"))
         withExtendedLifetime(controller) {}
+    }
+}
+
+@MainActor
+struct CopyOnSelectTests {
+    @Test func isOffByDefault() {
+        let defaults = UserDefaults(suiteName: "CopyOnSelectTests-\(UUID().uuidString)")!
+        #expect(SelectionDefaults.copiesOnSelect(defaults: defaults) == false)
+        defaults.set(true, forKey: SelectionDefaults.copyOnSelect)
+        #expect(SelectionDefaults.copiesOnSelect(defaults: defaults))
     }
 }

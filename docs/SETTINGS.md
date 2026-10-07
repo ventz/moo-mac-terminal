@@ -85,6 +85,12 @@ keyboard and window options that cannot differ per profile.
 | **⌘1–9 selects:** | Projects · Tabs · Nothing | **Projects** | What ⌘1 through ⌘8 jump to; ⌘9 always picks the last one. *Projects* follows the sidebar order, so dragging a project changes its number. *Nothing* turns the shortcuts off and removes their menu. |
 | **Repeat keys when held** | On · Off | **On** | Holding a letter repeats it, as terminals expect: `j` held in vim scrolls. Off brings back macOS's accent picker (hold `e` for é), but letters stop repeating. Affects Moo only, never other apps. |
 
+### Selection (every profile)
+
+| Setting | Options | Default | What it does |
+|---|---|---|---|
+| **Copy text when selected** | On · Off | Off | Copies text to the clipboard as soon as you select it with the mouse (drag, double-click a word, triple-click a line), as iTerm2 and X11 terminals do. Off keeps the Mac habit: select, then ⌘C or right-click → **Copy**. Takes effect at once in open panes. |
+
 ### Images (every profile)
 
 | Setting | Options | Default | What it does |

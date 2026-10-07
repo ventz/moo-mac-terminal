@@ -75,6 +75,7 @@ enum AppSettings {
         AppSetting(key: "restoredRowsLimit", kind: .int),
         AppSetting(key: "useMetalRenderer", kind: .bool),
         AppSetting(key: KeyboardDefaults.keyRepeatEnabled, kind: .bool),
+        AppSetting(key: SelectionDefaults.copyOnSelect, kind: .bool),
         AppSetting(key: WorkspaceRestoreDefaults.restoresOnLaunch, kind: .bool),
         // LogHostOutput, Secure Keyboard Entry, the web inspector, content
         // blocking, update checking and images from local sources are

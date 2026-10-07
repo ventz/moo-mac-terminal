@@ -503,6 +503,7 @@ struct GeneralSettingsView: View {
     /// Read from defaults rather than held in @State, so an Import that
     /// applies settings while this window is open shows up here.
     @AppStorage(KeyboardDefaults.keyRepeatEnabled) private var keyRepeat = KeyboardDefaults.keyRepeatEnabledByDefault
+    @AppStorage(SelectionDefaults.copyOnSelect) private var copyOnSelect = SelectionDefaults.copyOnSelectByDefault
     @AppStorage(TerminalImageDefaults.allowsLocalSources) private var imagesFromLocalSources =
         TerminalImageDefaults.allowsLocalSourcesByDefault
     @State private var errorMessage: String?
@@ -589,6 +590,18 @@ struct GeneralSettingsView: View {
                     Projects are numbered in sidebar order; ⌘9 always selects the last.
                     Key repeat off: macOS's accent picker returns, but \u{2018}hjkl\u{2019} stop repeating in vim.
                     Per-profile keys, and a list of every shortcut, are under Profiles → Keyboard.
+                    """)
+            }
+
+            Section {
+                Toggle("Copy text when selected", isOn: $copyOnSelect)
+                    .settingsAnchor(.general, "Copy text when selected")
+            } header: {
+                Text("Selection")
+            } footer: {
+                Text("""
+                    On: dragging, double-clicking or triple-clicking text copies it, with no ⌘C.
+                    Off: select, then ⌘C or right-click → Copy.
                     """)
             }
 
