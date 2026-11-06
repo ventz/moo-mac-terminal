@@ -831,21 +831,26 @@
           <b>Browser tabs with ad blocking</b>
           <span class="desc">&#8984;-click a link and the page opens in a tab next to your terminal. Ads and trackers are blocked, built in.</span>
           <em class="more">See how it works <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"/></svg></em></a></li>
+        <li class="lead"><a href="#palette">
+          <span class="thumb"><img src="/screenshots/moo-palette-tabs.webp" alt="" loading="lazy" width="1600" height="1083"></span>
+          <b>&#8984;K finds anything</b>
+          <span class="desc">Every workspace, tab and directory in one list. Type a few letters, press &#8617;, and you are there, in any window.</span>
+          <em class="more">See how it works <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"/></svg></em></a></li>
         <li class="lead"><a href="#attention">
           <span class="thumb"><img src="/screenshots/moo-herdr-gh.webp" alt="" loading="lazy" width="1600" height="1113"></span>
           <b>Knows which terminal or agent needs you</b>
           <span class="desc">When an agent stops to ask, its tab, workspace, the menu bar and the Dock say so. One click takes you there, herdr agents included.</span>
           <em class="more">See how it works <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"/></svg></em></a></li>
-        <li class="lead wide"><a href="#workspaces">
+        <li class="lead"><a href="#workspaces">
           <span class="thumb"><img src="/screenshots/moo-projects-terminal.webp" alt="" loading="lazy" width="1600" height="1574"></span>
-          <span class="body"><b>Workspaces, tabs and splits</b>
-          <span class="desc">Projects down the side, each with its own tabs and splits. &#8984;K finds any tab, workspace, directory or command as you type, and it all reopens on launch.</span>
-          <em class="more">See how it works <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"/></svg></em></span></a></li>
-        <li class="lead wide"><a href="#native">
+          <b>Workspaces, tabs and splits</b>
+          <span class="desc">Projects down the side, each with its own tabs and splits. It all reopens on launch.</span>
+          <em class="more">See how it works <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"/></svg></em></a></li>
+        <li class="lead"><a href="#native">
           <span class="thumb"><img src="/screenshots/moo-settings-appearance.webp" alt="" loading="lazy" width="1600" height="1588"></span>
-          <span class="body"><b>Native and secure</b>
+          <b>Native and secure</b>
           <span class="desc">SwiftUI and AppKit, drawn with Metal. Secure by default: output is treated as untrusted, so your clipboard and passwords stay yours.</span>
-          <em class="more">See how it works <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"/></svg></em></span></a></li>
+          <em class="more">See how it works <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"/></svg></em></a></li>
       </ul>
     </section>
 
@@ -857,9 +862,7 @@
       <dl class="rows">
         <div><dt>Workspaces</dt><dd>A sidebar groups terminals into projects and shows which are <b>busy</b>, <b>finished</b> or <b>waiting for you</b>.</dd></div>
         <div><dt>Splits and zoom</dt><dd>Split any tab, then zoom one pane to fill it with <kbd>&#8679;&#8984;&#8617;</kbd>.</dd></div>
-        <div><dt>Find any tab</dt><dd><kbd>&#8984;K</kbd> opens on your tabs, the last one used on top. Type part of a tab, workspace, directory or program and press <kbd>&#8617;</kbd> to land there, in any window.</dd></div>
-        <div><dt>Jump like <code>z</code></dt><dd><kbd>&#8984;J</kbd> lists the directories you use most, ranked the way zsh-z ranks them, and reads your <code>~/.z</code>. <kbd>&#8617;</kbd> goes to a tab already there or opens one.</dd></div>
-        <div><dt>Command palette</dt><dd>The same box runs every menu command and grabs the links, paths, commit hashes and IP addresses on screen.</dd></div>
+        <div><dt>Find anything</dt><dd><kbd>&#8984;K</kbd> finds any tab, workspace, directory or command as you type. <a href="#palette">More below</a>.</dd></div>
         <div><dt>Comes back as you left it</dt><dd>Workspaces, tabs, splits and directories reopen on the next launch.</dd></div>
       </dl>
       <figure class="fig">
@@ -868,6 +871,23 @@
         </a>
         <figcaption><b>Terminal</b> Fast, native, and out of the way: workspaces down the side, tabs across the top.</figcaption>
       </figure>
+    </section>
+
+    <section class="feature flip" aria-labelledby="palette">
+      <figure class="fig feature-shot">
+        <a href="/screenshots/moo-palette-tabs.png"><img src="/screenshots/moo-palette-tabs.webp" alt="The Moo command palette searching for shop, listing a browser tab, a Markdown preview, terminal tabs and directories, each with its own icon and label" loading="lazy" width="1600" height="1083"></a>
+      </figure>
+      <div class="feature-text">
+        <h2 id="palette">&#8984;K for everything</h2>
+        <p class="feature-lead">One list for every <strong>workspace, tab and directory</strong>, in every window. It opens on your tabs, the one you just left at the top, so <span class="nw"><kbd>&#8984;K</kbd> <kbd>&#8617;</kbd></span> switches back. Type a few letters and <kbd>&#8617;</kbd> takes you there.</p>
+        <dl class="rows">
+          <div><dt>Tabs</dt><dd>Every terminal, Markdown and browser tab, found by its title, its directory or the program running in it. <kbd>&#8617;</kbd> brings its window, workspace and tab forward, and in a tab with splits it lands on the split that matched: search <code>vim</code>, get the vim pane.</dd></div>
+          <div><dt>Workspaces</dt><dd>Type a workspace's name to list its tabs. Workspaces not reopened since launch are listed too, found by the folders they will reopen in; <kbd>&#8617;</kbd> opens one.</dd></div>
+          <div><dt>Directories</dt><dd>Ranked like <code>z</code>: how often and how recently you were there, from Moo's own history and your <code>~/.z</code>. <kbd>&#8617;</kbd> goes to a tab already in that directory or opens one there; <kbd>&#8997;&#8617;</kbd> types the <code>cd</code> at your prompt. <kbd>&#8984;J</kbd> opens the list on directories (<a href="/screenshots/moo-palette-dirs.png">see it</a>).</dd></div>
+          <div><dt>Says what it is</dt><dd>Each kind has its own icon, color and label, so a tab, a workspace and a directory never look alike. Type <code>t&nbsp;</code> for tabs only, <code>z&nbsp;</code> for directories only.</dd></div>
+          <div><dt>And the rest</dt><dd>Every menu command, plus the links, paths, commit hashes and IP addresses on screen.</dd></div>
+        </dl>
+      </div>
     </section>
 
     <section class="feature" aria-labelledby="markdown">

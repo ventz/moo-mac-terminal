@@ -72,6 +72,21 @@ It aims for two things at once:
 <table>
   <tr>
     <td width="50%" align="center" valign="top">
+      <b>⌘K: find any tab</b><br>
+      <a href="https://moo.vpetkov.net/screenshots/moo-palette-tabs.png"><img src="https://moo.vpetkov.net/screenshots/moo-palette-tabs.webp" alt="The command palette searching for shop: a browser tab, a Markdown preview, terminal tabs and directories, each labeled"></a><br>
+      <i>Type part of a tab, workspace, directory or program; Return goes there.</i>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>⌘J: jump like z</b><br>
+      <a href="https://moo.vpetkov.net/screenshots/moo-palette-dirs.png"><img src="https://moo.vpetkov.net/screenshots/moo-palette-dirs.webp" alt="The command palette listing directories that match docs, ranked like zsh-z"></a><br>
+      <i>Your most-used directories, ranked like zsh-z, from Moo and your ~/.z.</i>
+    </td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td width="50%" align="center" valign="top">
       <b>Markdown preview</b><br>
       <a href="https://moo.vpetkov.net/screenshots/moo-markdown.png"><img src="https://moo.vpetkov.net/screenshots/moo-markdown.webp" alt="A rendered Markdown tab"></a><br>
       <i>Markdown files open rendered, in a tab beside the shell</i>
@@ -178,12 +193,19 @@ and rejected, and the traps in measuring terminals are in
   turn on Settings → Notifications → herdr: each agent shows under the
   project as working, finished or needing you, and a blocked agent notifies
   you. Moo only reads herdr; it never types into it.
-- **Command palette.** ⌘K opens on your tabs, last used first, like zsh's
-  ⌃R: type to filter, Return to switch. It finds any tab, split or workspace by name,
-  directory or running program, plus every menu command and the links,
-  paths, commit hashes and IP addresses on screen. ⌘J jumps to a directory
-  ranked like `z`, reading your zsh-z history too: Return goes to a tab
-  already there or opens one, ⌥Return types the `cd` at the prompt for you to run.
+- **⌘K finds anything.** One list for every workspace, tab and directory, in
+  every window. It opens on your tabs, the one you just left at the top, so
+  ⌘K Return switches back; type a few letters and Return takes you there.
+  - *Tabs*: terminal, Markdown and browser tabs, found by title, directory or
+    the program running in them. A tab with splits lands on the split that
+    matched (search `vim`, get the vim pane).
+  - *Workspaces*: a workspace's name lists its tabs; workspaces not reopened
+    since launch are found by the folders they will reopen in.
+  - *Directories*: ranked like `z`, from Moo's own history and your `~/.z`.
+    Return goes to a tab already there or opens one; ⌥Return types the `cd`
+    at your prompt. ⌘J opens the list on directories.
+  - Each kind has its own icon, color and label. The same box also runs menu
+    commands and grabs links, paths and hashes on screen.
 - **Tabs beyond shells.** Markdown files open as rendered, GitHub-style tabs
   with Back and Forward through the links you follow; web pages open as
   browser tabs with ad blocking, next to the terminal that printed them.
@@ -245,13 +267,17 @@ other way round if you change the setting), and ⌘[ / ⌘] go back and forward.
 or the current project's tabs. ⇧⌘K clears the screen and scrollback like
 Terminal.app's ⌘K; ⌥⌘K clears only the scrollback.
 
-**⌘K, for everything**: it opens on your tabs, the one you just left at the
-top, so ⌘K Return switches back. Type a few letters of a tab title, workspace
-name, directory or running program (`api`, `vim`, `billing`) and Return lands
-on that workspace, tab and split, in any window. The same box runs menu
-commands, grabs links and hashes on screen, and jumps to directories ranked
-like `z` (⌘J opens it there; it reads your `~/.z` too). Start with `t ` for
-tabs only or `z ` for directories only.
+**⌘K, for everything**: press ⌘K and your tabs are listed, the one you just
+left on top. Type part of what you are looking for and press Return:
+
+| Type | Finds | Return |
+|---|---|---|
+| a tab title or program (`vim`, `tail`) | **tabs**, any window, any kind | switches to it, on the split that matched |
+| a workspace name (`shop`) | that **workspace's** tabs; unopened ones too | goes there, or opens the workspace |
+| a folder name (`docs`) | **directories**, ranked like `z` | a tab already there, or a new one; ⌥Return types `cd` |
+
+Start with `t ` for tabs only or `z ` for directories only; ⌘J opens on
+directories. Commands, and the links and hashes on screen, follow the tabs.
 
 **Restore** is on by default (Settings → General → Startup). Shells start fresh in each
 pane's last directory; scrollback, commands and environment are never saved.
