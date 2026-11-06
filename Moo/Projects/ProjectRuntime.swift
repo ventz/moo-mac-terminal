@@ -379,6 +379,19 @@ final class ProjectRuntime {
         sessions[projectID]
     }
 
+    /// The directories a workspace from the last run will reopen in, for a
+    /// workspace not visited yet. Reading them starts nothing.
+    func savedDirectories(for projectID: UUID) -> [String] {
+        guard let saved = restoredWorkspaces[projectID] else { return [] }
+        func directories(_ pane: SavedPane) -> [String] {
+            switch pane {
+            case .terminal(let directory, _, _): return directory.map { [$0] } ?? []
+            case .split(_, let first, let second): return directories(first) + directories(second)
+            }
+        }
+        return saved.tabs.flatMap { directories($0.root) }
+    }
+
     /// The workspace and tab showing some web content, in any workspace.
     func workspaceTab(holding web: AnyObject) -> (UUID, WorkspaceSession, WorkspaceTab)? {
         for (projectID, session) in sessions {
@@ -596,6 +609,7 @@ final class ProjectRuntime {
     /// Once quitting is certain, before AppKit closes a window.
     func saveForQuit() {
         saveForRestore()
+        DirectoryHistory.shared.saveNow()
         isTerminating = true
         restoreAutosave?.invalidate()
         restoreAutosave = nil

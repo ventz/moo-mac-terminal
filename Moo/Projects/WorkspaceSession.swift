@@ -125,7 +125,11 @@ final class WorkspaceTab: Identifiable {
 final class WorkspaceSession {
     let projectID: UUID
     private(set) var tabs: [WorkspaceTab] = []
-    var selectedTabID: UUID?
+    var selectedTabID: UUID? {
+        didSet {
+            if selectedTabID != oldValue { PlaceRecency.touch(selectedTabID) }
+        }
+    }
 
     /// The workspace's current status, recomputed by ProjectRuntime's poll.
     ///

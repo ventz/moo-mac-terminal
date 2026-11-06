@@ -23,7 +23,15 @@ final class WindowScope: Identifiable {
     nonisolated let id = UUID()
 
     /// The workspace this window is showing.
-    var selectedProjectID: UUID?
+    var selectedProjectID: UUID? {
+        didSet {
+            // The tab this window now shows counts as used (⌘K lists tabs by recency).
+            // existingSession: a didSet must never start a shell.
+            guard selectedProjectID != oldValue, let selectedProjectID else { return }
+            let session = ProjectRuntime.shared.existingSession(for: selectedProjectID)
+            PlaceRecency.touch(session?.selectedTab?.id)
+        }
+    }
 
     /// Whether this window shows the projects sidebar. Per window, so cmd+B in
     /// one window leaves the others alone. A new window starts from the last
@@ -32,6 +40,13 @@ final class WindowScope: Identifiable {
 
     /// The ⌘K palette is open over this window.
     var isPaletteVisible = false
+
+    /// What the palette's search starts with the next time it opens: "z "
+    /// for Jump to Directory. Consumed on open.
+    @ObservationIgnored var paletteInitialQuery = ""
+    /// Bumped by ⌘J while the palette is already open, so the open palette
+    /// switches to directories instead of closing.
+    var paletteQueryRequest = 0
 
     /// Set once the window starts closing. Its view renders no terminal from
     /// then on, so tearing the workspace down cannot start a shell in it.

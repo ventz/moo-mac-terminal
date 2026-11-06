@@ -504,6 +504,10 @@ struct GeneralSettingsView: View {
     /// applies settings while this window is open shows up here.
     @AppStorage(KeyboardDefaults.keyRepeatEnabled) private var keyRepeat = KeyboardDefaults.keyRepeatEnabledByDefault
     @AppStorage(SelectionDefaults.copyOnSelect) private var copyOnSelect = SelectionDefaults.copyOnSelectByDefault
+    @AppStorage(CommandPaletteDefaults.remembersDirectories) private var remembersDirectories =
+        CommandPaletteDefaults.remembersDirectoriesByDefault
+    @AppStorage(CommandPaletteDefaults.readsZshZData) private var readsZshZData =
+        CommandPaletteDefaults.readsZshZDataByDefault
     @AppStorage(TerminalImageDefaults.allowsLocalSources) private var imagesFromLocalSources =
         TerminalImageDefaults.allowsLocalSourcesByDefault
     @State private var errorMessage: String?
@@ -590,6 +594,26 @@ struct GeneralSettingsView: View {
                     Projects are numbered in sidebar order; ⌘9 always selects the last.
                     Key repeat off: macOS's accent picker returns, but \u{2018}hjkl\u{2019} stop repeating in vim.
                     Per-profile keys, and a list of every shortcut, are under Profiles → Keyboard.
+                    """)
+            }
+
+            Section {
+                Toggle("Remember directories for Jump", isOn: $remembersDirectories)
+                    .settingsAnchor(.general, "Remember directories for Jump")
+                Toggle("Include zsh-z history (~/.z)", isOn: $readsZshZData)
+                    .settingsAnchor(.general, "Include zsh-z history (~/.z)")
+                Button("Forget Directory History") {
+                    DirectoryHistory.shared.forgetAll()
+                }
+            } header: {
+                Text("Command Palette")
+            } footer: {
+                Text("""
+                    ⌘K finds tabs and workspaces by name, directory or running program; type z and a space for directories only, t and a space for tabs only.
+                    ⌘J opens it on directories, ranked like z: ↩ goes to a tab already there or opens one, ⌥↩ types cd at the prompt for you to run.
+                    Remember on: Moo counts each directory its shells cd into, and keeps the list on this Mac only.
+                    Remember off: Moo stops counting and stops listing what it remembered. Forget clears Moo's list and leaves ~/.z alone.
+                    zsh-z on: Moo also reads ~/.z, never writes it.
                     """)
             }
 

@@ -59,6 +59,7 @@ Two pairs are easy to mix up:
 | Keys | Action |
 |---|---|
 | ⌘K | Command palette |
+| ⌘J | Jump to a directory, ranked like z |
 | ⇧⌘K | Clear to start (screen and scrollback) |
 | ⌥⌘K | Clear scrollback |
 | ⌘↑ / ⌘↓ | Scroll to the previous / next prompt |
@@ -74,9 +75,14 @@ Two pairs are easy to mix up:
 | Keys | Action |
 |---|---|
 | ↑ / ↓ | Move the selection |
-| ↩ | Run the command, or scroll to the match |
+| ↩ | Run the command, go to the tab or directory, or copy the match |
 | ⌘↩ | Open the matched link or path |
+| ⌥↩ | Type cd to the directory into this pane, at a shell prompt |
+| z Space | Show only directories |
+| t Space | Show only tabs and workspaces |
 | ⎋ | Close |
+
+⌘K opens on a list of your tabs, like zsh's ⌃R: every tab in every window except the one you are in, the one you left most recently at the top, so ⌘K ↩ goes back to it. Typing filters the tabs without reordering them. Typing in ⌘K searches every tab, split and workspace by title, workspace name, directory and running program, then menu commands, then directories (ranked like z), then what is on screen. Choosing a tab lands on the split that matched. ⌥↩ types the `cd` line but does not run it: check it and press Return. When the pane is not at a shell prompt, or the path has characters other than letters, digits, spaces and `/._-+,@~=:`, ⌥↩ beeps and does what ↩ does. ↩ switches to that workspace and tab; workspaces not yet reopened since launch are listed too. ⌘J while the palette is open switches it to directories; pressing it again closes it. Settings: [Command Palette](SETTINGS.md#command-palette-every-profile).
 
 ## Markdown Previews
 

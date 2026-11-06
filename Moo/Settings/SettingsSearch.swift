@@ -72,6 +72,8 @@ enum SettingsSearch {
         Entry("Open new tabs with the current window's profile", .general, section: "New tabs and windows"),
         Entry("⌘1–9 selects:", .general, section: "Keyboard", keywords: "command digits numbers shortcut projects tabs switch"),
         Entry("Repeat keys when held", .general, section: "Keyboard", keywords: "key repeat accent press and hold vim hjkl"),
+        Entry("Remember directories for Jump", .general, section: "Command Palette", keywords: "command palette cmd-k ⌘K jump z zoxide autojump frecency recent folders cd history forget clear"),
+        Entry("Include zsh-z history (~/.z)", .general, section: "Command Palette", keywords: "command palette jump z zsh-z zshz frecency folders cd"),
         Entry("Copy text when selected", .general, section: "Selection", keywords: "copy on select clipboard mouse highlight automatic"),
         Entry("Let programs show images from local files and shared memory", .general, section: "Images", keywords: "kitty graphics protocol pictures shm intermission security"),
         Entry("Keep the tab strip opaque in every profile", .general, section: "Window", keywords: "transparency translucent"),

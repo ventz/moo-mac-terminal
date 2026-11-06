@@ -655,6 +655,17 @@ struct TerminalCommands: Commands {
             }
             .keyboardShortcut("k", modifiers: [.command])
 
+            Button(CommandPaletteModel.jumpMenuTitle) {
+                let scope = runtime.keyScope
+                scope.paletteInitialQuery = CommandPaletteModel.directoryPrefix
+                if scope.isPaletteVisible {
+                    scope.paletteQueryRequest += 1
+                } else {
+                    scope.isPaletteVisible = true
+                }
+            }
+            .keyboardShortcut("j", modifiers: [.command])
+
             Divider()
 
             Button("Split Pane") {

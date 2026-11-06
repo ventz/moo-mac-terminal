@@ -85,6 +85,15 @@ keyboard and window options that cannot differ per profile.
 | **⌘1–9 selects:** | Projects · Tabs · Nothing | **Projects** | What ⌘1 through ⌘8 jump to; ⌘9 always picks the last one. *Projects* follows the sidebar order, so dragging a project changes its number. *Nothing* turns the shortcuts off and removes their menu. |
 | **Repeat keys when held** | On · Off | **On** | Holding a letter repeats it, as terminals expect: `j` held in vim scrolls. Off brings back macOS's accent picker (hold `e` for é), but letters stop repeating. Affects Moo only, never other apps. |
 
+### Command Palette (every profile)
+
+⌘K opens on a list of your tabs, last used first; typing filters it. It finds any tab, split or workspace, in any window, by its title, workspace name, directory or the program running in it. It also lists directories ranked the way [zsh-z](https://github.com/agkozak/zsh-z) ranks them (how often and how recently you were there). ⌘J opens it on directories only. Type `z ` first for directories only, `t ` for tabs and workspaces only. On a directory, ↩ goes to a tab already there or opens a new one. ⌥↩ types `cd` into the current pane without running it, only while the pane sits at a shell prompt; press Return to run it.
+
+| Setting | Options | Default | What it does |
+|---|---|---|---|
+| **Remember directories for Jump** | On · Off | **On** | Off: Moo stops counting and stops listing what it remembered. On: Moo counts every directory its shells `cd` into, and keeps the list in `DirectoryHistory.json` in Moo's Application Support folder, readable only by you. A visit counts only when the shell's real directory matches what it reported, so printed output cannot add a directory. **Forget Directory History** clears Moo's list and leaves `~/.z` alone. Never shared in a `.mooprofile`. |
+| **Include zsh-z history (~/.z)** | On · Off | **On** | Also lists the directories in zsh-z's data file, `~/.z`, so your existing `z` history works in ⌘K at once. Moo only reads the file. Moo can't see `$_Z_DATA` or `$ZSHZ_DATA`, so a data file kept elsewhere is not read. |
+
 ### Selection (every profile)
 
 | Setting | Options | Default | What it does |
@@ -494,5 +503,6 @@ exactly as this Mac has them:
 | **Open:**, **Profile:** and **Window group:** (General → Startup) | A shared file could make every launch open a profile it brought, one whose shell runs a command, even after you imported its appearance only. |
 | **Block ads and trackers** (Links & Markdown) | A shared file could switch off tracker blocking in browser tabs. |
 | **Show herdr agents** (Notifications → herdr) | Turning it on lets Moo read other programs' arguments and connect to herdr's socket. That consent is yours to give, not a shared file's. |
+| **Remember directories for Jump** (General → Command Palette) | It keeps a record of where you work. A shared file must not switch it back on after you turned it off. |
 | **Let programs show images from local files and shared memory** (General → Images) | Turning it on lets terminal output check your files and delete shared memory. A shared file must not switch it on for you. |
 

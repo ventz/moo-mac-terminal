@@ -93,6 +93,7 @@ final class AppModel {
             backupDirectory: backups
         )
         workspaceRestore = WorkspaceRestoreStore(directory: applicationSupport)
+        DirectoryHistory.shared.configure(directory: applicationSupport)
         let preferences = PreferenceMigrator(
             applicationSupportDirectory: applicationSupport,
             backupDirectory: backups,

@@ -47,8 +47,9 @@ It aims for two things at once:
   through a pty faster than Ghostty and gets a keystroke on screen sooner.
 - **The workflow of cmux.** Terminals are grouped into workspaces in a sidebar
   that says which ones are busy, finished or waiting for you. Tabs hold Markdown
-  previews and web pages beside shells, panes split and zoom, and ⌘K reaches
-  every command and anything worth grabbing on screen.
+  previews and web pages beside shells, panes split and zoom, and ⌘K is one
+  place for everything: type part of a tab, workspace, directory or command
+  and press Return to go there.
 
 ## Screenshots
 
@@ -177,9 +178,12 @@ and rejected, and the traps in measuring terminals are in
   turn on Settings → Notifications → herdr: each agent shows under the
   project as working, finished or needing you, and a blocked agent notifies
   you. Moo only reads herdr; it never types into it.
-- **Command palette.** ⌘K lists every menu command plus the links, paths,
-  commit hashes and IP addresses on screen. Return runs or copies; ⌘Return
-  opens.
+- **Command palette.** ⌘K opens on your tabs, last used first, like zsh's
+  ⌃R: type to filter, Return to switch. It finds any tab, split or workspace by name,
+  directory or running program, plus every menu command and the links,
+  paths, commit hashes and IP addresses on screen. ⌘J jumps to a directory
+  ranked like `z`, reading your zsh-z history too: Return goes to a tab
+  already there or opens one, ⌥Return types the `cd` at the prompt for you to run.
 - **Tabs beyond shells.** Markdown files open as rendered, GitHub-style tabs
   with Back and Forward through the links you follow; web pages open as
   browser tabs with ad blocking, next to the terminal that printed them.
@@ -241,6 +245,14 @@ other way round if you change the setting), and ⌘[ / ⌘] go back and forward.
 or the current project's tabs. ⇧⌘K clears the screen and scrollback like
 Terminal.app's ⌘K; ⌥⌘K clears only the scrollback.
 
+**⌘K, for everything**: it opens on your tabs, the one you just left at the
+top, so ⌘K Return switches back. Type a few letters of a tab title, workspace
+name, directory or running program (`api`, `vim`, `billing`) and Return lands
+on that workspace, tab and split, in any window. The same box runs menu
+commands, grabs links and hashes on screen, and jumps to directories ranked
+like `z` (⌘J opens it there; it reads your `~/.z` too). Start with `t ` for
+tabs only or `z ` for directories only.
+
 **Restore** is on by default (Settings → General → Startup). Shells start fresh in each
 pane's last directory; scrollback, commands and environment are never saved.
 
@@ -249,6 +261,7 @@ pane's last directory; scrollback, commands and environment are never saved.
 | Keys | Action |
 |---|---|
 | ⌘K | Command palette |
+| ⌘J | Jump to a directory |
 | ⇧⌘K &nbsp;&nbsp;/&nbsp;&nbsp; ⌥⌘K | Clear screen and scrollback / clear scrollback only |
 | ⌘1–⌘8 &nbsp;&nbsp;/&nbsp;&nbsp; ⌘9 | Select a project or tab / the last one |
 | ⌘T &nbsp;&nbsp;/&nbsp;&nbsp; ⌘W | New tab / close pane or tab |
@@ -285,7 +298,8 @@ What Moo adds on top of Tecolot:
   bell, Dock badge, sounds and tab marks.
 - **Failed-command marks and long-command notifications** from OSC 133.
 - **herdr agent status** in the sidebar and notifications, read-only.
-- **A ⌘K command palette** over every menu command and what is on screen.
+- **A ⌘K command palette** over every tab, workspace, menu command and what
+  is on screen, with a `z`-style directory jump on ⌘J.
 - **Pane zoom**, horizontal splits on ⇧⌘D, a right-click pane menu with
   Copy and Paste, optional copy-on-select, and new tabs that open where the
   last one was.

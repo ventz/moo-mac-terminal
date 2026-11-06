@@ -66,6 +66,8 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     /// The pty's device name, fixed once the process starts
     @ObservationIgnored private var cachedTTYName: String?
     @ObservationIgnored private var postedDirectory: String?
+    /// The kernel directory last counted for ⌘J's history.
+    @ObservationIgnored private var lastRecordedDirectory: String?
     /// How the last command ended; nil while one runs or before the first.
     private(set) var lastCommand: CommandCompletion?
     @ObservationIgnored private var commandTracker = CommandTracker()
@@ -223,6 +225,32 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
     var shellWorkingDirectory: String? {
         guard let process = terminal?.process, process.running else { return nil }
         return TerminalProcessInspector.workingDirectory(of: process.shellPid)
+    }
+
+    /// The foreground program's name while one runs, for ⌘K's tab search.
+    /// Nil at a prompt. Cleaned like a title: it comes from argv.
+    var foregroundProgram: String? {
+        foregroundLeaderName.map(TerminalTitleComposer.displayable).flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    /// True when the shell itself holds the terminal, so typed text reaches
+    /// its prompt and not a running program. Read fresh from the pty.
+    var shellOwnsTerminal: Bool {
+        guard let process = terminal?.process, process.running else { return false }
+        return TerminalProcessInspector.foregroundProcessGroup(ptyDescriptor: process.childfd) == process.shellPid
+    }
+
+    /// Counts a cd for ⌘K's directory jump, only when the kernel agrees the
+    /// shell is where its OSC 7 report says: output can forge the report.
+    /// One visit per real directory change: output repeating reports (or
+    /// alternating spellings of one directory) cannot pump a rank.
+    private func recordDirectoryVisit() {
+        guard CommandPaletteDefaults.remembersDirectories() else { return }
+        let kernel = shellWorkingDirectory
+        guard kernel != lastRecordedDirectory,
+              let path = DirectoryPaths.genuine(reported: currentWorkingDirectory, kernel: kernel) else { return }
+        lastRecordedDirectory = kernel
+        DirectoryHistory.shared.record(path)
     }
 
     /// The reported directory's path wherever it is, for display only: the
@@ -438,6 +466,7 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
         if let directory, directory.utf8.count > Self.directoryReportLimit { return }
         guard postedDirectory != directory else { return }
         postedDirectory = directory
+        recordDirectoryVisit()
         updateWindowTitle()
         // The projects sidebar shows the live directory of a label's terminal,
         // so a cd has to reach it. postedDirectory is observation-ignored, so

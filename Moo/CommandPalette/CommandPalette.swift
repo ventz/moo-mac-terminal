@@ -145,7 +145,7 @@ struct PaletteCommand: Identifiable {
 enum MenuCommandCollector {
     /// Never offered: the palette itself, and menus of system or changing
     /// content.
-    static let excludedTitles: Set<String> = [CommandPaletteModel.menuTitle, "Services", "Open Recent"]
+    static let excludedTitles: Set<String> = [CommandPaletteModel.menuTitle, CommandPaletteModel.jumpMenuTitle, "Services", "Open Recent"]
 
     static func commands(in menu: NSMenu?) -> [PaletteCommand] {
         guard let menu else { return [] }
@@ -222,17 +222,34 @@ enum PaletteFilter {
 @MainActor
 final class CommandPaletteModel {
     static let menuTitle = "Command Palette…"
+    static let jumpMenuTitle = "Jump to Directory…"
+    /// Typed first, these narrow the list, as in a launcher.
+    static let directoryPrefix = "z "
+    static let placePrefix = "t "
+    /// Directories are many (zsh-z keeps hundreds); a list longer than this
+    /// is only noise.
+    static let directoryLimit = 30
 
     enum Item: Identifiable {
         case match(QuickSelectMatch)
         case command(PaletteCommand)
+        case place(PalettePlace)
+        case directory(PaletteDirectory)
 
         var id: String {
             switch self {
             case .match(let match): return "match:\(match.kind.rawValue):\(match.text)"
             case .command(let command): return "command:\(command.id)"
+            case .place(let place): return "place:\(place.id)"
+            case .directory(let directory): return "directory:\(directory.path)"
             }
         }
+    }
+
+    enum Narrowing: Equatable {
+        case everything
+        case directories
+        case places
     }
 
     var query = "" {
@@ -241,30 +258,138 @@ final class CommandPaletteModel {
     var selection = 0
     let matches: [QuickSelectMatch]
     let commands: [PaletteCommand]
+    let places: [PalettePlace]
+    let directories: [PaletteDirectory]
+    /// Checked only for the directories about to be shown: a stale entry
+    /// is dropped without a stat of every path zsh-z remembers.
+    @ObservationIgnored private let directoryExists: (String) -> Bool
+    @ObservationIgnored private var existence: [String: Bool] = [:]
 
-    init(matches: [QuickSelectMatch], commands: [PaletteCommand]) {
+    init(matches: [QuickSelectMatch],
+         commands: [PaletteCommand],
+         places: [PalettePlace] = [],
+         directories: [PaletteDirectory] = [],
+         directoryExists: @escaping (String) -> Bool = CommandPaletteModel.isDirectory) {
         self.matches = matches
         self.commands = commands
+        self.places = places
+        self.directories = directories
+        self.directoryExists = directoryExists
     }
 
-    /// With nothing typed, on-screen matches come first. Once a query is
-    /// typed, commands lead (titles starting with it first), so text printed
-    /// on screen cannot take over a search for a command.
-    var items: [Item] {
-        let query = self.query.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else {
-            return matches.map(Item.match) + commands.map(Item.command)
+    nonisolated static func isDirectory(_ path: String) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory) && isDirectory.boolValue
+    }
+
+    /// The narrowing a prefix asks for, and the words after it.
+    static func parse(_ query: String) -> (Narrowing, String) {
+        let leading = String(query.drop(while: \.isWhitespace))
+        for (prefix, narrowing) in [(directoryPrefix, Narrowing.directories), (placePrefix, .places)]
+        where leading.lowercased().hasPrefix(prefix) {
+            return (narrowing, leading.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces))
         }
-        let shownMatches = matches.filter { PaletteFilter.accepts($0.text, query: query) }
-        let shownCommands = commands.enumerated()
-            .filter { PaletteFilter.accepts("\($0.element.path) \($0.element.title)", query: query) }
+        return (.everything, leading.trimmingCharacters(in: .whitespaces))
+    }
+
+    /// The words of the query, after any prefix.
+    var searchWords: String { Self.parse(query).1 }
+
+    var narrowing: Narrowing { Self.parse(query).0 }
+
+    /// ⌘K opens as a tab list, like zsh's ⌃R (user, 2026-11-06): with
+    /// nothing typed, every other tab, last used first, then what is on
+    /// screen, then commands. Typing filters the tabs without reordering
+    /// them, and they lead: tabs whose title starts with the query, then
+    /// commands whose title does, then the other tabs and commands, then
+    /// directories, then what is on screen. Text printed on screen cannot
+    /// take over a search for a tab or a command.
+    var items: [Item] {
+        let (narrowing, query) = Self.parse(self.query)
+        switch narrowing {
+        case .directories:
+            return shownDirectories(query).map(Item.directory)
+        case .places:
+            return pickerPlaces(query).map(Item.place)
+        case .everything:
+            guard !query.isEmpty else {
+                return pickerPlaces("").map(Item.place)
+                    + matches.map(Item.match)
+                    + commands.map(Item.command)
+            }
+            let shownMatches = matches.filter { PaletteFilter.accepts($0.text, query: query) }
+            let shownCommands = commands.enumerated()
+                .filter { PaletteFilter.accepts("\($0.element.path) \($0.element.title)", query: query) }
+                .sorted { lhs, rhs in
+                    let left = lhs.element.title.lowercased().hasPrefix(query.lowercased())
+                    let right = rhs.element.title.lowercased().hasPrefix(query.lowercased())
+                    return left != right ? left : lhs.offset < rhs.offset
+                }
+                .map(\.element)
+            // A command whose title starts with the query leads any tab that
+            // does not: a tab's title is a program's to set, and a pane named
+            // "Close Tab" must not push the real command down.
+            let lowered = query.lowercased()
+            let places = pickerPlaces(query)
+            let leadingPlaces = places.filter { $0.title.lowercased().hasPrefix(lowered) }
+            let otherPlaces = places.filter { !$0.title.lowercased().hasPrefix(lowered) }
+            let leadingCommands = shownCommands.prefix { $0.title.lowercased().hasPrefix(lowered) }
+            return leadingPlaces.map(Item.place)
+                + leadingCommands.map(Item.command)
+                + otherPlaces.map(Item.place)
+                + shownCommands.dropFirst(leadingCommands.count).map(Item.command)
+                + shownDirectories(query).map(Item.directory)
+                + shownMatches.map(Item.match)
+        }
+    }
+
+    /// The tab list, like zsh's ⌃R: every tab, the one used most recently
+    /// first (so ↩ on the first row goes back to the tab just left), typing
+    /// only filters and never reorders. The tab on screen is left out.
+    /// Workspaces appear only when none of their tabs is open yet; an open
+    /// workspace is found through its tabs, whose search text holds its name.
+    private func pickerPlaces(_ query: String) -> [PalettePlace] {
+        places.enumerated()
+            .filter { !$0.element.isCurrent }
+            .filter { $0.element.kind != .workspace || !$0.element.hasOpenTabs }
+            .filter { query.isEmpty || PaletteFilter.accepts($0.element.searchText, query: query) }
             .sorted { lhs, rhs in
-                let left = lhs.element.title.lowercased().hasPrefix(query.lowercased())
-                let right = rhs.element.title.lowercased().hasPrefix(query.lowercased())
+                lhs.element.lastUsed != rhs.element.lastUsed
+                    ? lhs.element.lastUsed > rhs.element.lastUsed
+                    : lhs.offset < rhs.offset
+            }
+            .map(\.element)
+    }
+
+
+    /// As zsh-z ranks a `z` query: every word must appear in the path, best
+    /// frecency first, except that a directory whose own name holds the
+    /// last word leads (`z moo` prefers …/moo-mac-terminal to …/moo/docs).
+    private func shownDirectories(_ query: String) -> [PaletteDirectory] {
+        let last = query.split(whereSeparator: \.isWhitespace).last.map(String.init) ?? ""
+        let candidates = directories.enumerated()
+            .filter { query.isEmpty || PaletteFilter.accepts($0.element.path, query: query) }
+            .sorted { lhs, rhs in
+                let left = last.isEmpty || lhs.element.leaf.localizedStandardContains(last)
+                let right = last.isEmpty || rhs.element.leaf.localizedStandardContains(last)
                 return left != right ? left : lhs.offset < rhs.offset
             }
             .map(\.element)
-        return shownCommands.map(Item.command) + shownMatches.map(Item.match)
+        var shown: [PaletteDirectory] = []
+        for directory in candidates {
+            if shown.count == Self.directoryLimit { break }
+            if exists(directory.path) { shown.append(directory) }
+        }
+        return shown
+    }
+
+    private func exists(_ path: String) -> Bool {
+        if let known = existence[path] { return known }
+        // Network and removable volumes can stall a stat; offer them and
+        // let the jump find out.
+        let found = path.hasPrefix("/Volumes/") || path.hasPrefix("/net/") || directoryExists(path)
+        existence[path] = found
+        return found
     }
 
     var selectedItem: Item? {

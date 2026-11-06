@@ -58,6 +58,7 @@ enum KeyboardShortcutCatalog {
         ]),
         Group(title: "Terminal", shortcuts: [
             Shortcut("⌘K", action: "Command palette"),
+            Shortcut("⌘J", action: "Jump to a directory, ranked like z"),
             Shortcut("⇧⌘K", action: "Clear to start (screen and scrollback)"),
             Shortcut("⌥⌘K", action: "Clear scrollback"),
             Shortcut("⌘↑", "⌘↓", action: "Scroll to the previous / next prompt"),
@@ -70,8 +71,11 @@ enum KeyboardShortcutCatalog {
         ]),
         Group(title: "Command Palette", shortcuts: [
             Shortcut("↑", "↓", action: "Move the selection"),
-            Shortcut("↩", action: "Run the command, or scroll to the match"),
+            Shortcut("↩", action: "Run the command, go to the tab or directory, or copy the match"),
             Shortcut("⌘↩", action: "Open the matched link or path"),
+            Shortcut("⌥↩", action: "Type cd to the directory into this pane, at a shell prompt"),
+            Shortcut("z Space", action: "Show only directories"),
+            Shortcut("t Space", action: "Show only tabs and workspaces"),
             Shortcut("⎋", action: "Close")
         ]),
         Group(title: "Markdown Previews", shortcuts: [

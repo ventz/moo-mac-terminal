@@ -50,7 +50,7 @@ final class PreferenceMigrator {
         "SecureKeyboardEntryAtPasswordPrompts",
         "LogHostOutput",
         "useMetalRenderer"
-    ] + ProjectSidebarDefaults.managedKeys + [LinkRoutingDefaults.opensLinksInApp, ContentBlockingDefaults.enabledKey, WorkspaceRestoreDefaults.restoresOnLaunch, TerminalImageDefaults.allowsLocalSources, SelectionDefaults.copyOnSelect]
+    ] + ProjectSidebarDefaults.managedKeys + [LinkRoutingDefaults.opensLinksInApp, ContentBlockingDefaults.enabledKey, WorkspaceRestoreDefaults.restoresOnLaunch, TerminalImageDefaults.allowsLocalSources, SelectionDefaults.copyOnSelect, CommandPaletteDefaults.remembersDirectories, CommandPaletteDefaults.readsZshZData]
 
     init(
         defaults: UserDefaults = .standard,

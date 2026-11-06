@@ -119,6 +119,7 @@ final class CommandPaletteTests {
             switch item {
             case .match(let match): return match.text
             case .command(let command): return command.title
+            default: return ""
             }
         }
         // Typed queries put commands before anything printed on screen.

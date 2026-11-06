@@ -76,9 +76,11 @@ enum AppSettings {
         AppSetting(key: "useMetalRenderer", kind: .bool),
         AppSetting(key: KeyboardDefaults.keyRepeatEnabled, kind: .bool),
         AppSetting(key: SelectionDefaults.copyOnSelect, kind: .bool),
+        AppSetting(key: CommandPaletteDefaults.readsZshZData, kind: .bool),
         AppSetting(key: WorkspaceRestoreDefaults.restoresOnLaunch, kind: .bool),
         // LogHostOutput, Secure Keyboard Entry, the web inspector, content
-        // blocking, update checking and images from local sources are
+        // blocking, update checking, images from local sources and directory
+        // history are
         // deliberately absent: see securitySensitiveKeys.
         AppSetting(key: LinkRoutingDefaults.opensLinksInApp, kind: .bool),
         AppSetting(key: MarkdownPreviewDefaults.followsTerminalTheme, kind: .bool),
@@ -139,6 +141,9 @@ enum AppSettings {
     /// - Images from local files and shared memory let terminal output probe
     ///   the Mac's files and delete shared memory objects; a file must not
     ///   switch them on.
+    /// - Remembering directories for ⌘J keeps a record of where the user
+    ///   works; a file must not switch it back on (an absent key resets to
+    ///   the default, which is on).
     /// Pinned by AppSettingsTests.importNeverChangesSecuritySensitiveSettings.
     static let securitySensitiveKeys: Set<String> = [
         "LogHostOutput",
@@ -152,6 +157,7 @@ enum AppSettings {
         ContentBlockingDefaults.enabledKey,
         HerdrDefaults.showsAgents,
         TerminalImageDefaults.allowsLocalSources,
+        CommandPaletteDefaults.remembersDirectories,
     ]
 
     /// Keys a profile document never carries: state or identity, which stays
