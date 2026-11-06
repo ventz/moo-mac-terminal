@@ -197,6 +197,21 @@ final class PaletteJumpTests {
 
     // MARK: Directories
 
+    /// zsh-z keeps the shell's spelling (/var/…), Moo the kernel's
+    /// (/private/var/…): the same directory must be listed once.
+    @Test func oneDirectoryUnderTwoSpellingsIsListedOnce() {
+        let model = CommandPaletteModel(
+            matches: [], commands: [],
+            directories: [PaletteDirectory(path: "/private/var/demo/docs", score: 9),
+                          PaletteDirectory(path: "/var/demo/docs", score: 5),
+                          PaletteDirectory(path: "/var/demo/other-docs", score: 1)],
+            directoryExists: { _ in true },
+            resolvePath: { $0.hasPrefix("/var/") ? "/private" + $0 : $0 }
+        )
+        model.query = "z docs"
+        #expect(titles(model) == ["dir:/private/var/demo/docs", "dir:/var/demo/other-docs"])
+    }
+
     @Test func directoriesPreferTheirOwnNameThenFrecencyAndSkipMissingOnes() {
         let model = CommandPaletteModel(
             matches: [],

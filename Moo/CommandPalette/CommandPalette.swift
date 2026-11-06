@@ -264,17 +264,21 @@ final class CommandPaletteModel {
     /// is dropped without a stat of every path zsh-z remembers.
     @ObservationIgnored private let directoryExists: (String) -> Bool
     @ObservationIgnored private var existence: [String: Bool] = [:]
+    @ObservationIgnored private let resolvePath: (String) -> String?
+    @ObservationIgnored private var realPaths: [String: String] = [:]
 
     init(matches: [QuickSelectMatch],
          commands: [PaletteCommand],
          places: [PalettePlace] = [],
          directories: [PaletteDirectory] = [],
-         directoryExists: @escaping (String) -> Bool = CommandPaletteModel.isDirectory) {
+         directoryExists: @escaping (String) -> Bool = CommandPaletteModel.isDirectory,
+         resolvePath: @escaping (String) -> String? = { DirectoryPaths.resolved($0) }) {
         self.matches = matches
         self.commands = commands
         self.places = places
         self.directories = directories
         self.directoryExists = directoryExists
+        self.resolvePath = resolvePath
     }
 
     nonisolated static func isDirectory(_ path: String) -> Bool {
@@ -376,11 +380,24 @@ final class CommandPaletteModel {
             }
             .map(\.element)
         var shown: [PaletteDirectory] = []
+        var seen: Set<String> = []
         for directory in candidates {
             if shown.count == Self.directoryLimit { break }
-            if exists(directory.path) { shown.append(directory) }
+            // One row per real directory: Moo records the kernel's path
+            // (/private/var/…), zsh-z the shell's (/var/…, or through a
+            // symlink). The first, higher-ranked, spelling stays.
+            guard exists(directory.path), seen.insert(realPath(directory.path)).inserted else { continue }
+            shown.append(directory)
         }
         return shown
+    }
+
+    private func realPath(_ path: String) -> String {
+        if let known = realPaths[path] { return known }
+        let resolved = path.hasPrefix("/Volumes/") || path.hasPrefix("/net/")
+            ? path : (resolvePath(path) ?? path)
+        realPaths[path] = resolved
+        return resolved
     }
 
     private func exists(_ path: String) -> Bool {
