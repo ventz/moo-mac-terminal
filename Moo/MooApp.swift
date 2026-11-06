@@ -40,6 +40,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         FinderServiceProvider.shared.install()
         // Off by default; follows Settings → Notifications → herdr.
         HerdrMonitor.shared.installObservers()
+        #if DEBUG
+        DemoCapture.start(appDelegate: self)  // only with MOO_CAPTURE=1 (scripts/screenshots.sh)
+        #endif
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
