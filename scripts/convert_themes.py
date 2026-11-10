@@ -13,6 +13,8 @@ import re
 import sys
 from pathlib import Path
 
+from agent_panel_colors import derive as derive_agent_panel
+
 CURATED = [
     # Terminal.app equivalents
     "Apple Classic", "Apple System Colors", "Apple System Colors Light",
@@ -93,6 +95,7 @@ def convert(source: dict) -> dict:
         theme["cursor"] = source["cursorColor"].lower()
     if source.get("selectionBackground") and HEX_RE.match(source["selectionBackground"]):
         theme["selectionBackground"] = source["selectionBackground"].lower()
+    theme["agentPanel"] = derive_agent_panel(theme)
     return theme
 
 

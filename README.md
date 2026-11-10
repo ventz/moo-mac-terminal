@@ -192,7 +192,9 @@ and rejected, and the traps in measuring terminals are in
 - **herdr agents in the sidebar.** Run [herdr](https://herdr.dev) in a tab and
   turn on Settings → Notifications → herdr: each agent shows under the
   project as working, finished or needing you, and a blocked agent notifies
-  you. Moo only reads herdr; it never types into it.
+  you. The sidebar's agent panel lists every agent, including those the
+  Herdr app runs through herdr-core, and themes can color it. Moo only reads
+  herdr; it never types into it.
 - **⌘K finds anything.** One list for every workspace, tab and directory, in
   every window. It opens on your tabs, the one you just left at the top, so
   ⌘K Return switches back; type a few letters and Return takes you there.

@@ -56,6 +56,23 @@ struct ThemeEditorView: View {
                     optionalColorControl("Selection text", keyPath: \.selectionText, defaultColor: editedTheme.foreground)
                 }
 
+                Section {
+                    panelColorControl("Background", \.background, default: editedTheme.background)
+                    panelColorControl("Text", \.text, default: editedTheme.foreground)
+                    panelColorControl("Secondary text", \.secondaryText, default: editedTheme.foreground)
+                    panelColorControl("Working", \.working, default: editedTheme.ansi[4])
+                    panelColorControl("Needs you", \.blocked, default: editedTheme.ansi[5])
+                    panelColorControl("Finished", \.finished, default: editedTheme.ansi[2])
+                    panelColorControl("Idle", \.idle, default: editedTheme.ansi[8])
+                    panelColorControl("Error", \.error, default: editedTheme.ansi[1])
+                } header: {
+                    Text("Agent panel")
+                } footer: {
+                    Text("The sidebar's list of herdr agents. Used when the window takes the theme's colors.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Section("ANSI colors") {
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4), spacing: 10) {
                         ForEach(0..<16, id: \.self) { index in
@@ -111,6 +128,42 @@ struct ThemeEditorView: View {
                 ColorPicker(name, selection: optionalColorBinding (keyPath, defaultColor: defaultColor))
             }
         }
+    }
+
+    /// One of the agent panel's optional colors: off uses the panel's
+    /// default; on starts from `default`, a color of this theme.
+    private func panelColorControl (
+        _ name: String,
+        _ keyPath: WritableKeyPath<AgentPanelColors, ProfileColor?>,
+        default defaultColor: ProfileColor
+    ) -> some View {
+        let current = editedTheme.agentPanel?[keyPath: keyPath]
+        return HStack {
+            Toggle(name, isOn: Binding(
+                get: { current != nil },
+                set: { isOn in setPanelColor(keyPath, isOn ? defaultColor : nil) }
+            ))
+            Spacer()
+            if current != nil {
+                ColorPicker(name, selection: Binding(
+                    get: { (editedTheme.agentPanel?[keyPath: keyPath] ?? defaultColor).swiftUIColor },
+                    set: { color in
+                        if let profileColor = ProfileColor (swiftUIColor: color) {
+                            setPanelColor(keyPath, profileColor)
+                        }
+                    }
+                ))
+                .labelsHidden()
+            }
+        }
+    }
+
+    /// Keeps `agentPanel` nil while it sets nothing, so a theme saved
+    /// without panel colors is written exactly as before.
+    private func setPanelColor (_ keyPath: WritableKeyPath<AgentPanelColors, ProfileColor?>, _ color: ProfileColor?) {
+        var colors = editedTheme.agentPanel ?? AgentPanelColors()
+        colors[keyPath: keyPath] = color
+        editedTheme.agentPanel = colors.isEmpty ? nil : colors
     }
 
     private func colorBinding (_ keyPath: WritableKeyPath<TerminalTheme, ProfileColor>) -> Binding<Color> {

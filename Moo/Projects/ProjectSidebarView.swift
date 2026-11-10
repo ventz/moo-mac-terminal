@@ -27,7 +27,16 @@ struct ProjectSidebarView: View {
     /// Supplied by the window so the sidebar matches the terminal's theme and
     /// transparency rather than painting its own material.
     var background: Color
-
+    /// The agent panel's colors, from the window's theme.
+    var agentStyle: AgentPanelStyle = .standard
+    @AppStorage(HerdrDefaults.showsAgents) private var showsAgents = HerdrDefaults.defaultShowsAgents
+    @AppStorage(HerdrDefaults.showsAgentPanel) private var showsAgentPanel = HerdrDefaults.defaultShowsAgentPanel
+    @AppStorage(HerdrDefaults.agentPanelHeight) private var agentPanelHeight = HerdrDefaults.defaultAgentPanelHeight
+    @AppStorage(HerdrDefaults.agentPanelCollapsed) private var agentPanelCollapsed = false
+    @AppStorage(HerdrDefaults.namesAgents) private var namesAgents = HerdrDefaults.defaultNamesAgents
+    @State private var sidebarHeight: CGFloat = 0
+    @State private var dragStartPanelHeight: CGFloat?
+    @State private var isHoveringPanelHandle = false
 
     @State private var renameTarget: Project?
     @State private var errorMessage: String?
@@ -40,10 +49,27 @@ struct ProjectSidebarView: View {
     var body: some View {
         VStack(spacing: 0) {
             list
+            if showsAgents && showsAgentPanel {
+                Divider()
+                    .overlay {
+                        if !agentPanelCollapsed { agentPanelResizeHandle }
+                    }
+                    .zIndex(1)
+                AgentPanelView(
+                    rows: HerdrMonitor.shared.panelRows,
+                    style: agentStyle,
+                    listHeight: panelListHeight,
+                    showsCritters: namesAgents,
+                    selectedID: selectedAgentID
+                ) { row, observe in
+                    HerdrMonitor.shared.open(row, inProject: scope.selectedProjectID, observe: observe)
+                }
+            }
             Divider()
             footer
         }
         .background(background)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sidebarHeight = $0 }
         .onAppear { runtime.refreshLocations(for: store.projects) }
         .onChange(of: store.projects) { _, projects in
             runtime.refreshLocations(for: projects)
@@ -92,7 +118,8 @@ struct ProjectSidebarView: View {
                             dropEdge: dropTargetID == project.id ? dropEdge : nil,
                             isBeingDragged: draggingID == project.id,
                             herdrRows: HerdrMonitor.shared.rows(for: project.id),
-                            openHerdrRow: { HerdrMonitor.shared.open($0) }
+                            openHerdrRow: { HerdrMonitor.shared.open($0) },
+                            agentStyle: agentStyle
                         )
                         .background {
                             // The drop delegate needs the row's height to tell
@@ -131,6 +158,55 @@ struct ProjectSidebarView: View {
                 .animation(.easeInOut(duration: 0.15), value: store.projects.map(\.id))
             }
         }
+    }
+
+    /// The agent showing in this window's focused pane, highlighted like
+    /// the selected project. Reading the focus here redraws on its change.
+    private var selectedAgentID: String? {
+        let focused = scope.session?.selectedTab?.panes?.focusedControllerID
+        let monitor = HerdrMonitor.shared
+        return monitor.panelRows.first { monitor.isShowing($0, in: focused) }?.id
+    }
+
+    private var panelListHeight: CGFloat {
+        AgentPanelView.clampedListHeight(CGFloat(agentPanelHeight), sidebarHeight: sidebarHeight)
+    }
+
+    /// The divider above the agent panel is its resize grip, like the
+    /// sidebar's own edge: drawn as a hairline, grabbed by a taller strip.
+    /// Dragging up makes the panel taller.
+    private var agentPanelResizeHandle: some View {
+        Color.clear
+            .frame(height: 8)
+            .contentShape(Rectangle())
+            .onHover { inside in
+                // Balanced push and pop, so the cursor cannot stick.
+                guard inside != isHoveringPanelHandle else { return }
+                isHoveringPanelHandle = inside
+                if inside {
+                    NSCursor.resizeUpDown.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .onDisappear {
+                if isHoveringPanelHandle {
+                    isHoveringPanelHandle = false
+                    NSCursor.pop()
+                }
+            }
+            .gesture(
+                DragGesture(coordinateSpace: .global)
+                    .onChanged { value in
+                        let start = dragStartPanelHeight ?? panelListHeight
+                        if dragStartPanelHeight == nil { dragStartPanelHeight = start }
+                        agentPanelHeight = Double(AgentPanelView.clampedListHeight(
+                            start - value.translation.height, sidebarHeight: sidebarHeight
+                        ))
+                    }
+                    .onEnded { _ in dragStartPanelHeight = nil }
+            )
+            .help("Drag to resize the agent panel")
     }
 
     /// cmd+1...8 address the first eight projects; cmd+9 is always the last.
@@ -292,6 +368,7 @@ struct ProjectRowView: View {
     /// → herdr), one line each under the project.
     var herdrRows: [HerdrAgentRow] = []
     var openHerdrRow: (HerdrAgentRow) -> Void = { _ in }
+    var agentStyle: AgentPanelStyle = .standard
 
     var body: some View {
         HStack(spacing: 8) {
@@ -412,10 +489,10 @@ struct ProjectRowView: View {
     }
 
     private func herdrColor(_ row: HerdrAgentRow) -> Color {
-        if row.isDetached { return .secondary.opacity(0.4) }
-        if row.status == .blocked { return .attentionWaiting }
-        if row.isFinished { return .orange }
-        return row.status == .working ? .blue : .secondary
+        if row.isDetached { return agentStyle.idle.opacity(0.4) }
+        if row.status == .blocked { return agentStyle.blocked }
+        if row.isFinished { return agentStyle.finished }
+        return row.status == .working ? agentStyle.working : agentStyle.idle
     }
 
     private var statusText: String {

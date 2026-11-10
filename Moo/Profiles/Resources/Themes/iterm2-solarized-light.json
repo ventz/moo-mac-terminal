@@ -21,5 +21,14 @@
   "foreground": "#657b83",
   "background": "#fdf6e3",
   "cursor": "#657b83",
-  "selectionBackground": "#eee8d5"
+  "selectionBackground": "#eee8d5",
+  "agentPanel": {
+    "text": "#073642",
+    "secondaryText": "#0f3b46",
+    "working": "#17537e",
+    "blocked": "#892354",
+    "finished": "#495400",
+    "error": "#9a2321",
+    "idle": "#002b36"
+  }
 }

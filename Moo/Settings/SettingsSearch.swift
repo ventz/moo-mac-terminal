@@ -107,9 +107,12 @@ enum SettingsSearch {
         Entry("Volume", .notifications, section: "Audio", keywords: "audio loud"),
         Entry("Speak the message aloud", .notifications, section: "Audio", keywords: "voice speech"),
         Entry("Play", .notifications, section: "Audio", keywords: "sound when audio"),
-        Entry("Show herdr agents", .notifications, section: "herdr", keywords: "herdr agents claude codex sidebar multiplexer socket"),
-        Entry("Alert when a herdr agent needs you", .notifications, section: "herdr", keywords: "herdr blocked waiting approval"),
-        Entry("Alert when a herdr agent finishes", .notifications, section: "herdr", keywords: "herdr done finished turn"),
+        Entry("Show herdr agents", .herdr, section: "Agents", keywords: "herdr agents claude codex sidebar multiplexer socket"),
+        Entry("Show the agent panel in the sidebar", .herdr, section: "Agent Panel", keywords: "herdr herdr-core agents panel sidebar hc"),
+        Entry("Give agents names and pictures", .herdr, section: "Agent Panel", keywords: "herdr agents names critters ascii art pictures fun"),
+        Entry("Run new tabs and splits in herdr-core", .herdr, section: "New Terminals", keywords: "herdr herdr-core hc run attach persistent keep alive shells tabs splits"),
+        Entry("Alert when a herdr agent needs you", .herdr, section: "Alerts", keywords: "herdr blocked waiting approval"),
+        Entry("Alert when a herdr agent finishes", .herdr, section: "Alerts", keywords: "herdr done finished turn"),
 
         // Profiles
         Entry("Profiles", .profiles, section: "Profiles", keywords: "create duplicate rename delete default import export mooprofile"),

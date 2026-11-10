@@ -112,6 +112,9 @@ enum AppSettings {
         // securitySensitiveKeys.
         AppSetting(key: HerdrDefaults.alertsWhenBlocked, kind: .bool),
         AppSetting(key: HerdrDefaults.alertsWhenFinished, kind: .bool),
+        AppSetting(key: HerdrDefaults.showsAgentPanel, kind: .bool),
+        AppSetting(key: HerdrDefaults.agentPanelHeight, kind: .double),
+        AppSetting(key: HerdrDefaults.namesAgents, kind: .bool),
         // Theme browser
         AppSetting(key: "themeBrowserDisplayMode", kind: .string),
         AppSetting(key: "themeBrowserPlotMode", kind: .string),
@@ -136,8 +139,9 @@ enum AppSettings {
     /// - Content blocking: a file could switch off the ad and tracker blocker
     ///   in browser tabs.
     /// - herdr: "Show herdr agents" is consent for Moo to read other
-    ///   processes' arguments and connect to local sockets; a file must not
-    ///   give it on the user's behalf.
+    ///   processes' arguments and connect to local sockets, and "Run new
+    ///   tabs and splits in herdr-core" leaves shells running after their
+    ///   tabs close; a file must not give either on the user's behalf.
     /// - Images from local files and shared memory let terminal output probe
     ///   the Mac's files and delete shared memory objects; a file must not
     ///   switch them on.
@@ -156,6 +160,7 @@ enum AppSettings {
         "startupWindowGroupID",
         ContentBlockingDefaults.enabledKey,
         HerdrDefaults.showsAgents,
+        HerdrDefaults.runsNewTerminals,
         TerminalImageDefaults.allowsLocalSources,
         CommandPaletteDefaults.remembersDirectories,
     ]
@@ -169,6 +174,7 @@ enum AppSettings {
         PreferenceMigrator.schemaKey,                // the defaults schema version
         "browserDataStoreIdentifier",                // names this Mac's browser cookie store
         ProjectSidebarDefaults.selectedProjectID,    // which project was last selected
+        HerdrDefaults.agentPanelCollapsed,           // whether the agent panel was folded
         "lastTerminalWindowFrame",                   // where the last window was
         "lastTerminalWindowFrameSize",
         AttentionCenter.itemIDKey,                   // a notification's userInfo key

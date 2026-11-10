@@ -166,7 +166,8 @@ struct ContentView: View {
                     runtime: runtime,
                     scope: scope,
                     visibility: rowVisibility,
-                    background: sidebarBackground
+                    background: sidebarBackground,
+                    agentStyle: AgentPanelStyle(theme: windowTheme, themed: usesThemeWindowChrome)
                 )
                 .frame(width: sidebarIsVisible ? sidebarWidth : 0)
                 .clipped()
