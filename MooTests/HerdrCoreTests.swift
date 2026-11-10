@@ -154,6 +154,24 @@ struct HerdrCoreProtocolTests {
 
 // MARK: - Discovery
 
+struct HerdrCoreAttachDiscoveryTests {
+    @Test func recognizesAttachCommands() {
+        func kind(_ arguments: [String], _ environment: [String: String] = [:]) -> HerdrClientKind? {
+            HerdrDiscovery.coreAttach(arguments: arguments, environment: environment)
+        }
+        #expect(kind(["hc", "attach", "t4"]) == .coreAttach(session: nil, address: "t4"))
+        #expect(kind(["hc", "attach", "--observe", "t4"]) == .coreAttach(session: nil, address: "t4"))
+        #expect(kind(["hc", "attach", "--history", "500", "t4"]) == .coreAttach(session: nil, address: "t4"))
+        #expect(kind(["hc", "attach", "t4"], ["HC_SESSION": "default"]) == .coreAttach(session: nil, address: "t4"))
+        #expect(kind(["hc", "attach", "box/t9"], ["HC_SESSION": "work"]) == .coreAttach(session: "work", address: "box/t9"))
+        #expect(kind(["hc", "ls"]) == nil)
+        #expect(kind(["hc", "attach"]) == nil)
+        #expect(kind(["hc", "attach", "t4;x"]) == nil)
+        #expect(kind(["hc", "attach", "t4"], ["HC_SESSION": "../x"]) == nil)
+    }
+}
+
+
 struct HerdrCoreDiscoveryTests {
     @Test func findsEverySessionSocketInTheStateFolder() throws {
         let state = (NSTemporaryDirectory() as NSString).appendingPathComponent("hs.\(UUID().uuidString.prefix(6))")
@@ -421,6 +439,33 @@ struct HerdrAgentPanelTests {
         #expect(AgentPanelView.clampedListHeight(300, sidebarHeight: 100) == AgentPanelView.minimumListHeight)
         // Not measured yet: no upper clamp.
         #expect(AgentPanelView.clampedListHeight(500, sidebarHeight: 0) == 500)
+    }
+
+    /// The agent an `hc attach` in the focused pane shows is the selected
+    /// one; another session's terminal with the same address is not.
+    @Test func knowsWhichPaneShowsAnAgent() async throws {
+        let server = try FakeHerdrCoreServer(terminals: [
+            FakeHerdrCoreServer.terminal("t1", state: "working"),
+            FakeHerdrCoreServer.terminal("t2", state: "idle"),
+        ])
+        let endpoint = HerdrCoreEndpoint(socketPath: server.socketPath, sessionName: nil)
+        let viewer = UUID(), other = UUID(), elsewhere = UUID()
+        let monitor = HerdrMonitor()
+        monitor.attention = AttentionCenter(integratesWithSystem: false)
+        monitor.scanHosts = {
+            [viewer: .coreAttach(session: nil, address: "t2"),
+             elsewhere: .coreAttach(session: "work", address: "t1")]
+        }
+        monitor.scanCoreEndpoints = { [endpoint] }
+        monitor.start()
+        defer { monitor.stop() }
+        try await waitUntil("rows") { monitor.panelRows.count == 2 }
+        let rows = Dictionary(uniqueKeysWithValues: monitor.panelRows.map { ($0.id.components(separatedBy: "#").last!, $0) })
+        #expect(monitor.isShowing(try #require(rows["t2"]), in: viewer))
+        #expect(!monitor.isShowing(try #require(rows["t1"]), in: viewer))
+        #expect(!monitor.isShowing(try #require(rows["t1"]), in: elsewhere))
+        #expect(!monitor.isShowing(try #require(rows["t2"]), in: other))
+        #expect(!monitor.isShowing(try #require(rows["t2"]), in: nil))
     }
 
     @Test func panelRowsFromHerdrSessionsKeepTheirDetails() {

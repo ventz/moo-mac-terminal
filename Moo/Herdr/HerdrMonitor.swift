@@ -205,6 +205,8 @@ final class HerdrMonitor {
     @ObservationIgnored private var sessions: [HerdrEndpoint: Session] = [:]
     @ObservationIgnored private var coreSessions: [HerdrCoreEndpoint: HerdrCoreBridge] = [:]
     @ObservationIgnored private var recentAttaches: [String: Date] = [:]
+    /// Moo panes showing a herdr-core terminal (`hc attach`), by pane.
+    @ObservationIgnored private var coreViewers: [UUID: (session: String?, address: String)] = [:]
     static let attachRepeatInterval: TimeInterval = 2
     @ObservationIgnored private var scanTimer: Timer?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
@@ -410,6 +412,23 @@ final class HerdrMonitor {
         }
     }
 
+    /// Whether the Moo pane `controllerID` shows this agent: a herdr 0.9
+    /// pane that the herdr client in it has focused, or a herdr-core
+    /// terminal an `hc attach` in it is showing. The panel highlights it
+    /// like the selected project.
+    func isShowing(_ row: HerdrPanelRow, in controllerID: UUID?) -> Bool {
+        guard let controllerID else { return false }
+        _ = revision
+        switch row.source {
+        case .session(let sessionRow):
+            guard let session = sessions[sessionRow.endpoint] else { return false }
+            return session.hostID == controllerID && session.bridge.focusedPaneID == sessionRow.paneID
+        case .core(let endpoint, let terminal):
+            guard let viewer = coreViewers[controllerID] else { return false }
+            return viewer.session == endpoint.sessionName && viewer.address == terminal.address
+        }
+    }
+
     /// The herdr pane an entry from the notification list came from.
     func focusPane(forEntry itemID: UUID) {
         for session in sessions.values {
@@ -429,12 +448,17 @@ final class HerdrMonitor {
         let hosts = scanHosts()
         var byEndpoint: [HerdrEndpoint: [UUID]] = [:]
         var remote = 0
+        var viewers: [UUID: (session: String?, address: String)] = [:]
         for (controllerID, kind) in hosts {
             switch kind {
             case .local(let endpoint): byEndpoint[endpoint, default: []].append(controllerID)
             case .remote: remote += 1
+            case .coreAttach(let session, let address): viewers[controllerID] = (session, address)
             }
         }
+        let viewersChanged = viewers.mapValues { "\($0.session ?? "")/\($0.address)" }
+            != coreViewers.mapValues { "\($0.session ?? "")/\($0.address)" }
+        coreViewers = viewers
         if remoteHostCount != remote { remoteHostCount = remote }
 
         for (endpoint, hostIDs) in byEndpoint {
@@ -470,7 +494,7 @@ final class HerdrMonitor {
         }
         let coreChanged = scanCore()
         noteFocusChange()
-        if coreChanged { changed() }
+        if coreChanged || viewersChanged { changed() }
         // Twice a second of sidebar redraws for nothing otherwise.
         let after = sessions.mapValues { [$0.hostID?.uuidString, $0.projectID?.uuidString] }
         if after != before || remoteHostCount != remoteBefore {

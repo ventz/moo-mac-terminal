@@ -59,7 +59,8 @@ struct ProjectSidebarView: View {
                     rows: HerdrMonitor.shared.panelRows,
                     style: agentStyle,
                     listHeight: panelListHeight,
-                    showsCritters: namesAgents
+                    showsCritters: namesAgents,
+                    selectedID: selectedAgentID
                 ) { row, observe in
                     HerdrMonitor.shared.open(row, inProject: scope.selectedProjectID, observe: observe)
                 }
@@ -157,6 +158,14 @@ struct ProjectSidebarView: View {
                 .animation(.easeInOut(duration: 0.15), value: store.projects.map(\.id))
             }
         }
+    }
+
+    /// The agent showing in this window's focused pane, highlighted like
+    /// the selected project. Reading the focus here redraws on its change.
+    private var selectedAgentID: String? {
+        let focused = scope.session?.selectedTab?.panes?.focusedControllerID
+        let monitor = HerdrMonitor.shared
+        return monitor.panelRows.first { monitor.isShowing($0, in: focused) }?.id
     }
 
     private var panelListHeight: CGFloat {

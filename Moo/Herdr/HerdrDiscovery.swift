@@ -31,6 +31,9 @@ nonisolated enum HerdrClientKind: Equatable, Sendable {
     case local(HerdrEndpoint)
     /// `herdr --remote <host>`: the server and its socket are on that host.
     case remote(host: String)
+    /// `hc attach t7`: this pane shows a herdr-core terminal. The session
+    /// is HC_SESSION's, nil for the default one.
+    case coreAttach(session: String?, address: String)
 }
 
 nonisolated enum HerdrDiscovery {
@@ -175,7 +178,7 @@ nonisolated enum HerdrDiscovery {
 
     /// Only these environment variables are kept from a herdr process; the
     /// rest of its environment is never stored.
-    static let environmentKeys: Set<String> = ["HOME", "XDG_CONFIG_HOME", "HERDR_SOCKET_PATH", "HERDR_SESSION"]
+    static let environmentKeys: Set<String> = ["HOME", "XDG_CONFIG_HOME", "HERDR_SOCKET_PATH", "HERDR_SESSION", "HC_SESSION"]
 
     static func processArguments(of pid: pid_t) -> (arguments: [String], environment: [String: String])? {
         guard pid > 0 else { return nil }
@@ -193,19 +196,44 @@ nonisolated enum HerdrDiscovery {
         return String(cString: name)
     }
 
-    /// The herdr client in the foreground of a pty, if one is there.
+    /// What `hc attach` shows, from its arguments and environment: the
+    /// terminal and the session (HC_SESSION; nil for the default). Nil for
+    /// anything other than an attach to one plain address.
+    static func coreAttach(arguments: [String], environment: [String: String]) -> HerdrClientKind? {
+        var positionals: [String] = []
+        var index = 1
+        while index < arguments.count {
+            let argument = arguments[index]
+            if argument == "--history" {
+                index += 1
+            } else if !argument.hasPrefix("-") {
+                positionals.append(argument)
+            }
+            index += 1
+        }
+        guard positionals.count == 2, positionals[0] == "attach",
+              HerdrCoreProtocol.isAttachableAddress(positionals[1]) else { return nil }
+        let session = environment["HC_SESSION"].flatMap { $0.isEmpty || $0 == "default" ? nil : $0 }
+        if let session, !isValidSessionName(session) { return nil }
+        return .coreAttach(session: session, address: positionals[1])
+    }
+
+    /// The herdr client, or herdr-core viewer, in the foreground of a pty,
+    /// if one is there.
     @MainActor
     static func client(inForegroundOf ptyDescriptor: Int32) -> HerdrClientKind? {
         guard let group = TerminalProcessInspector.foregroundProcessGroup(ptyDescriptor: ptyDescriptor),
-              processName(group) == "herdr",
-              let process = processArguments(of: group) else {
+              let name = processName(group) else { return nil }
+        switch name {
+        case "herdr":
+            guard let process = processArguments(of: group) else { return nil }
+            return client(arguments: process.arguments, environment: process.environment, home: NSHomeDirectory())
+        case "hc", "herdr-core":
+            guard let process = processArguments(of: group) else { return nil }
+            return coreAttach(arguments: process.arguments, environment: process.environment)
+        default:
             return nil
         }
-        return client(
-            arguments: process.arguments,
-            environment: process.environment,
-            home: NSHomeDirectory()
-        )
     }
 
     // MARK: Trust

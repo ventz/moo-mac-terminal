@@ -84,6 +84,8 @@ struct AgentPanelView: View {
     var listHeight: CGFloat = CGFloat(HerdrDefaults.defaultAgentPanelHeight)
     /// Made-up names and ASCII critters (Settings → herdr).
     var showsCritters = false
+    /// The row showing in the window's focused pane.
+    var selectedID: String?
     /// Opens a row; true to watch a herdr-core agent without typing into it.
     let open: (HerdrPanelRow, Bool) -> Void
 
@@ -247,7 +249,7 @@ struct AgentPanelView: View {
         .opacity(row.isDetached ? 0.6 : 1)
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
-        .rowInteractions(row, open: open)
+        .rowInteractions(row, open: open, isSelected: row.id == selectedID)
     }
 
     private func rowView(_ row: HerdrPanelRow) -> some View {
@@ -280,15 +282,21 @@ struct AgentPanelView: View {
         .opacity(row.isDetached ? 0.6 : 1)
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
-        .rowInteractions(row, open: open)
+        .rowInteractions(row, open: open, isSelected: row.id == selectedID)
     }
 }
 
 private extension View {
     /// Click to open, the row's menu, its tooltip, and one accessibility
     /// element: the same for plain and critter rows.
-    func rowInteractions(_ row: HerdrPanelRow, open: @escaping (HerdrPanelRow, Bool) -> Void) -> some View {
-        contentShape(Rectangle())
+    func rowInteractions(_ row: HerdrPanelRow, open: @escaping (HerdrPanelRow, Bool) -> Void,
+                         isSelected: Bool) -> some View {
+        // The same highlight as the selected project's row.
+        background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(isSelected ? Color.accentColor.opacity(0.22) : .clear)
+        )
+        .contentShape(Rectangle())
             .onTapGesture { open(row, false) }
             .help(row.detail)
             .contextMenu {
