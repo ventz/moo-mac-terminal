@@ -80,15 +80,28 @@ struct AgentPanelStyle: Equatable {
 struct AgentPanelView: View {
     let rows: [HerdrPanelRow]
     let style: AgentPanelStyle
+    /// The list's height, which the divider above the panel sets.
+    var listHeight: CGFloat = CGFloat(HerdrDefaults.defaultAgentPanelHeight)
     /// Opens a row; true to watch a herdr-core agent without typing into it.
     let open: (HerdrPanelRow, Bool) -> Void
 
     @AppStorage(HerdrDefaults.agentPanelCollapsed) private var isCollapsed = false
-    @State private var contentHeight: CGFloat = 0
 
-    /// The panel grows with its agents up to this, then scrolls, so the
-    /// projects above always keep most of the sidebar.
-    static let maxListHeight: CGFloat = 240
+    /// The shortest list the divider can be dragged to, and how much of the
+    /// sidebar the projects above always keep.
+    static let minimumListHeight: CGFloat = 60
+    static let projectsReserve: CGFloat = 160
+
+    /// The stored height, kept between the minimum and what the sidebar
+    /// can give without squeezing out the projects. A sidebar not yet
+    /// measured (height 0) does not clamp.
+    static func clampedListHeight(_ stored: CGFloat, sidebarHeight: CGFloat) -> CGFloat {
+        var height = max(stored, minimumListHeight)
+        if sidebarHeight > 0 {
+            height = min(height, max(minimumListHeight, sidebarHeight - projectsReserve))
+        }
+        return height
+    }
 
     private struct Group: Identifiable {
         let name: String
@@ -167,9 +180,7 @@ struct AgentPanelView: View {
 
     private var list: some View {
         ScrollView {
-            // Not lazy: at most a few dozen rows, and the measured height
-            // must be exact.
-            VStack(alignment: .leading, spacing: 1) {
+            LazyVStack(alignment: .leading, spacing: 1) {
                 ForEach(groups) { group in
                     Text(group.name)
                         .font(.system(size: 10, weight: .medium))
@@ -185,9 +196,8 @@ struct AgentPanelView: View {
             }
             .padding(.horizontal, 6)
             .padding(.bottom, 6)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
         }
-        .frame(height: min(max(contentHeight, 20), Self.maxListHeight))
+        .frame(height: listHeight)
     }
 
     private func rowView(_ row: HerdrPanelRow) -> some View {

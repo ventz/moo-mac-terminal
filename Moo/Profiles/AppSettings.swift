@@ -113,6 +113,7 @@ enum AppSettings {
         AppSetting(key: HerdrDefaults.alertsWhenBlocked, kind: .bool),
         AppSetting(key: HerdrDefaults.alertsWhenFinished, kind: .bool),
         AppSetting(key: HerdrDefaults.showsAgentPanel, kind: .bool),
+        AppSetting(key: HerdrDefaults.agentPanelHeight, kind: .double),
         // Theme browser
         AppSetting(key: "themeBrowserDisplayMode", kind: .string),
         AppSetting(key: "themeBrowserPlotMode", kind: .string),

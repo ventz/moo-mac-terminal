@@ -31,6 +31,11 @@ struct ProjectSidebarView: View {
     var agentStyle: AgentPanelStyle = .standard
     @AppStorage(HerdrDefaults.showsAgents) private var showsAgents = HerdrDefaults.defaultShowsAgents
     @AppStorage(HerdrDefaults.showsAgentPanel) private var showsAgentPanel = HerdrDefaults.defaultShowsAgentPanel
+    @AppStorage(HerdrDefaults.agentPanelHeight) private var agentPanelHeight = HerdrDefaults.defaultAgentPanelHeight
+    @AppStorage(HerdrDefaults.agentPanelCollapsed) private var agentPanelCollapsed = false
+    @State private var sidebarHeight: CGFloat = 0
+    @State private var dragStartPanelHeight: CGFloat?
+    @State private var isHoveringPanelHandle = false
 
     @State private var renameTarget: Project?
     @State private var errorMessage: String?
@@ -45,9 +50,14 @@ struct ProjectSidebarView: View {
             list
             if showsAgents && showsAgentPanel {
                 Divider()
+                    .overlay {
+                        if !agentPanelCollapsed { agentPanelResizeHandle }
+                    }
+                    .zIndex(1)
                 AgentPanelView(
                     rows: HerdrMonitor.shared.panelRows,
-                    style: agentStyle
+                    style: agentStyle,
+                    listHeight: panelListHeight
                 ) { row, observe in
                     HerdrMonitor.shared.open(row, inProject: scope.selectedProjectID, observe: observe)
                 }
@@ -56,6 +66,7 @@ struct ProjectSidebarView: View {
             footer
         }
         .background(background)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { sidebarHeight = $0 }
         .onAppear { runtime.refreshLocations(for: store.projects) }
         .onChange(of: store.projects) { _, projects in
             runtime.refreshLocations(for: projects)
@@ -144,6 +155,47 @@ struct ProjectSidebarView: View {
                 .animation(.easeInOut(duration: 0.15), value: store.projects.map(\.id))
             }
         }
+    }
+
+    private var panelListHeight: CGFloat {
+        AgentPanelView.clampedListHeight(CGFloat(agentPanelHeight), sidebarHeight: sidebarHeight)
+    }
+
+    /// The divider above the agent panel is its resize grip, like the
+    /// sidebar's own edge: drawn as a hairline, grabbed by a taller strip.
+    /// Dragging up makes the panel taller.
+    private var agentPanelResizeHandle: some View {
+        Color.clear
+            .frame(height: 8)
+            .contentShape(Rectangle())
+            .onHover { inside in
+                // Balanced push and pop, so the cursor cannot stick.
+                guard inside != isHoveringPanelHandle else { return }
+                isHoveringPanelHandle = inside
+                if inside {
+                    NSCursor.resizeUpDown.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .onDisappear {
+                if isHoveringPanelHandle {
+                    isHoveringPanelHandle = false
+                    NSCursor.pop()
+                }
+            }
+            .gesture(
+                DragGesture(coordinateSpace: .global)
+                    .onChanged { value in
+                        let start = dragStartPanelHeight ?? panelListHeight
+                        if dragStartPanelHeight == nil { dragStartPanelHeight = start }
+                        agentPanelHeight = Double(AgentPanelView.clampedListHeight(
+                            start - value.translation.height, sidebarHeight: sidebarHeight
+                        ))
+                    }
+                    .onEnded { _ in dragStartPanelHeight = nil }
+            )
+            .help("Drag to resize the agent panel")
     }
 
     /// cmd+1...8 address the first eight projects; cmd+9 is always the last.

@@ -230,7 +230,7 @@ Clicking one brings up the tab and focuses the agent's pane in herdr.
 | Setting | Options | Default | What it does |
 |---|---|---|---|
 | **Show herdr agents** | On · Off | Off | Lists herdr's agents in the sidebar ("claude · api · needs you"). Once on, the line under it says where herdr is installed and how many agents Moo sees, or how to install it. While the Herdr app's herdr-core runs, it counts that core's agents instead, and installing herdr is optional. Never taken from a shared profile. |
-| **Show the agent panel in the sidebar** | On · Off | **On** | Lists every agent Moo reads, from both herdrs, in a panel under the projects, grouped by herdr workspace or Herdr space. Only while **Show herdr agents** is on. |
+| **Show the agent panel in the sidebar** | On · Off | **On** | Lists every agent Moo reads, from both herdrs, in a panel under the projects, grouped by herdr workspace or Herdr space. Drag the divider above it to make it taller or shorter. Only while **Show herdr agents** is on. |
 | **Alert when a herdr agent needs you** | On · Off | **On** | An agent that herdr reports as blocked (an approval prompt, a question) posts an entry, so the alerts above apply. The entry is marked read once the agent moves on. |
 | **Alert when a herdr agent finishes** | On · Off | Off | An agent going from working to idle posts an entry. Off by default because it happens on every turn. |
 

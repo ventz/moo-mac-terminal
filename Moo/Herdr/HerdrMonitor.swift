@@ -38,12 +38,15 @@ enum HerdrDefaults {
     static let alertsWhenFinished = "herdrAlertsWhenFinished"
     static let showsAgentPanel = "herdrShowsAgentPanel"
     static let agentPanelCollapsed = "herdrAgentPanelCollapsed"
+    /// The agent list's height, set by dragging the divider above it.
+    static let agentPanelHeight = "herdrAgentPanelHeight"
 
     static let defaultShowsAgents = false
     static let defaultAlertsWhenBlocked = true
     /// Off: a finished turn happens on every prompt.
     static let defaultAlertsWhenFinished = false
     static let defaultShowsAgentPanel = true
+    static let defaultAgentPanelHeight: Double = 240
 
     static var showsAgentsEnabled: Bool { bool(showsAgents, default: defaultShowsAgents) }
     static var blockedAlertsEnabled: Bool { bool(alertsWhenBlocked, default: defaultAlertsWhenBlocked) }

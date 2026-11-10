@@ -385,6 +385,17 @@ struct HerdrAgentPanelTests {
         #expect(monitor.panelRows.isEmpty)
     }
 
+    /// The dragged height stays between the minimum and what leaves the
+    /// projects their share of the sidebar.
+    @Test func panelHeightIsClamped() {
+        #expect(AgentPanelView.clampedListHeight(300, sidebarHeight: 800) == 300)
+        #expect(AgentPanelView.clampedListHeight(10, sidebarHeight: 800) == AgentPanelView.minimumListHeight)
+        #expect(AgentPanelView.clampedListHeight(900, sidebarHeight: 800) == 800 - AgentPanelView.projectsReserve)
+        #expect(AgentPanelView.clampedListHeight(300, sidebarHeight: 100) == AgentPanelView.minimumListHeight)
+        // Not measured yet: no upper clamp.
+        #expect(AgentPanelView.clampedListHeight(500, sidebarHeight: 0) == 500)
+    }
+
     @Test func panelRowsFromHerdrSessionsKeepTheirDetails() {
         let endpoint = HerdrEndpoint(socketPath: "/s", sessionName: nil)
         let row = HerdrAgentRow(endpoint: endpoint, paneID: "w1:p1", agent: "claude", workspace: "",
