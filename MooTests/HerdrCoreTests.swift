@@ -483,3 +483,76 @@ struct AgentPanelThemeTests {
         #expect(AgentPanelStyle(theme: nil, themed: true) == .standard)
     }
 }
+
+// MARK: - Built-in theme panel colors
+
+@MainActor
+struct BuiltInAgentPanelColorTests {
+    private func luminance(_ color: ProfileColor, scale: Double = 1) -> Double {
+        ThemeColorMath.relativeLuminance(
+            linearRed: ThemeColorMath.linearize(Double(color.red) / 65535 * scale),
+            linearGreen: ThemeColorMath.linearize(Double(color.green) / 65535 * scale),
+            linearBlue: ThemeColorMath.linearize(Double(color.blue) / 65535 * scale)
+        )
+    }
+
+    /// Every built-in theme colors the panel, and every status dot stands
+    /// out against the sidebar it sits on (the background darkened 35%,
+    /// as ContentView draws it).
+    @Test func everyBuiltInThemeHasReadableStatusColors() throws {
+        let themes = ThemeStore.loadBundledThemes()
+        #expect(themes.count >= 100)
+        for theme in themes {
+            let panel = try #require(theme.agentPanel, "\(theme.name) has no agentPanel")
+            let sidebar = luminance(theme.background, scale: 0.65)
+            let statuses: [(String, ProfileColor?)] = [
+                ("working", panel.working), ("blocked", panel.blocked), ("finished", panel.finished),
+                ("idle", panel.idle), ("error", panel.error),
+            ]
+            #expect(panel.text != nil && panel.secondaryText != nil, "\(theme.name)")
+            for (status, color) in statuses {
+                let color = try #require(color, "\(theme.name) has no \(status)")
+                let ratio = ThemeColorMath.contrastRatio(luminance(color), sidebar)
+                #expect(ratio >= 2.9, "\(theme.name) \(status): \(ratio)")
+            }
+        }
+    }
+}
+
+// MARK: - Names and pictures
+
+struct AgentCritterTests {
+    @Test func everyCritterIsThreeEvenLines() {
+        let statuses: [HerdrAgentStatus] = [.working, .blocked, .done, .idle, .error, .unknown]
+        for species in AgentCritters.species.indices {
+            for status in statuses {
+                let lines = AgentCritters.art(species: species, status: status).split(separator: "\n", omittingEmptySubsequences: false)
+                #expect(lines.count == 3)
+                #expect(lines.allSatisfy { $0.count == 7 }, "species \(species) \(status)")
+                #expect(lines.allSatisfy { $0.allSatisfy(\.isASCII) })
+            }
+        }
+        #expect(AgentCritters.art(species: 0, status: .blocked).contains("O_O"))
+        #expect(AgentCritters.art(species: 0, status: .done).contains("^_^"))
+    }
+
+    /// Stable across calls (and launches: FNV, not Hasher), and never two
+    /// agents with one name.
+    @Test func namesAreStableAndUnique() {
+        let ids = (1...30).map { "/state/default/default.sock#t\($0)" }
+        let first = AgentCritters.assign(ids)
+        #expect(first == AgentCritters.assign(ids.reversed()))
+        #expect(Set(first.values.map(\.name)).count == ids.count)
+        // More agents than names still gets everyone a name.
+        let crowd = (1...60).map { "id\($0)" }
+        #expect(AgentCritters.assign(crowd).count == 60)
+        // The same agent keeps its name when others come and go.
+        let alone = AgentCritters.assign([ids[0]])
+        #expect(alone[ids[0]]?.species == first[ids[0]]?.species)
+    }
+
+    @Test func fnvIsTheStandardOne() {
+        // FNV-1a 64 of "a", a published test vector.
+        #expect(AgentCritters.stableHash("a") == 0xaf63_dc4c_8601_ec8c)
+    }
+}

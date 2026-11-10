@@ -40,6 +40,8 @@ enum HerdrDefaults {
     static let agentPanelCollapsed = "herdrAgentPanelCollapsed"
     /// The agent list's height, set by dragging the divider above it.
     static let agentPanelHeight = "herdrAgentPanelHeight"
+    /// Made-up names and ASCII critters in the agent panel.
+    static let namesAgents = "herdrNamesAgents"
 
     static let defaultShowsAgents = false
     static let defaultAlertsWhenBlocked = true
@@ -47,6 +49,7 @@ enum HerdrDefaults {
     static let defaultAlertsWhenFinished = false
     static let defaultShowsAgentPanel = true
     static let defaultAgentPanelHeight: Double = 240
+    static let defaultNamesAgents = false
 
     static var showsAgentsEnabled: Bool { bool(showsAgents, default: defaultShowsAgents) }
     static var blockedAlertsEnabled: Bool { bool(alertsWhenBlocked, default: defaultAlertsWhenBlocked) }

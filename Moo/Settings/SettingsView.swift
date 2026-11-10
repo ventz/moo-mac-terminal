@@ -180,6 +180,8 @@ struct SettingsView: View {
             ProjectsSettingsView()
         case .notifications:
             NotificationsSettingsView()
+        case .herdr:
+            HerdrSettingsView()
         case .updates:
             UpdatesSettingsView()
         case .data:
@@ -371,6 +373,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
     case links
     case projects
     case notifications
+    case herdr
 
     case profiles
     case text
@@ -419,6 +422,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
         case .links: return "links--markdown"
         case .projects: return "projects"
         case .notifications: return "notifications"
+        case .herdr: return "herdr"
         case .profiles: return "profiles"
         case .text: return "appearance"
         case .window: return "window"
@@ -432,7 +436,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
 
     var group: Group {
         switch self {
-        case .general, .links, .projects, .notifications: return .app
+        case .general, .links, .projects, .notifications, .herdr: return .app
         case .profiles, .text, .window, .shell, .keyboard, .advanced: return .profile
         case .updates, .data: return .maintenance
         }
@@ -445,6 +449,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
         case .profiles: return "Profiles"
         case .projects: return "Projects"
         case .notifications: return "Notifications"
+        case .herdr: return "herdr"
         case .updates: return "Updates"
         case .text: return "Appearance"
         case .window: return "Window"
@@ -462,6 +467,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
         case .profiles: return "person.2.badge.gearshape"
         case .projects: return "sidebar.left"
         case .notifications: return "bell.badge"
+        case .herdr: return "person.3"
         case .updates: return "arrow.triangle.2.circlepath"
         case .text: return "textformat"
         case .window: return "macwindow"
@@ -476,7 +482,7 @@ enum SettingsDestination: CaseIterable, Hashable, Identifiable {
         switch self {
         case .text, .window, .shell, .keyboard, .advanced:
             return true
-        case .general, .links, .profiles, .projects, .notifications, .updates, .data:
+        case .general, .links, .profiles, .projects, .notifications, .herdr, .updates, .data:
             return false
         }
     }

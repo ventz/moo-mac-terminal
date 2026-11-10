@@ -11,6 +11,7 @@ and what it is set to out of the box.
   - [Links & Markdown](#links--markdown)
   - [Projects](#projects)
   - [Notifications](#notifications)
+  - [herdr](#herdr)
 - **Profiles** (per profile)
   - [Profiles](#profiles)
   - [Appearance](#appearance)
@@ -28,7 +29,7 @@ The sidebar has three groups, split by **what a setting applies to**:
 
 | Group | Applies to | Pages |
 |---|---|---|
-| **Moo** | The whole app, every window and profile | General, Links & Markdown, Projects, Notifications |
+| **Moo** | The whole app, every window and profile | General, Links & Markdown, Projects, Notifications, herdr |
 | **Profiles** | One profile: the one named in the toolbar's **Profile:** menu | Profiles, Appearance, Window, Shell, Keyboard, Advanced |
 | *(unlabeled)* | Moo itself | Updates, Data |
 
@@ -219,7 +220,15 @@ when each command starts and how it exits.
 | **Speak the message aloud** | On · Off | Off | Reads the notification out with the system voice. |
 | **Play** | Always · Only when Moo is in the background | **Always** | When the sound and speech happen. |
 
-### herdr
+**Send Test Notification** fires every alert that is turned on, without adding
+an entry to the list.
+
+---
+
+## herdr
+
+*App-wide.* Everything Moo reads from herdr: which agents it shows, the
+sidebar's agent panel, and herdr's alerts.
 
 [herdr](https://herdr.dev) runs coding agents (Claude Code, Codex and others)
 in terminals that keep running when you detach. When **Show herdr agents** is
@@ -231,7 +240,8 @@ Clicking one brings up the tab and focuses the agent's pane in herdr.
 |---|---|---|---|
 | **Show herdr agents** | On · Off | Off | Lists herdr's agents in the sidebar ("claude · api · needs you"). Once on, the line under it says where herdr is installed and how many agents Moo sees, or how to install it. While the Herdr app's herdr-core runs, it counts that core's agents instead, and installing herdr is optional. Never taken from a shared profile. |
 | **Show the agent panel in the sidebar** | On · Off | **On** | Lists every agent Moo reads, from both herdrs, in a panel under the projects, grouped by herdr workspace or Herdr space. Drag the divider above it to make it taller or shorter. Only while **Show herdr agents** is on. |
-| **Alert when a herdr agent needs you** | On · Off | **On** | An agent that herdr reports as blocked (an approval prompt, a question) posts an entry, so the alerts above apply. The entry is marked read once the agent moves on. |
+| **Give agents names and pictures** | On · Off | Off | Gives each agent in the panel a made-up name ("juniper") and a three-line ASCII critter whose face shows its status: `o.o` working, `O_O` needs you, `^_^` finished, `-.-` idle, `x_x` error. The agent's program and summary move to the lines under the name. An agent keeps its name across launches. Only while the agent panel is on. |
+| **Alert when a herdr agent needs you** | On · Off | **On** | An agent that herdr reports as blocked (an approval prompt, a question) posts an entry, so the Notifications page's alerts apply. The entry is marked read once the agent moves on. |
 | **Alert when a herdr agent finishes** | On · Off | Off | An agent going from working to idle posts an entry. Off by default because it happens on every turn. |
 
 - **Install.** Once the setting is on, Moo looks for herdr (it does not run
@@ -278,9 +288,6 @@ Clicking one brings up the tab and focuses the agent's pane in herdr.
 > The project row gets a "claude · 1 · working" line. When Claude asks to run
 > a command, the line reads "needs you", the Dock icon bounces, and the bell
 > lists "herdr: claude needs you".
-
-**Send Test Notification** fires every alert that is turned on, without adding
-an entry to the list.
 
 ---
 
@@ -351,7 +358,9 @@ one a theme leaves out keeps the panel's default. They apply while
 ```
 
 `blocked` colors agents that need you; the status colors also color the herdr
-lines under each project.
+lines under each project. Every built-in theme comes with panel colors picked
+from its own palette (`scripts/agent_panel_colors.py`), each checked to stand
+out against the sidebar; a user theme without them keeps the defaults.
 
 ---
 

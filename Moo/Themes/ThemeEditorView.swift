@@ -62,7 +62,7 @@ struct ThemeEditorView: View {
                     panelColorControl("Secondary text", \.secondaryText, default: editedTheme.foreground)
                     panelColorControl("Working", \.working, default: editedTheme.ansi[4])
                     panelColorControl("Needs you", \.blocked, default: editedTheme.ansi[5])
-                    panelColorControl("Finished", \.finished, default: editedTheme.ansi[3])
+                    panelColorControl("Finished", \.finished, default: editedTheme.ansi[2])
                     panelColorControl("Idle", \.idle, default: editedTheme.ansi[8])
                     panelColorControl("Error", \.error, default: editedTheme.ansi[1])
                 } header: {

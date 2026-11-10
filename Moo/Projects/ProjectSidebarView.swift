@@ -33,6 +33,7 @@ struct ProjectSidebarView: View {
     @AppStorage(HerdrDefaults.showsAgentPanel) private var showsAgentPanel = HerdrDefaults.defaultShowsAgentPanel
     @AppStorage(HerdrDefaults.agentPanelHeight) private var agentPanelHeight = HerdrDefaults.defaultAgentPanelHeight
     @AppStorage(HerdrDefaults.agentPanelCollapsed) private var agentPanelCollapsed = false
+    @AppStorage(HerdrDefaults.namesAgents) private var namesAgents = HerdrDefaults.defaultNamesAgents
     @State private var sidebarHeight: CGFloat = 0
     @State private var dragStartPanelHeight: CGFloat?
     @State private var isHoveringPanelHandle = false
@@ -57,7 +58,8 @@ struct ProjectSidebarView: View {
                 AgentPanelView(
                     rows: HerdrMonitor.shared.panelRows,
                     style: agentStyle,
-                    listHeight: panelListHeight
+                    listHeight: panelListHeight,
+                    showsCritters: namesAgents
                 ) { row, observe in
                     HerdrMonitor.shared.open(row, inProject: scope.selectedProjectID, observe: observe)
                 }

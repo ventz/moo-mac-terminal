@@ -1,16 +1,17 @@
 //
-//  HerdrSettingsSection.swift
+//  HerdrSettingsView.swift
 //  Moo
 //
-//  Settings → Notifications → herdr: the opt-in for reading herdr agents,
-//  their alerts, and a status line that finds herdr and explains what to do
-//  when it is missing.
+//  Settings → herdr: the opt-in for reading herdr agents (herdr 0.9 in a Moo
+//  tab, and the Herdr app's herdr-core), a status line that finds herdr and
+//  explains what to do when it is missing, the sidebar's agent panel, and
+//  herdr's alerts.
 //
 
 import AppKit
 import SwiftUI
 
-struct HerdrSettingsSection: View {
+struct HerdrSettingsView: View {
     @AppStorage(HerdrDefaults.showsAgents) private var showsAgents = HerdrDefaults.defaultShowsAgents
     @AppStorage(HerdrDefaults.alertsWhenBlocked) private var alertsWhenBlocked =
         HerdrDefaults.defaultAlertsWhenBlocked
@@ -18,6 +19,8 @@ struct HerdrSettingsSection: View {
         HerdrDefaults.defaultAlertsWhenFinished
     @AppStorage(HerdrDefaults.showsAgentPanel) private var showsAgentPanel =
         HerdrDefaults.defaultShowsAgentPanel
+    @AppStorage(HerdrDefaults.namesAgents) private var namesAgents =
+        HerdrDefaults.defaultNamesAgents
 
     @State private var installation = HerdrInstallation.checking
     /// Bumped when Moo becomes active again, so an install or upgrade run in
@@ -26,6 +29,23 @@ struct HerdrSettingsSection: View {
     private let monitor = HerdrMonitor.shared
 
     var body: some View {
+        Form {
+            agentsSection
+            panelSection
+            alertsSection
+        }
+        .formStyle(.grouped)
+        // Only once the user has turned it on: looking for herdr runs it.
+        .task(id: [showsAgents ? 1 : 0, recheck]) {
+            guard showsAgents else { return }
+            installation = await HerdrInstallation.check()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            recheck &+= 1
+        }
+    }
+
+    private var agentsSection: some View {
         Section {
             Toggle(isOn: $showsAgents) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -36,7 +56,7 @@ struct HerdrSettingsSection: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .settingsAnchor(.notifications, "Show herdr agents")
+            .settingsAnchor(.herdr, "Show herdr agents")
             if !showsAgents {
                 EmptyView()
             } else if case .missing(let brew) = installation, monitor.liveCoreSessionCount == 0 {
@@ -46,35 +66,56 @@ struct HerdrSettingsSection: View {
             } else if case .tooOld(let path, _) = installation, HerdrInstallation.isHomebrewPath(path) {
                 commandRow(HerdrInstallation.upgradeCommand, action: "Upgrade in New Tab")
             }
-            Toggle("Show the agent panel in the sidebar", isOn: $showsAgentPanel)
-                .settingsAnchor(.notifications, "Show the agent panel in the sidebar")
-                .disabled(!showsAgents)
-            Toggle("Alert when a herdr agent needs you", isOn: $alertsWhenBlocked)
-                .settingsAnchor(.notifications, "Alert when a herdr agent needs you")
-                .disabled(!showsAgents)
-            Toggle("Alert when a herdr agent finishes", isOn: $alertsWhenFinished)
-                .settingsAnchor(.notifications, "Alert when a herdr agent finishes")
-                .disabled(!showsAgents)
         } header: {
-            Text("herdr")
+            Text("Agents")
         } footer: {
             Text("""
                 herdr runs coding agents in terminals it keeps alive (herdr.dev).
                 On: agents in a herdr running in a Moo tab are listed under that tab's project, and every agent, including those the Herdr app runs through herdr-core, is listed in the sidebar's agent panel.
                 Moo only reads herdr's local sockets and asks herdr to focus a pane; it never types into herdr. Clicking a Herdr app agent opens it in a new tab with hc attach.
-                herdr infers status from the screen, so its entries say "detected by herdr".
-                herdr's own alerts are separate and need delivery = "terminal" in herdr's config, which Moo does not edit.
                 """)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
-        // Only once the user has turned it on: looking for herdr runs it.
-        .task(id: [showsAgents ? 1 : 0, recheck]) {
-            guard showsAgents else { return }
-            installation = await HerdrInstallation.check()
+    }
+
+    private var panelSection: some View {
+        Section {
+            Toggle("Show the agent panel in the sidebar", isOn: $showsAgentPanel)
+                .settingsAnchor(.herdr, "Show the agent panel in the sidebar")
+                .disabled(!showsAgents)
+            Toggle("Give agents names and pictures", isOn: $namesAgents)
+                .settingsAnchor(.herdr, "Give agents names and pictures")
+                .disabled(!showsAgents || !showsAgentPanel)
+        } header: {
+            Text("Agent Panel")
+        } footer: {
+            Text("""
+                Drag the divider above the panel to resize it. A theme can color it (Appearance → theme editor → Agent panel).
+                Names and pictures: each agent gets a made-up name and a small ASCII critter whose face shows what it is doing. The same agent keeps its name.
+                """)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            recheck &+= 1
+    }
+
+    private var alertsSection: some View {
+        Section {
+            Toggle("Alert when a herdr agent needs you", isOn: $alertsWhenBlocked)
+                .settingsAnchor(.herdr, "Alert when a herdr agent needs you")
+                .disabled(!showsAgents)
+            Toggle("Alert when a herdr agent finishes", isOn: $alertsWhenFinished)
+                .settingsAnchor(.herdr, "Alert when a herdr agent finishes")
+                .disabled(!showsAgents)
+        } header: {
+            Text("Alerts")
+        } footer: {
+            Text("""
+                Alerts from herdr 0.9 agents follow Notifications' sound, banner and Dock settings. herdr infers their status from the screen, so their entries say "detected by herdr". The Herdr app alerts for its own agents.
+                herdr's own alerts are separate and need delivery = "terminal" in herdr's config, which Moo does not edit.
+                """)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 

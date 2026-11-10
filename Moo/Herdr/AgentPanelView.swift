@@ -82,6 +82,8 @@ struct AgentPanelView: View {
     let style: AgentPanelStyle
     /// The list's height, which the divider above the panel sets.
     var listHeight: CGFloat = CGFloat(HerdrDefaults.defaultAgentPanelHeight)
+    /// Made-up names and ASCII critters (Settings → herdr).
+    var showsCritters = false
     /// Opens a row; true to watch a herdr-core agent without typing into it.
     let open: (HerdrPanelRow, Bool) -> Void
 
@@ -179,7 +181,8 @@ struct AgentPanelView: View {
     }
 
     private var list: some View {
-        ScrollView {
+        let identities = showsCritters ? AgentCritters.assign(rows.map(\.id)) : [:]
+        return ScrollView {
             LazyVStack(alignment: .leading, spacing: 1) {
                 ForEach(groups) { group in
                     Text(group.name)
@@ -190,7 +193,11 @@ struct AgentPanelView: View {
                         .padding(.horizontal, 6)
                         .padding(.top, 4)
                     ForEach(group.rows) { row in
-                        rowView(row)
+                        if let identity = identities[row.id] {
+                            critterRow(row, identity: identity)
+                        } else {
+                            rowView(row)
+                        }
                     }
                 }
             }
@@ -198,6 +205,49 @@ struct AgentPanelView: View {
             .padding(.bottom, 6)
         }
         .frame(height: listHeight)
+    }
+
+    /// A row with a name and a critter: the critter on the left, its face
+    /// in the status color; the made-up name, then the agent, then what
+    /// the session is about.
+    private func critterRow(_ row: HerdrPanelRow, identity: AgentCritters.Identity) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            Text(AgentCritters.art(species: identity.species, status: row.status))
+                .font(.system(size: 8, design: .monospaced))
+                .lineSpacing(-1)
+                .foregroundStyle(row.isDetached ? style.idle.opacity(0.4) : style.color(for: row.status))
+                .fixedSize()
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(identity.name)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(style.text)
+                        .lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text(row.statusText)
+                        .font(.system(size: 10))
+                        .foregroundStyle(style.secondaryText)
+                        .lineLimit(1)
+                }
+                Text(row.agent)
+                    .font(.system(size: 10))
+                    .foregroundStyle(style.secondaryText)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if let summary = row.summary {
+                    Text(summary)
+                        .font(.system(size: 10))
+                        .foregroundStyle(style.secondaryText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
+        }
+        .opacity(row.isDetached ? 0.6 : 1)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .rowInteractions(row, open: open)
     }
 
     private func rowView(_ row: HerdrPanelRow) -> some View {
@@ -230,19 +280,27 @@ struct AgentPanelView: View {
         .opacity(row.isDetached ? 0.6 : 1)
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
-        .contentShape(Rectangle())
-        .onTapGesture { open(row, false) }
-        .help(row.detail)
-        .contextMenu {
-            switch row.source {
-            case .session:
-                Button("Show Agent") { open(row, false) }
-            case .core:
-                Button("Open in New Tab") { open(row, false) }
-                Button("Watch in New Tab") { open(row, true) }
+        .rowInteractions(row, open: open)
+    }
+}
+
+private extension View {
+    /// Click to open, the row's menu, its tooltip, and one accessibility
+    /// element: the same for plain and critter rows.
+    func rowInteractions(_ row: HerdrPanelRow, open: @escaping (HerdrPanelRow, Bool) -> Void) -> some View {
+        contentShape(Rectangle())
+            .onTapGesture { open(row, false) }
+            .help(row.detail)
+            .contextMenu {
+                switch row.source {
+                case .session:
+                    Button("Show Agent") { open(row, false) }
+                case .core:
+                    Button("Open in New Tab") { open(row, false) }
+                    Button("Watch in New Tab") { open(row, true) }
+                }
             }
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
     }
 }
