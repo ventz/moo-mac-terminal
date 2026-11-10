@@ -185,7 +185,7 @@ struct AgentPanelView: View {
     private var list: some View {
         let identities = showsCritters ? AgentCritters.assign(rows.map(\.id)) : [:]
         return ScrollView {
-            LazyVStack(alignment: .leading, spacing: 1) {
+            LazyVStack(alignment: .leading, spacing: 2) {
                 ForEach(groups) { group in
                     Text(group.name)
                         .font(.system(size: 10, weight: .medium))
@@ -220,7 +220,7 @@ struct AgentPanelView: View {
                 .foregroundStyle(row.isDetached ? style.idle.opacity(0.4) : style.color(for: row.status))
                 .fixedSize()
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(identity.name)
                         .font(.system(size: 11, weight: .semibold))
@@ -248,12 +248,12 @@ struct AgentPanelView: View {
         }
         .opacity(row.isDetached ? 0.6 : 1)
         .padding(.horizontal, 6)
-        .padding(.vertical, 3)
+        .padding(.vertical, 6)
         .rowInteractions(row, open: open, isSelected: row.id == selectedID)
     }
 
     private func rowView(_ row: HerdrPanelRow) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 6) {
                 Circle()
                     .fill(row.isDetached ? style.idle.opacity(0.4) : style.color(for: row.status))
@@ -281,7 +281,7 @@ struct AgentPanelView: View {
         }
         .opacity(row.isDetached ? 0.6 : 1)
         .padding(.horizontal, 6)
-        .padding(.vertical, 3)
+        .padding(.vertical, 6)
         .rowInteractions(row, open: open, isSelected: row.id == selectedID)
     }
 }
