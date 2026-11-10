@@ -468,6 +468,40 @@ struct HerdrAgentPanelTests {
         #expect(!monitor.isShowing(try #require(rows["t2"]), in: nil))
     }
 
+    /// A pane the panel just typed `hc attach` into is highlighted at once,
+    /// until the scan finds `hc` there or the wait runs out.
+    @Test func aJustOpenedAttachCountsUntilSeenOrStale() async throws {
+        let server = try FakeHerdrCoreServer(terminals: [FakeHerdrCoreServer.terminal("t1", state: "working")])
+        let endpoint = HerdrCoreEndpoint(socketPath: server.socketPath, sessionName: nil)
+        let pane = UUID()
+        final class Box: @unchecked Sendable { var hosts: [UUID: HerdrClientKind] = [:]; var now = Date(timeIntervalSinceReferenceDate: 0) }
+        let box = Box()
+        let monitor = HerdrMonitor()
+        monitor.attention = AttentionCenter(integratesWithSystem: false)
+        monitor.scanHosts = { box.hosts }
+        monitor.scanCoreEndpoints = { [endpoint] }
+        monitor.now = { box.now }
+        monitor.start()
+        defer { monitor.stop() }
+        try await waitUntil("row") { monitor.panelRows.count == 1 }
+        let row = try #require(monitor.panelRows.first)
+
+        monitor.noteAttaching(controllerID: pane, endpoint: endpoint, address: "t1")
+        #expect(monitor.isShowing(row, in: pane))
+        monitor.scan()
+        #expect(monitor.isShowing(row, in: pane), "the shell has not started hc yet")
+        box.now = box.now.addingTimeInterval(HerdrMonitor.pendingViewerInterval + 1)
+        monitor.scan()
+        #expect(!monitor.isShowing(row, in: pane), "hc never showed up")
+
+        monitor.noteAttaching(controllerID: pane, endpoint: endpoint, address: "t1")
+        box.hosts = [pane: .coreAttach(session: nil, address: "t1")]
+        monitor.scan()
+        box.now = box.now.addingTimeInterval(HerdrMonitor.pendingViewerInterval + 1)
+        monitor.scan()
+        #expect(monitor.isShowing(row, in: pane), "seen running, no longer pending")
+    }
+
     @Test func panelRowsFromHerdrSessionsKeepTheirDetails() {
         let endpoint = HerdrEndpoint(socketPath: "/s", sessionName: nil)
         let row = HerdrAgentRow(endpoint: endpoint, paneID: "w1:p1", agent: "claude", workspace: "",

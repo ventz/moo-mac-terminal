@@ -207,6 +207,11 @@ final class HerdrMonitor {
     @ObservationIgnored private var recentAttaches: [String: Date] = [:]
     /// Moo panes showing a herdr-core terminal (`hc attach`), by pane.
     @ObservationIgnored private var coreViewers: [UUID: (session: String?, address: String)] = [:]
+    /// Attaches the panel just typed into a new tab, until the scan sees
+    /// them running: the shell takes a moment to start `hc`, and the row
+    /// should highlight on the click, not seconds later.
+    @ObservationIgnored private var pendingViewers: [UUID: (session: String?, address: String, until: Date)] = [:]
+    static let pendingViewerInterval: TimeInterval = 10
     static let attachRepeatInterval: TimeInterval = 2
     @ObservationIgnored private var scanTimer: Timer?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
@@ -394,6 +399,12 @@ final class HerdrMonitor {
         case .session(let sessionRow):
             open(sessionRow)
         case .core(let endpoint, let terminal):
+            // Already showing in a Moo pane: go there, as a project row does,
+            // rather than stacking another client on the agent.
+            if !observe, let existing = viewerController(endpoint: endpoint, address: terminal.address) {
+                AttentionNavigator.reveal(existing)
+                return
+            }
             guard let projectID,
                   let command = endpoint.attachCommand(address: terminal.address, observe: observe) else {
                 NSSound.beep()
@@ -407,9 +418,29 @@ final class HerdrMonitor {
             let runtime = ProjectRuntime.shared
             runtime.select(projectID: projectID)
             let tab = runtime.session(for: projectID).addTab()
-            tab.panes?.focusedController?.typeWhenStarted(command + "\n")
+            if let controller = tab.panes?.focusedController {
+                controller.typeWhenStarted(command + "\n")
+                noteAttaching(controllerID: controller.id, endpoint: endpoint, address: terminal.address)
+            }
             runtime.invalidate()
         }
+    }
+
+    /// The panel typed `hc attach` into this pane: it shows that agent from
+    /// now, so the row highlights at once.
+    func noteAttaching(controllerID: UUID, endpoint: HerdrCoreEndpoint, address: String) {
+        pendingViewers[controllerID] = (endpoint.sessionName, address, now().addingTimeInterval(Self.pendingViewerInterval))
+        coreViewers[controllerID] = (endpoint.sessionName, address)
+        changed()
+    }
+
+    /// A live Moo pane already showing this herdr-core terminal.
+    private func viewerController(endpoint: HerdrCoreEndpoint, address: String) -> TerminalSessionController? {
+        for (id, viewer) in coreViewers.sorted(by: { $0.key.uuidString < $1.key.uuidString })
+        where viewer.session == endpoint.sessionName && viewer.address == address {
+            if let controller = Self.controller(for: id) { return controller }
+        }
+        return nil
     }
 
     /// Whether the Moo pane `controllerID` shows this agent: a herdr 0.9
@@ -454,6 +485,16 @@ final class HerdrMonitor {
             case .local(let endpoint): byEndpoint[endpoint, default: []].append(controllerID)
             case .remote: remote += 1
             case .coreAttach(let session, let address): viewers[controllerID] = (session, address)
+            }
+        }
+        // A pane the panel just opened counts until its `hc` shows up, or
+        // the wait runs out, or something else runs there.
+        let time = now()
+        for (id, pending) in pendingViewers {
+            if viewers[id] != nil || time >= pending.until {
+                pendingViewers[id] = nil
+            } else {
+                viewers[id] = (pending.session, pending.address)
             }
         }
         let viewersChanged = viewers.mapValues { "\($0.session ?? "")/\($0.address)" }
@@ -663,3 +704,4 @@ final class HerdrMonitor {
         controller(for: id).map(AttentionCenter.location(of:)) ?? "herdr"
     }
 }
+
