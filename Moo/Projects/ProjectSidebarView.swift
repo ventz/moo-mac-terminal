@@ -27,7 +27,10 @@ struct ProjectSidebarView: View {
     /// Supplied by the window so the sidebar matches the terminal's theme and
     /// transparency rather than painting its own material.
     var background: Color
-
+    /// The agent panel's colors, from the window's theme.
+    var agentStyle: AgentPanelStyle = .standard
+    @AppStorage(HerdrDefaults.showsAgents) private var showsAgents = HerdrDefaults.defaultShowsAgents
+    @AppStorage(HerdrDefaults.showsAgentPanel) private var showsAgentPanel = HerdrDefaults.defaultShowsAgentPanel
 
     @State private var renameTarget: Project?
     @State private var errorMessage: String?
@@ -40,6 +43,15 @@ struct ProjectSidebarView: View {
     var body: some View {
         VStack(spacing: 0) {
             list
+            if showsAgents && showsAgentPanel {
+                Divider()
+                AgentPanelView(
+                    rows: HerdrMonitor.shared.panelRows,
+                    style: agentStyle
+                ) { row, observe in
+                    HerdrMonitor.shared.open(row, inProject: scope.selectedProjectID, observe: observe)
+                }
+            }
             Divider()
             footer
         }
@@ -92,7 +104,8 @@ struct ProjectSidebarView: View {
                             dropEdge: dropTargetID == project.id ? dropEdge : nil,
                             isBeingDragged: draggingID == project.id,
                             herdrRows: HerdrMonitor.shared.rows(for: project.id),
-                            openHerdrRow: { HerdrMonitor.shared.open($0) }
+                            openHerdrRow: { HerdrMonitor.shared.open($0) },
+                            agentStyle: agentStyle
                         )
                         .background {
                             // The drop delegate needs the row's height to tell
@@ -292,6 +305,7 @@ struct ProjectRowView: View {
     /// → herdr), one line each under the project.
     var herdrRows: [HerdrAgentRow] = []
     var openHerdrRow: (HerdrAgentRow) -> Void = { _ in }
+    var agentStyle: AgentPanelStyle = .standard
 
     var body: some View {
         HStack(spacing: 8) {
@@ -412,10 +426,10 @@ struct ProjectRowView: View {
     }
 
     private func herdrColor(_ row: HerdrAgentRow) -> Color {
-        if row.isDetached { return .secondary.opacity(0.4) }
-        if row.status == .blocked { return .attentionWaiting }
-        if row.isFinished { return .orange }
-        return row.status == .working ? .blue : .secondary
+        if row.isDetached { return agentStyle.idle.opacity(0.4) }
+        if row.status == .blocked { return agentStyle.blocked }
+        if row.isFinished { return agentStyle.finished }
+        return row.status == .working ? agentStyle.working : agentStyle.idle
     }
 
     private var statusText: String {

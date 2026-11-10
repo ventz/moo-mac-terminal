@@ -16,8 +16,15 @@
 //  AttentionCenter's "never inferred" rule, and it is labeled everywhere it
 //  shows. Alerts are rate-limited per pane and per session.
 //
+//  It also follows herdr-core (the daemon behind the Herdr app), which runs
+//  its agents itself rather than in a Moo tab: every herdr-core session
+//  with a socket in its state folder is read, and its agents are listed in
+//  the sidebar's agent panel. They post no notification-list entries:
+//  there is no Moo pane to point one at, and the Herdr app alerts for them.
+//
 //  Read-only throughout: HerdrBridge can only send the methods in
-//  HerdrMethod, none of which types into a pane.
+//  HerdrMethod, none of which types into a pane, and HerdrCoreBridge only
+//  subscribes (HerdrCoreMethod).
 //
 
 import AppKit
@@ -29,11 +36,14 @@ enum HerdrDefaults {
     static let showsAgents = "herdrShowsAgents"
     static let alertsWhenBlocked = "herdrAlertsWhenBlocked"
     static let alertsWhenFinished = "herdrAlertsWhenFinished"
+    static let showsAgentPanel = "herdrShowsAgentPanel"
+    static let agentPanelCollapsed = "herdrAgentPanelCollapsed"
 
     static let defaultShowsAgents = false
     static let defaultAlertsWhenBlocked = true
     /// Off: a finished turn happens on every prompt.
     static let defaultAlertsWhenFinished = false
+    static let defaultShowsAgentPanel = true
 
     static var showsAgentsEnabled: Bool { bool(showsAgents, default: defaultShowsAgents) }
     static var blockedAlertsEnabled: Bool { bool(alertsWhenBlocked, default: defaultAlertsWhenBlocked) }
@@ -41,6 +51,81 @@ enum HerdrDefaults {
 
     private static func bool(_ key: String, default value: Bool) -> Bool {
         UserDefaults.standard.object(forKey: key) as? Bool ?? value
+    }
+}
+
+/// One agent in the sidebar's agent panel, from either herdr.
+struct HerdrPanelRow: Identifiable, Equatable {
+    enum Source: Equatable {
+        /// herdr 0.9, through a client in a Moo tab.
+        case session(HerdrAgentRow)
+        /// herdr-core, the Herdr app's daemon.
+        case core(HerdrCoreEndpoint, HerdrCoreTerminal)
+    }
+
+    let source: Source
+
+    var id: String {
+        switch source {
+        case .session(let row): return row.id
+        case .core(let endpoint, let terminal): return "\(endpoint.socketPath)#\(terminal.address)"
+        }
+    }
+
+    var agent: String {
+        switch source {
+        case .session(let row): return row.agent
+        case .core(_, let terminal): return terminal.agent
+        }
+    }
+
+    /// What the panel groups by: the herdr workspace, or the Herdr space.
+    var group: String {
+        switch source {
+        case .session(let row): return row.workspace.isEmpty ? "herdr" : row.workspace
+        case .core(_, let terminal): return terminal.location
+        }
+    }
+
+    var status: HerdrAgentStatus {
+        switch source {
+        case .session(let row): return row.isFinished && row.status.isAtRest ? .done : row.status
+        case .core(_, let terminal): return terminal.status
+        }
+    }
+
+    var isDetached: Bool {
+        if case .session(let row) = source { return row.isDetached }
+        return false
+    }
+
+    var statusText: String {
+        switch source {
+        case .session(let row):
+            return row.statusText
+        case .core(_, let terminal):
+            switch terminal.status {
+            case .blocked:
+                return terminal.blockedKind.map { "needs you: \($0)" } ?? "needs you"
+            case .done: return "finished"
+            case .working: return "working"
+            case .error: return "error"
+            case .idle, .unknown: return "idle"
+            }
+        }
+    }
+
+    /// The whole story, for the tooltip.
+    var detail: String {
+        switch source {
+        case .session(let row):
+            return "herdr pane \(HerdrMonitor.clean(row.paneID)), status detected from the screen"
+        case .core(_, let terminal):
+            var lines = ["Herdr terminal \(HerdrMonitor.clean(terminal.address))"]
+            if !terminal.title.isEmpty { lines.append(terminal.title) }
+            if let message = terminal.message { lines.append(message) }
+            return lines.joined(separator: "\n")
+        }
     }
 }
 
@@ -106,6 +191,9 @@ final class HerdrMonitor {
     static let sessionAlertLimit = 10
 
     @ObservationIgnored private var sessions: [HerdrEndpoint: Session] = [:]
+    @ObservationIgnored private var coreSessions: [HerdrCoreEndpoint: HerdrCoreBridge] = [:]
+    @ObservationIgnored private var recentAttaches: [String: Date] = [:]
+    static let attachRepeatInterval: TimeInterval = 2
     @ObservationIgnored private var scanTimer: Timer?
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
     @ObservationIgnored private(set) var isRunning = false
@@ -115,6 +203,8 @@ final class HerdrMonitor {
     @ObservationIgnored var scanHosts: () -> [UUID: HerdrClientKind] = HerdrMonitor.scanLiveHosts
     @ObservationIgnored var projectForHost: (UUID) -> UUID? = HerdrMonitor.projectOfController
     @ObservationIgnored var makeBridge: (HerdrEndpoint) -> HerdrBridge = { HerdrBridge(endpoint: $0) }
+    @ObservationIgnored var scanCoreEndpoints: () -> [HerdrCoreEndpoint] = { HerdrCoreDiscovery.endpoints() }
+    @ObservationIgnored var makeCoreBridge: (HerdrCoreEndpoint) -> HerdrCoreBridge = { HerdrCoreBridge(endpoint: $0) }
     @ObservationIgnored var isLookingAtHost: (UUID) -> Bool = HerdrMonitor.userIsLookingAt
     @ObservationIgnored var locationOfHost: (UUID) -> String = HerdrMonitor.locationOfController
     @ObservationIgnored var alertsWhenBlocked: () -> Bool = { HerdrDefaults.blockedAlertsEnabled }
@@ -169,6 +259,9 @@ final class HerdrMonitor {
         for endpoint in Array(sessions.keys) {
             endSession(endpoint)
         }
+        for endpoint in Array(coreSessions.keys) {
+            endCoreSession(endpoint)
+        }
         remoteHostCount = 0
         changed()
     }
@@ -176,9 +269,26 @@ final class HerdrMonitor {
     // MARK: Rows
 
     func rows(for projectID: UUID) -> [HerdrAgentRow] {
+        sessionRows { $0.projectID == projectID }
+    }
+
+    /// Every agent Moo knows of, from both herdrs, for the agent panel:
+    /// grouped by workspace or space, then by name.
+    var panelRows: [HerdrPanelRow] {
+        _ = revision
+        var rows = sessionRows { _ in true }.map { HerdrPanelRow(source: .session($0)) }
+        for (endpoint, bridge) in coreSessions {
+            for terminal in bridge.agents.values {
+                rows.append(HerdrPanelRow(source: .core(endpoint, terminal)))
+            }
+        }
+        return rows.sorted { ($0.group, $0.agent, $0.id) < ($1.group, $1.agent, $1.id) }
+    }
+
+    private func sessionRows(where include: (Session) -> Bool) -> [HerdrAgentRow] {
         _ = revision
         var rows: [HerdrAgentRow] = []
-        for (endpoint, session) in sessions where session.projectID == projectID {
+        for (endpoint, session) in sessions where include(session) {
             let bridge = session.bridge
             for pane in bridge.panes.values {
                 guard let agent = pane.agent, pane.status != .unknown else { continue }
@@ -210,10 +320,25 @@ final class HerdrMonitor {
         sessions.values.filter { $0.bridge.state == .live }.count
     }
 
+    /// Agents across every live herdr-core session.
+    var coreAgentCount: Int {
+        _ = revision
+        return coreSessions.values.reduce(0) { $0 + $1.agents.count }
+    }
+
+    var liveCoreSessionCount: Int {
+        _ = revision
+        return coreSessions.values.filter { $0.state == .live }.count
+    }
+
     /// The first refusal, for Settings to explain.
     var refusal: String? {
+        _ = revision
         for session in sessions.values {
             if case .refused(let reason) = session.bridge.state { return reason }
+        }
+        for bridge in coreSessions.values {
+            if case .refused(let reason) = bridge.state { return reason }
         }
         return nil
     }
@@ -243,6 +368,34 @@ final class HerdrMonitor {
         let tab = runtime.session(for: projectID).addTab()
         tab.panes?.focusedController?.typeWhenStarted(command + "\n")
         runtime.invalidate()
+    }
+
+    /// Opens a panel row. A herdr 0.9 agent is shown where it runs, as from
+    /// the project row. A herdr-core agent opens in a new tab of `projectID`
+    /// with `hc attach` typed and run there: the user's own click, typed
+    /// into Moo's own shell, never into herdr. `observe` watches without
+    /// typing into or resizing the agent's terminal.
+    func open(_ row: HerdrPanelRow, inProject projectID: UUID?, observe: Bool = false) {
+        switch row.source {
+        case .session(let sessionRow):
+            open(sessionRow)
+        case .core(let endpoint, let terminal):
+            guard let projectID,
+                  let command = endpoint.attachCommand(address: terminal.address, observe: observe) else {
+                NSSound.beep()
+                return
+            }
+            // A double click must not put two clients on one agent.
+            let key = row.id + (observe ? "#observe" : "")
+            if let last = recentAttaches[key], now().timeIntervalSince(last) < Self.attachRepeatInterval { return }
+            recentAttaches = recentAttaches.filter { now().timeIntervalSince($0.value) < Self.attachRepeatInterval }
+            recentAttaches[key] = now()
+            let runtime = ProjectRuntime.shared
+            runtime.select(projectID: projectID)
+            let tab = runtime.session(for: projectID).addTab()
+            tab.panes?.focusedController?.typeWhenStarted(command + "\n")
+            runtime.invalidate()
+        }
     }
 
     /// The herdr pane an entry from the notification list came from.
@@ -303,7 +456,9 @@ final class HerdrMonitor {
                 endSession(endpoint)
             }
         }
+        let coreChanged = scanCore()
         noteFocusChange()
+        if coreChanged { changed() }
         // Twice a second of sidebar redraws for nothing otherwise.
         let after = sessions.mapValues { [$0.hostID?.uuidString, $0.projectID?.uuidString] }
         if after != before || remoteHostCount != remoteBefore {
@@ -323,6 +478,37 @@ final class HerdrMonitor {
             didChange = true
         }
         if didChange { changed() }
+    }
+
+    /// Follows herdr-core sessions as their sockets come and go. A session
+    /// whose socket is gone is dropped once its bridge has lost it too.
+    private func scanCore() -> Bool {
+        let found = Set(scanCoreEndpoints())
+        var didChange = false
+        for endpoint in found where coreSessions[endpoint] == nil {
+            let bridge = makeCoreBridge(endpoint)
+            // Status moves are part of a structure change here: herdr-core
+            // agents post no entries.
+            bridge.onChange = { [weak self] change in
+                if case .structure = change { self?.changed() }
+            }
+            coreSessions[endpoint] = bridge
+            bridge.start()
+            didChange = true
+        }
+        for (endpoint, bridge) in coreSessions where !found.contains(endpoint) {
+            if bridge.state != .live && bridge.state != .connecting {
+                endCoreSession(endpoint)
+                didChange = true
+            }
+        }
+        return didChange
+    }
+
+    private func endCoreSession(_ endpoint: HerdrCoreEndpoint) {
+        guard let bridge = coreSessions.removeValue(forKey: endpoint) else { return }
+        bridge.onChange = { _ in }
+        bridge.stop()
     }
 
     private func endSession(_ endpoint: HerdrEndpoint) {

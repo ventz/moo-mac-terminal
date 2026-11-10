@@ -16,6 +16,8 @@ struct HerdrSettingsSection: View {
         HerdrDefaults.defaultAlertsWhenBlocked
     @AppStorage(HerdrDefaults.alertsWhenFinished) private var alertsWhenFinished =
         HerdrDefaults.defaultAlertsWhenFinished
+    @AppStorage(HerdrDefaults.showsAgentPanel) private var showsAgentPanel =
+        HerdrDefaults.defaultShowsAgentPanel
 
     @State private var installation = HerdrInstallation.checking
     /// Bumped when Moo becomes active again, so an install or upgrade run in
@@ -37,11 +39,16 @@ struct HerdrSettingsSection: View {
             .settingsAnchor(.notifications, "Show herdr agents")
             if !showsAgents {
                 EmptyView()
-            } else if case .missing(let brew) = installation {
+            } else if case .missing(let brew) = installation, monitor.liveCoreSessionCount == 0 {
+                // With the Herdr app's herdr-core running, herdr 0.9 is
+                // optional: nothing to install.
                 installRow(brew: brew)
             } else if case .tooOld(let path, _) = installation, HerdrInstallation.isHomebrewPath(path) {
                 commandRow(HerdrInstallation.upgradeCommand, action: "Upgrade in New Tab")
             }
+            Toggle("Show the agent panel in the sidebar", isOn: $showsAgentPanel)
+                .settingsAnchor(.notifications, "Show the agent panel in the sidebar")
+                .disabled(!showsAgents)
             Toggle("Alert when a herdr agent needs you", isOn: $alertsWhenBlocked)
                 .settingsAnchor(.notifications, "Alert when a herdr agent needs you")
                 .disabled(!showsAgents)
@@ -53,8 +60,8 @@ struct HerdrSettingsSection: View {
         } footer: {
             Text("""
                 herdr runs coding agents in terminals it keeps alive (herdr.dev).
-                On: agents in a herdr running in a Moo tab are listed under that tab's project.
-                Moo only reads herdr's local socket and asks it to focus a pane; it never types into herdr.
+                On: agents in a herdr running in a Moo tab are listed under that tab's project, and every agent, including those the Herdr app runs through herdr-core, is listed in the sidebar's agent panel.
+                Moo only reads herdr's local sockets and asks herdr to focus a pane; it never types into herdr. Clicking a Herdr app agent opens it in a new tab with hc attach.
                 herdr infers status from the screen, so its entries say "detected by herdr".
                 herdr's own alerts are separate and need delivery = "terminal" in herdr's config, which Moo does not edit.
                 """)
@@ -82,6 +89,34 @@ struct HerdrSettingsSection: View {
 
     @ViewBuilder
     private var installationLine: some View {
+        if monitor.liveCoreSessionCount > 0 {
+            Text(coreSummary)
+            // herdr 0.9 is optional beside herdr-core, but a too-old one in
+            // a Moo tab is still worth saying.
+            if case .tooOld = installation { herdrInstallationLine }
+        } else {
+            herdrInstallationLine
+        }
+    }
+
+    /// "herdr-core · 3 agents", and the herdr 0.9 summary when a herdr
+    /// runs in a Moo tab too.
+    private var coreSummary: String {
+        _ = monitor.revision
+        let agents = monitor.coreAgentCount
+        var parts = ["herdr-core", agents == 1 ? "1 agent" : "\(agents) agents"]
+        if monitor.liveSessionCount > 0 {
+            let more = monitor.agentCount
+            parts.append("herdr in a Moo tab: " + (more == 1 ? "1 agent" : "\(more) agents"))
+        }
+        if let refusal = monitor.refusal {
+            parts.append("not connected: \(refusal)")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    @ViewBuilder
+    private var herdrInstallationLine: some View {
         switch installation {
         case .checking:
             Text("Looking for herdr…")

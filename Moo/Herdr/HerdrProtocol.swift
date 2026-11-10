@@ -38,6 +38,8 @@ nonisolated enum HerdrAgentStatus: String, Sendable {
     case blocked
     case done
     case idle
+    /// herdr-core only: the program said it hit an error.
+    case error
     case unknown
 
     init(raw: String?) {
@@ -105,6 +107,12 @@ nonisolated enum HerdrProtocol {
 
     static func subscribe(id: String, to subscriptions: [[String: String]]) -> HerdrRequest {
         line(["id": id, "method": HerdrMethod.subscribe.rawValue, "params": ["subscriptions": subscriptions]])
+    }
+
+    /// A herdr-core request: JSON-RPC 2.0, built from `HerdrCoreMethod`
+    /// alone, like the requests above.
+    static func coreRequest(id: Int, _ method: HerdrCoreMethod, params: [String: Any] = [:]) -> HerdrRequest {
+        line(["jsonrpc": "2.0", "id": id, "method": method.rawValue, "params": params])
     }
 
     private static func line(_ object: [String: Any]) -> HerdrRequest {

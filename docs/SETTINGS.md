@@ -229,7 +229,8 @@ Clicking one brings up the tab and focuses the agent's pane in herdr.
 
 | Setting | Options | Default | What it does |
 |---|---|---|---|
-| **Show herdr agents** | On · Off | Off | Lists herdr's agents in the sidebar ("claude · api · needs you"). Once on, the line under it says where herdr is installed and how many agents Moo sees, or how to install it. Never taken from a shared profile. |
+| **Show herdr agents** | On · Off | Off | Lists herdr's agents in the sidebar ("claude · api · needs you"). Once on, the line under it says where herdr is installed and how many agents Moo sees, or how to install it. While the Herdr app's herdr-core runs, it counts that core's agents instead, and installing herdr is optional. Never taken from a shared profile. |
+| **Show the agent panel in the sidebar** | On · Off | **On** | Lists every agent Moo reads, from both herdrs, in a panel under the projects, grouped by herdr workspace or Herdr space. Only while **Show herdr agents** is on. |
 | **Alert when a herdr agent needs you** | On · Off | **On** | An agent that herdr reports as blocked (an approval prompt, a question) posts an entry, so the alerts above apply. The entry is marked read once the agent moves on. |
 | **Alert when a herdr agent finishes** | On · Off | Off | An agent going from working to idle posts an entry. Off by default because it happens on every turn. |
 
@@ -251,6 +252,19 @@ Clicking one brings up the tab and focuses the agent's pane in herdr.
   new shell would not find).
 - **Quiet by design.** A pane alerts at most once every 30 seconds, and a
   herdr session at most 10 times a minute.
+- **The Herdr app (herdr-core).** The Herdr app runs its agents in
+  herdr-core (`hc`), a daemon with its own API, rather than in a Moo tab.
+  Moo finds every herdr-core session from its socket in
+  `~/.local/state/herdr-core/`, and in `$XDG_STATE_HOME/herdr-core/` when
+  Moo itself was started with that set (a Moo opened from the Dock does not
+  see what your shell's rc file exports), with the same ownership checks. It
+  lists their agents in the agent panel with the status each agent reports
+  itself. Clicking one opens a new tab running
+  `HC_SESSION=default hc attach t7`; **Watch in New Tab** in its menu adds
+  `--observe`, which never types into or resizes it. Moo only
+  subscribes to herdr-core's events; it never starts, types into or stops
+  its terminals. herdr-core agents post no entries to the notifications
+  list: the Herdr app alerts for them.
 - **Not shown:** herdr sessions never attached in a Moo tab, and agents on
   other machines (`herdr --remote`).
 - **herdr's own alerts** are separate from these: they need
@@ -314,6 +328,27 @@ keys. Every terminal uses one. The **Default** profile ships with Moo.
 **Theme**: the color scheme, picked from the list of built-in and imported
 themes. Default: **SwiftTerm** (black background). A window can also switch to
 another theme on its own, from its theme picker, without changing the profile.
+
+A theme can also color the sidebar's agent panel, in the theme editor's
+**Agent panel** section or in the theme's JSON file. Every color is optional;
+one a theme leaves out keeps the panel's default. They apply while
+**Color the window to match the theme** is on.
+
+```json
+"agentPanel": {
+  "background": "#1d1f21",
+  "text": "#c5c8c6",
+  "secondaryText": "#969896",
+  "working": "#81a2be",
+  "blocked": "#de935f",
+  "finished": "#b5bd68",
+  "idle": "#707880",
+  "error": "#cc6666"
+}
+```
+
+`blocked` colors agents that need you; the status colors also color the herdr
+lines under each project.
 
 ---
 

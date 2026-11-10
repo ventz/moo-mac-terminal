@@ -550,6 +550,8 @@ struct HerdrMonitorTests {
         let monitor = HerdrMonitor()
         monitor.attention = center
         monitor.scanHosts = hosts
+        // Never the herdr-core on the machine running the tests.
+        monitor.scanCoreEndpoints = { [] }
         let project = self.project
         monitor.projectForHost = { _ in project }
         monitor.isLookingAtHost = { _ in false }

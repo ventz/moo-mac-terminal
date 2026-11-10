@@ -112,6 +112,7 @@ enum AppSettings {
         // securitySensitiveKeys.
         AppSetting(key: HerdrDefaults.alertsWhenBlocked, kind: .bool),
         AppSetting(key: HerdrDefaults.alertsWhenFinished, kind: .bool),
+        AppSetting(key: HerdrDefaults.showsAgentPanel, kind: .bool),
         // Theme browser
         AppSetting(key: "themeBrowserDisplayMode", kind: .string),
         AppSetting(key: "themeBrowserPlotMode", kind: .string),
@@ -169,6 +170,7 @@ enum AppSettings {
         PreferenceMigrator.schemaKey,                // the defaults schema version
         "browserDataStoreIdentifier",                // names this Mac's browser cookie store
         ProjectSidebarDefaults.selectedProjectID,    // which project was last selected
+        HerdrDefaults.agentPanelCollapsed,           // whether the agent panel was folded
         "lastTerminalWindowFrame",                   // where the last window was
         "lastTerminalWindowFrameSize",
         AttentionCenter.itemIDKey,                   // a notification's userInfo key
