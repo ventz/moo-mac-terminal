@@ -21,6 +21,8 @@ struct HerdrSettingsView: View {
         HerdrDefaults.defaultShowsAgentPanel
     @AppStorage(HerdrDefaults.namesAgents) private var namesAgents =
         HerdrDefaults.defaultNamesAgents
+    @AppStorage(HerdrDefaults.runsNewTerminals) private var runsNewTerminals =
+        HerdrDefaults.defaultRunsNewTerminals
 
     @State private var installation = HerdrInstallation.checking
     /// Bumped when Moo becomes active again, so an install or upgrade run in
@@ -32,6 +34,7 @@ struct HerdrSettingsView: View {
         Form {
             agentsSection
             panelSection
+            newTerminalsSection
             alertsSection
         }
         .formStyle(.grouped)
@@ -93,6 +96,31 @@ struct HerdrSettingsView: View {
             Text("""
                 Drag the divider above the panel to resize it. A theme can color it (Appearance → theme editor → Agent panel).
                 Names and pictures: each agent gets a made-up name and a small ASCII critter whose face shows what it is doing. The same agent keeps its name.
+                """)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var newTerminalsSection: some View {
+        let hc = HerdrCoreLaunch.hcPath()
+        return Section {
+            Toggle(isOn: $runsNewTerminals) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Run new tabs and splits in herdr-core")
+                    Text(hc.map { "Uses \($0)." } ?? "hc isn't installed; install the Herdr app or herdr-core first.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .settingsAnchor(.herdr, "Run new tabs and splits in herdr-core")
+            .disabled(hc == nil && !runsNewTerminals)
+        } header: {
+            Text("New Terminals")
+        } footer: {
+            Text("""
+                Each new tab or split starts its shell in a new herdr-core terminal (hc run) and shows it with hc attach, so the shell and anything running in it keep going when the tab closes or Moo quits, and agents started there appear in the agent panel. Reattach a closed tab's terminal with hc attach (hc ls lists them); exiting its shell ends it.
+                Inside herdr-core, the shell starts with herdr-core's environment rather than Moo's, so Moo's shell integration (directory and command tracking) does not reach it. Takes effect for new panes.
                 """)
                 .font(.caption)
                 .foregroundStyle(.secondary)

@@ -42,6 +42,8 @@ enum HerdrDefaults {
     static let agentPanelHeight = "herdrAgentPanelHeight"
     /// Made-up names and ASCII critters in the agent panel.
     static let namesAgents = "herdrNamesAgents"
+    /// New tabs and splits run their shell in herdr-core (HerdrCoreLaunch).
+    static let runsNewTerminals = "herdrRunsNewTerminals"
 
     static let defaultShowsAgents = false
     static let defaultAlertsWhenBlocked = true
@@ -50,6 +52,8 @@ enum HerdrDefaults {
     static let defaultShowsAgentPanel = true
     static let defaultAgentPanelHeight: Double = 240
     static let defaultNamesAgents = false
+    static let defaultRunsNewTerminals = false
+    static var runsNewTerminalsEnabled: Bool { bool(runsNewTerminals, default: defaultRunsNewTerminals) }
 
     static var showsAgentsEnabled: Bool { bool(showsAgents, default: defaultShowsAgents) }
     static var blockedAlertsEnabled: Bool { bool(alertsWhenBlocked, default: defaultAlertsWhenBlocked) }

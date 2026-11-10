@@ -241,6 +241,7 @@ Clicking one brings up the tab and focuses the agent's pane in herdr.
 | **Show herdr agents** | On · Off | Off | Lists herdr's agents in the sidebar ("claude · api · needs you"). Once on, the line under it says where herdr is installed and how many agents Moo sees, or how to install it. While the Herdr app's herdr-core runs, it counts that core's agents instead, and installing herdr is optional. Never taken from a shared profile. |
 | **Show the agent panel in the sidebar** | On · Off | **On** | Lists every agent Moo reads, from both herdrs, in a panel under the projects, grouped by herdr workspace or Herdr space. Drag the divider above it to make it taller or shorter. Only while **Show herdr agents** is on. |
 | **Give agents names and pictures** | On · Off | Off | Gives each agent in the panel a made-up name ("juniper") and a three-line ASCII critter whose face shows its status: `o.o` working, `O_O` needs you, `^_^` finished, `-.-` idle, `x_x` error. The agent's program and summary move to the lines under the name. An agent keeps its name across launches. Only while the agent panel is on. |
+| **Run new tabs and splits in herdr-core** | On · Off | Off | Each new tab or split starts its shell in a new herdr-core terminal and attaches to it, so the shell and anything in it (an agent) keep running when the tab closes or Moo quits, and agents started there appear in the agent panel. Needs `hc` (the Herdr app or herdr-core). Never taken from a shared profile. |
 | **Alert when a herdr agent needs you** | On · Off | **On** | An agent that herdr reports as blocked (an approval prompt, a question) posts an entry, so the Notifications page's alerts apply. The entry is marked read once the agent moves on. |
 | **Alert when a herdr agent finishes** | On · Off | Off | An agent going from working to idle posts an entry. Off by default because it happens on every turn. |
 
@@ -278,6 +279,15 @@ Clicking one brings up the tab and focuses the agent's pane in herdr.
   subscribes to herdr-core's events; it never starts, types into or stops
   its terminals. herdr-core agents post no entries to the notifications
   list: the Herdr app alerts for them.
+- **New terminals in herdr-core.** With **Run new tabs and splits in
+  herdr-core** on, a new pane runs `hc run --bg --rm --no-parent -- <your shell> -l` and
+  then `hc attach` to the terminal it started, as if you had typed them; if
+  `hc` is missing or fails, the pane runs your shell as usual. Closing the tab
+  only detaches: the terminal keeps running until you exit its shell, and
+  `hc ls` and `hc attach t7` bring it back. A shell inside herdr-core starts
+  with herdr-core's environment rather than Moo's, so Moo's shell integration
+  (directory and command tracking) does not reach it. Tabs Moo opens to run a
+  command of its own, such as the agent panel's `hc attach`, are not wrapped.
 - **Not shown:** herdr sessions never attached in a Moo tab, and agents on
   other machines (`herdr --remote`).
 - **herdr's own alerts** are separate from these: they need

@@ -1205,7 +1205,13 @@ final class TerminalSessionController: NSObject, LocalProcessTerminalViewDelegat
 
         restoreBufferIfNeeded(on: terminal)
 
-        let params = ProfileApplier.launchParameters(for: profile, initialDirectory: launchDirectory)
+        var params = ProfileApplier.launchParameters(for: profile, initialDirectory: launchDirectory)
+        // Settings → herdr: run the shell in herdr-core and attach to it.
+        // Not for a tab opened to run a command of Moo's own (typedOnStart),
+        // such as the agent panel's `hc attach`.
+        if typedOnStart == nil, HerdrDefaults.runsNewTerminalsEnabled, let hc = HerdrCoreLaunch.hcPath() {
+            params = HerdrCoreLaunch.wrap(params, hcPath: hc)
+        }
         // A stable per-terminal identity. Nothing consumes it yet, but it is
         // the key anything durable (agent status, notifications) will bind to,
         // and retrofitting it once sessions exist in the wild is expensive.

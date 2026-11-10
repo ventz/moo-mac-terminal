@@ -635,3 +635,73 @@ struct AgentCritterTests {
         #expect(AgentCritters.stableHash("a") == 0xaf63_dc4c_8601_ec8c)
     }
 }
+
+// MARK: - New terminals in herdr-core
+
+@MainActor
+struct HerdrCoreLaunchTests {
+    /// Runs the wrapped launch with a stand-in `hc` and returns what it
+    /// printed and what `hc run` was asked.
+    private func run(_ parameters: LaunchParameters, hc body: String) throws -> (output: String, log: String) {
+        let directory = (NSTemporaryDirectory() as NSString).appendingPathComponent("hl.\(UUID().uuidString.prefix(6))")
+        try FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: directory) }
+        let hc = (directory as NSString).appendingPathComponent("hc")
+        let log = (directory as NSString).appendingPathComponent("log")
+        try ("#!/bin/sh\n" + body).write(toFile: hc, atomically: true, encoding: .utf8)
+        chmod(hc, 0o755)
+
+        let wrapped = HerdrCoreLaunch.wrap(parameters, hcPath: hc)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: wrapped.executable)
+        process.arguments = wrapped.args
+        process.environment = ["PWD": directory, "LOG": log, "PATH": "/usr/bin:/bin"]
+        process.currentDirectoryURL = URL(fileURLWithPath: directory)
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        process.standardError = pipe
+        try process.run()
+        process.waitUntilExit()
+        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        let logged = (try? String(contentsOfFile: log, encoding: .utf8)) ?? ""
+        return (output, logged.replacingOccurrences(of: directory, with: "<dir>"))
+    }
+
+    private let loginShell = LaunchParameters(
+        executable: "/bin/zsh", args: [], execName: "-zsh", environment: [], currentDirectory: nil
+    )
+
+    @Test func startsTheShellInHerdrCoreAndAttaches() throws {
+        let result = try run(loginShell, hc: """
+            case "$1" in
+            run) echo "$*" >> "$LOG"; printf '{\\n  "address": "t9",\\n  "state": "live"\\n}\\n' ;;
+            attach) echo "attached to $2" ;;
+            esac
+            """)
+        #expect(result.output == "attached to t9\n")
+        #expect(result.log == "run --bg --json --rm --no-parent --no-notify --label moo=1 --cwd <dir> -- /bin/zsh -l\n")
+    }
+
+    /// No herdr-core, or one that will not start a terminal: the pane runs
+    /// what it would have run anyway.
+    @Test func fallsBackToALocalShell() throws {
+        let echo = LaunchParameters(executable: "/bin/echo", args: ["local", "shell"], execName: nil,
+                                    environment: [], currentDirectory: nil)
+        let result = try run(echo, hc: "exit 1\n")
+        #expect(result.output.contains("this shell runs in Moo instead"))
+        #expect(result.output.hasSuffix("local shell\n"))
+    }
+
+    @Test func findsHc() {
+        let home = "/Users/someone"
+        #expect(HerdrCoreLaunch.hcPath(home: home, isExecutable: { $0 == "/Users/someone/.local/bin/hc" })
+                == "/Users/someone/.local/bin/hc")
+        #expect(HerdrCoreLaunch.hcPath(home: home, isExecutable: { $0 == "/opt/homebrew/bin/hc" }) == "/opt/homebrew/bin/hc")
+        #expect(HerdrCoreLaunch.hcPath(home: home, isExecutable: { _ in false }) == nil)
+    }
+
+    @Test func isOffByDefault() {
+        #expect(HerdrDefaults.defaultRunsNewTerminals == false)
+        #expect(AppSettings.securitySensitiveKeys.contains(HerdrDefaults.runsNewTerminals))
+    }
+}
