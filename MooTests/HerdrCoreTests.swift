@@ -72,6 +72,7 @@ struct HerdrCoreProtocolTests {
         #expect(agent.message == "Run tests?")
         #expect(agent.location == "api")
         #expect(agent.title == "Fix the build")
+        #expect(agent.summary == "Fix the build")
         // No status: not an agent, but kept for when it reports one.
         #expect(terminals[1].agent == nil)
         #expect(terminals[1].cwd == "/w/web")
@@ -112,6 +113,22 @@ struct HerdrCoreProtocolTests {
             #"{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"the core is stopping","data":{"kind":"unavailable"}}}"#
         )) == .error(kind: "unavailable", message: "the core is stopping"))
         #expect(HerdrCoreProtocol.parse(line("not json")) == nil)
+    }
+
+    /// The line under the name: a name beats the title; a title that only
+    /// names the program, a path or a prompt says nothing; spinner glyphs
+    /// in front are dropped.
+    @Test func summarizesTheSession() {
+        func summary(_ title: String, name: String? = nil) -> String? {
+            HerdrCoreProtocol.summary(name: name, title: title, app: "claude-code", program: "claude")
+        }
+        #expect(summary("Moo source rebase to latest main") == "Moo source rebase to latest main")
+        #expect(summary("⠂ Fix the build") == "Fix the build")
+        #expect(summary("✳ Fix the build") == "Fix the build")
+        #expect(summary("Fix the build", name: "reviewer") == "reviewer")
+        for generic in ["", "  ", "claude", "Claude-Code", "~/src/app", "/tmp", "me@host:~", "C:\\work"] {
+            #expect(summary(generic) == nil, "\(generic)")
+        }
     }
 
     @Test func groupsByTheHerdrSpaceThenTheFolder() {
@@ -324,12 +341,21 @@ struct HerdrCoreBridgeTests {
         defer { bridge.stop() }
         try await waitUntil("live") { bridge.state == .live }
         let before = structures
-        server.push("title", terminal: "t1", data: ["title": "Thinking…"])
+        server.push("title", terminal: "t1", data: ["title": "claude"])
         server.push("foreground", terminal: "t2", data: ["argv": ["vim"], "cwd": "/tmp/x", "name": "vim", "pid": 2])
         server.push("labels", terminal: "t1", data: ["labels": ["where": "docs / 1"]])
         try await waitUntil("moved") { bridge.agents["t1"]?.location == "docs" }
-        #expect(bridge.agents["t1"]?.title == "Thinking…")
+        #expect(bridge.agents["t1"]?.title == "claude")
         #expect(structures == before + 1)
+
+        // A new summary redraws; the same summary behind a new spinner does not.
+        server.push("title", terminal: "t1", data: ["title": "⠂ Fix the build"])
+        try await waitUntil("summary") { bridge.agents["t1"]?.summary == "Fix the build" }
+        #expect(structures == before + 2)
+        server.push("title", terminal: "t1", data: ["title": "⠐ Fix the build"])
+        server.push("labels", terminal: "t1", data: ["labels": ["where": "web / 1"]])
+        try await waitUntil("moved again") { bridge.agents["t1"]?.location == "web" }
+        #expect(structures == before + 3)
     }
 
     /// Program-written text is cleaned before anything can show it.
@@ -376,6 +402,7 @@ struct HerdrAgentPanelTests {
         #expect(rows.map(\.group) == ["api", "api", "web"])
         #expect(rows.map(\.agent) == ["claude-code", "claude-code", "codex"])
         #expect(rows.map(\.statusText) == ["needs you: permission", "finished", "working"])
+        #expect(rows.allSatisfy { $0.summary == nil })
         #expect(monitor.coreAgentCount == 3)
         #expect(monitor.liveCoreSessionCount == 1)
         // Nothing posted: there is no Moo pane to point an entry at.

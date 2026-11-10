@@ -245,7 +245,8 @@ final class HerdrCoreBridge {
         case .other:
             return
         }
-        // Titles feed only the tooltip; they change too often to redraw for.
+        // A title change shows only through the summary it gives; the rest
+        // of a title (a spinner) changes too often to redraw for.
         guard Self.listing(agents) != Self.listing(old) else { return }
         report(from: old)
         onChange(.structure)
@@ -278,6 +279,7 @@ final class HerdrCoreBridge {
         var raw = raw
         raw.status = raw.status.map(cleaned)
         raw.title = HerdrBridge.cleanName(raw.title)
+        raw.name = raw.name.map(HerdrBridge.cleanName)
         raw.foregroundName = raw.foregroundName.map(HerdrBridge.cleanName)
         raw.labels = raw.labels.mapValues(HerdrBridge.cleanName)
         raw.cwd = HerdrBridge.cleanName(raw.cwd)

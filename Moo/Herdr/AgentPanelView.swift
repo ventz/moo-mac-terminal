@@ -201,20 +201,31 @@ struct AgentPanelView: View {
     }
 
     private func rowView(_ row: HerdrPanelRow) -> some View {
-        HStack(spacing: 6) {
-            Circle()
-                .fill(row.isDetached ? style.idle.opacity(0.4) : style.color(for: row.status))
-                .frame(width: 6, height: 6)
-            Text(row.agent)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(style.text)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Spacer(minLength: 4)
-            Text(row.statusText)
-                .font(.system(size: 10))
-                .foregroundStyle(style.secondaryText)
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(row.isDetached ? style.idle.opacity(0.4) : style.color(for: row.status))
+                    .frame(width: 6, height: 6)
+                Text(row.agent)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(style.text)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 4)
+                Text(row.statusText)
+                    .font(.system(size: 10))
+                    .foregroundStyle(style.secondaryText)
+                    .lineLimit(1)
+            }
+            if let summary = row.summary {
+                // Under the name, past the dot.
+                Text(summary)
+                    .font(.system(size: 10))
+                    .foregroundStyle(style.secondaryText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.leading, 12)
+            }
         }
         .opacity(row.isDetached ? 0.6 : 1)
         .padding(.horizontal, 6)

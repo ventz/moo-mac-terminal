@@ -259,7 +259,10 @@ Clicking one brings up the tab and focuses the agent's pane in herdr.
   Moo itself was started with that set (a Moo opened from the Dock does not
   see what your shell's rc file exports), with the same ownership checks. It
   lists their agents in the agent panel with the status each agent reports
-  itself. Clicking one opens a new tab running
+  itself, and under each name a line saying what the session is about: the
+  terminal's name when it has one, else the title the agent set (Claude
+  Code titles its terminal with a summary of the session). A title that is
+  only the program's name, a path or a shell prompt is left out. Clicking one opens a new tab running
   `HC_SESSION=default hc attach t7`; **Watch in New Tab** in its menu adds
   `--observe`, which never types into or resizes it. Moo only
   subscribes to herdr-core's events; it never starts, types into or stops

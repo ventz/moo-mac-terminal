@@ -43,6 +43,10 @@ nonisolated struct HerdrCoreTerminal: Equatable, Sendable {
     /// folder it runs in.
     var location: String
     var title: String
+    /// What the session is about, for the line under the agent's name:
+    /// the terminal's name when it has one (`hc run --name`), else the
+    /// title the program set, unless that title says nothing.
+    var summary: String?
 }
 
 nonisolated enum HerdrCoreEvent: Equatable, Sendable {
@@ -73,6 +77,8 @@ nonisolated struct HerdrCoreRaw: Equatable, Sendable {
     var status: [String: String]?
     var labels: [String: String]
     var title: String
+    /// The name it was given (`hc run --name`), if any.
+    var name: String?
     /// What runs in it: argv[0]'s name ("claude"), not the process title,
     /// which a program can set to anything (Claude Code's is its version).
     var foregroundName: String?
@@ -91,7 +97,8 @@ nonisolated struct HerdrCoreRaw: Equatable, Sendable {
             blockedKind: status["kind"].flatMap { $0.isEmpty ? nil : $0 },
             message: message,
             location: HerdrCoreProtocol.location(labels: labels, cwd: cwd),
-            title: title
+            title: title,
+            summary: HerdrCoreProtocol.summary(name: name, title: title, app: app, program: foregroundName)
         )
     }
 }
@@ -162,6 +169,7 @@ nonisolated enum HerdrCoreProtocol {
             status: strings(object["status"]),
             labels: strings(object["labels"]) ?? [:],
             title: object["title"] as? String ?? "",
+            name: (object["name"] as? String).flatMap { $0.isEmpty ? nil : $0 },
             foregroundName: programName(foreground),
             cwd: foreground?["cwd"] as? String ?? object["cwd"] as? String ?? ""
         )
@@ -206,6 +214,24 @@ nonisolated enum HerdrCoreProtocol {
         }
         let folder = (cwd as NSString).lastPathComponent
         return folder.isEmpty || folder == "/" ? "herdr" : folder
+    }
+
+    /// The line under an agent's name. Claude Code, for one, titles its
+    /// terminal with a summary of the session ("Fix the login redirect"),
+    /// as the Herdr app shows it. A title that only names the program, or
+    /// is a path or a shell prompt ("user@host:~"), says nothing and is
+    /// left out. Leading spinner and status glyphs are dropped, so a title
+    /// animating while the agent works reads, and redraws, as one.
+    static func summary(name: String?, title: String, app: String?, program: String?) -> String? {
+        if let name, !name.isEmpty { return name }
+        let text = String(title.drop { !$0.isLetter && !$0.isNumber && $0 != "~" && $0 != "/" })
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return nil }
+        let lowered = text.lowercased()
+        if lowered == app?.lowercased() || lowered == program?.lowercased() { return nil }
+        if text.hasPrefix("~") || text.hasPrefix("/") || text.contains("@") { return nil }
+        if text.count >= 3, text.dropFirst().hasPrefix(":\\") { return nil }
+        return text
     }
 
     /// argv[0]'s last path component, else the OS's name for the process.

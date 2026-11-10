@@ -102,6 +102,12 @@ struct HerdrPanelRow: Identifiable, Equatable {
         return false
     }
 
+    /// What the session is about, from herdr-core; herdr 0.9 does not say.
+    var summary: String? {
+        if case .core(_, let terminal) = source { return terminal.summary }
+        return nil
+    }
+
     var statusText: String {
         switch source {
         case .session(let row):
