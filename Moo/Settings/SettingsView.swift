@@ -40,8 +40,17 @@ struct SettingsView: View {
                         ForEach(SettingsDestination.Group.allCases) { group in
                             Section {
                                 ForEach(group.destinations) { destination in
-                                    Label(sidebarTitle(for: destination), systemImage: destination.systemImage)
-                                        .tag(destination)
+                                    Label {
+                                        // The badged symbols (Profiles' gear,
+                                        // Data's checkmark) are wider than the
+                                        // list's icon column and ran into the
+                                        // title; every title moves over alike.
+                                        Text(sidebarTitle(for: destination))
+                                            .padding(.leading, 4)
+                                    } icon: {
+                                        Image(systemName: destination.systemImage)
+                                    }
+                                    .tag(destination)
                                 }
                             } header: {
                                 if let title = group.title {
